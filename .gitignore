@@ -4,8 +4,9 @@ config.json
 # 일정 (local 백엔드)
 jaba.db
 jaba.db-journal
-# 학습한 규칙
+# 학습한 규칙 · 일정 위키
 jaba_rules.json
+jaba_wiki.json
 *.broken
 *.tmp
 # PC마다 파이썬 경로가 다름 (실행하면 자동 생성)

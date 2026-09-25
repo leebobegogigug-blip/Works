@@ -44,6 +44,7 @@
   },
   "reminder_minutes": 10,
   "learn_file": "jaba_rules.json",
+  "wiki_file": "jaba_wiki.json",
   "theme": "dark",
   "port": 8765,
   "hotkey": "ctrl+alt+j",

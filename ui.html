@@ -238,6 +238,29 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .rule-add button{border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);text-shadow:var(--b);padding:0 12px;cursor:pointer;box-shadow:0 3px 0 var(--accent-press)}
 .rule-add button:active{transform:translateY(2px);box-shadow:none}
 .mem-help{padding:6px 12px 2px;line-height:20px;color:var(--ink-3)}
+/* 일정 위키 */
+.lcd .wk{flex:none;border:1px solid var(--lcd-ink-2);background:none;color:var(--lcd-ink);border-radius:4px;padding:0 5px;line-height:14px;cursor:pointer}
+.lcd .wk:hover{background:var(--lcd-ink);color:var(--lcd)}
+.wb{background:var(--k3);color:var(--k3-ink);padding:0 4px;margin-right:6px;line-height:16px;text-shadow:none}
+.row.haswiki{cursor:pointer}
+.row.haswiki:hover{background:var(--key)}
+.row.now.haswiki:hover{background:var(--accent)}
+.wiki{overflow:auto;padding:8px 12px 10px;min-height:0}
+.wiki .meta{color:var(--ink-3);line-height:20px}
+.wiki dt{color:var(--ink-2);line-height:20px;margin-top:8px}
+.wiki dd{margin:0 0 0 10px;line-height:20px;overflow-wrap:anywhere;white-space:pre-wrap}
+.wiki a{color:var(--accent)}
+.wiki details{margin-top:12px;color:var(--ink-3)}
+.wiki summary{cursor:pointer;line-height:20px}
+.wiki .src{line-height:20px;padding:3px 0;border-top:1px dashed var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
+.wiki .wacts{display:flex;gap:8px;margin-top:12px}
+.wiki .wacts button{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:24px;cursor:pointer}
+.wiki .wacts button:hover{color:var(--ink);border-color:var(--ink-2)}
+.wiki .empty{color:var(--ink-3);line-height:20px}
+.wrow{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:baseline;padding:3px 6px;border-radius:6px;line-height:20px;cursor:pointer;animation:slide .3s both}
+.wrow:hover{background:var(--key)}
+.wrow .wn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:var(--b)}
+.wrow .ws{color:var(--ink-3);white-space:nowrap}
 
 /* 컬러 키캡 · 입력 */
 .keys{display:flex;gap:7px;padding:9px 12px 2px}
@@ -332,7 +355,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
     <span class="clock"><span id="clock-date"></span><span id="clock-time" role="img" aria-label="--:--"></span></span>
   </header>
   <section class="lcd" id="next-box" aria-label="다음 일정">
-    <div class="lcd-top"><span id="next-k">next</span><span id="next-meta"></span><span id="next-when"></span></div>
+    <div class="lcd-top"><span id="next-k">next</span><span id="next-meta"></span><button class="wk" id="next-wiki" type="button" title="이 일정 위키 (Alt+W)" hidden>위키</button><span id="next-when"></span></div>
     <div class="lcd-mid"><div class="next-count" id="next-count" role="img" aria-label="--:--"></div><div class="next-title" id="next-title">&nbsp;</div></div>
     <span class="mascot idle" id="mascot" aria-hidden="true"></span>
   </section>
@@ -354,6 +377,10 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
       <div class="mem-help">모든 제안·정리에 먼저 적용 · 내 PC에만 저장</div>
       <div class="rules" id="rules"></div>
       <form class="rule-add" id="rule-form" autocomplete="off"><input id="rule-input" maxlength="300" placeholder="예) 스크럼은 항상 15분" aria-label="새 규칙"><button type="submit">가르치기</button></form>
+    </div>
+    <div class="drawer" id="wiki-drawer" hidden>
+      <div class="drawer-h"><span class="num">03</span><button class="nav" id="wiki-back" type="button" aria-label="위키 목록" hidden>◀</button><span id="wiki-title">일정 위키</span><span class="spacer"></span><button class="x" id="wiki-close" type="button" aria-label="닫기">×</button></div>
+      <div class="wiki" id="wiki-body"></div>
     </div>
   </main>
   <div class="keys">
@@ -637,7 +664,8 @@ function renderRules(rules){
 async function refreshRules(){ const r = await api('/api/rules'); if (!r.error) renderRules(r.rules || []); return r; }
 
 /* ── 서랍 */
-function closeDrawers(){ $('#day-drawer').hidden = true; $('#mem-drawer').hidden = true; $('.chat').classList.remove('dim'); }
+function closeDrawers(){ $('#day-drawer').hidden = true; $('#mem-drawer').hidden = true; $('#wiki-drawer').hidden = true; $('.chat').classList.remove('dim'); }
+function anyDrawer(){ return !$('#day-drawer').hidden || !$('#mem-drawer').hidden || !$('#wiki-drawer').hidden; }
 function toggleDay(force){
   const d = $('#day-drawer'), open = force === undefined ? d.hidden : force;
   closeDrawers();
@@ -648,6 +676,90 @@ function toggleMem(force){
   closeDrawers();
   if (open){ d.hidden = false; $('.chat').classList.add('dim'); refreshRules(); setTimeout(() => $('#rule-input').focus(), 50); }
   else msgEl.focus();
+}
+
+/* ── 일정 위키 */
+const WIKI_FIELDS = [['goal', '목적'], ['agenda', '안건'], ['prep', '준비'], ['people', '참석자'],
+                     ['decisions', '결정·할 일'], ['notes', '메모'], ['links', '링크']];
+function openWikiDrawer(){
+  closeDrawers();
+  $('#wiki-drawer').hidden = false; $('.chat').classList.add('dim');
+}
+async function openWiki(id){
+  openWikiDrawer();
+  const r = await api('/api/wiki?id=' + encodeURIComponent(id));
+  if (r.error || !r.page){ renderWikiList(null, r.error || '위키를 찾을 수 없습니다'); return; }
+  renderWikiPage(r.page);
+}
+async function openWikiList(){
+  openWikiDrawer();
+  const r = await api('/api/wiki');
+  renderWikiList(r.pages || [], r.error);
+}
+function toggleWiki(){
+  if (!$('#wiki-drawer').hidden){ closeDrawers(); msgEl.focus(); return; }
+  const id = $('#next-wiki').dataset.id;
+  if (id) openWiki(id); else openWikiList();
+}
+function wikiValue(key, v){
+  const dd = el('dd');
+  if (Array.isArray(v)){
+    v.forEach((x, i) => {
+      if (i) dd.append(document.createTextNode('\n'));
+      if (key === 'links' && /^https?:\/\//i.test(x)){
+        const a = el('a', null, x); a.href = x; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        dd.append(document.createTextNode('· '), a);
+      } else dd.append(document.createTextNode('· ' + x));
+    });
+  } else dd.textContent = v;
+  return dd;
+}
+function renderWikiPage(p){
+  const body = $('#wiki-body'); body.textContent = '';
+  $('#wiki-title').textContent = p.id + ' · ' + p.title;
+  $('#wiki-back').hidden = false;
+  const where = p.scope === 'event' ? '이 일정만 · ' + (p.event_label || '') : '같은 제목 일정 모두';
+  body.append(el('div', 'meta', where + ' · 고침 ' + String(p.updated || '').replace('T', ' ').slice(5, 16)));
+  const dl = el('dl');
+  WIKI_FIELDS.forEach(([k, label]) => {
+    const v = p[k];
+    if (!v || (Array.isArray(v) && !v.length)) return;
+    dl.append(el('dt', null, label), wikiValue(k, v));
+  });
+  if (!dl.childElementCount) dl.append(el('div', 'empty', '(비어 있음)'));
+  body.append(dl);
+  const src = p.sources || [];
+  if (src.length){
+    const d = el('details'); d.append(el('summary', null, '원문 기록 ' + src.length + '개'));
+    src.slice().reverse().forEach((x) => d.append(el('div', 'src', String(x.at || '').replace('T', ' ').slice(5, 16) + '  ' + x.text)));
+    body.append(d);
+  }
+  const acts = el('div', 'wacts');
+  const edit = el('button', null, '대화로 고치기'); edit.type = 'button';
+  edit.addEventListener('click', () => { closeDrawers(); msgEl.value = "'" + p.title + "' 위키에 "; autosize(); msgEl.focus(); });
+  const del = el('button', null, '지우기'); del.type = 'button';
+  del.addEventListener('click', async () => {
+    if (!confirm(p.title + ' 위키를 지울까요?')) return;
+    const r = await api('/api/wiki/' + p.id + '/delete', {});
+    if (r.error){ addSys(r.error); return; }
+    renderWikiList(r.pages || []); refreshAll();
+  });
+  acts.append(edit, del);
+  body.append(acts);
+}
+function renderWikiList(pages, error){
+  const body = $('#wiki-body'); body.textContent = '';
+  $('#wiki-title').textContent = '일정 위키';
+  $('#wiki-back').hidden = true;
+  if (error){ body.append(el('div', 'empty', 'ERR · ' + error)); return; }
+  if (!pages.length){ body.append(el('div', 'empty', '아직 없음 · 대화로 "내일 김과장 미팅 준비물은 견적서, 안건은 단가 협상이야 정리해줘"')); return; }
+  pages.forEach((p, i) => {
+    const row = el('div', 'wrow'); row.style.animationDelay = (i * 30) + 'ms';
+    row.append(el('b', 'wb', p.id), el('span', 'wn', p.title), el('span', 'ws', p.scope === 'event' ? '한 번' : '매번'));
+    row.title = (p.prep || []).length ? '준비: ' + p.prep.join(', ') : '';
+    row.addEventListener('click', () => openWiki(p.id));
+    body.append(row);
+  });
 }
 
 /* ── 보내기 */
@@ -681,6 +793,7 @@ async function send(text){
   else if (mood !== 'happy') setMood(baseMood());
   if ((r.learned || []).length || (r.forgot || []).length){ if (!$('#mem-drawer').hidden) refreshRules(); }
   if (r.open_mem) toggleMem(true);
+  if (r.open_wiki){ if (r.open_wiki === 'list') openWikiList(); else openWiki(r.open_wiki); }
   setLed('llm', r.llm_ok === false ? 'err' : (r.llm_ok ? 'ok' : ''), r.error || '');
   if (r.mode) setMode(r.mode);
   if ((r.updated || []).some((p) => p.status === 'done')) refreshAll();
@@ -771,7 +884,10 @@ function renderDayList(events, error){
     if (en <= now) row.classList.add('past'); else if (s <= now) row.classList.add('now');
     if (!e.busy) row.classList.add('free');
     row.style.animationDelay = (i * 35) + 'ms';
-    row.append(el('span', 'rt', hm(s) + '–' + hm(en)), el('span', 'rn', e.title), el('span', 'rl', e.location ? '@' + e.location : ''));
+    const rn = el('span', 'rn');
+    if (e.wiki){ rn.append(el('b', 'wb', 'W')); row.classList.add('haswiki'); row.title = '위키 보기'; row.addEventListener('click', () => openWiki(e.wiki)); }
+    rn.append(document.createTextNode(e.title));
+    row.append(el('span', 'rt', hm(s) + '–' + hm(en)), rn, el('span', 'rl', e.location ? '@' + e.location : ''));
     list.append(row);
   });
 }
@@ -800,6 +916,8 @@ async function refreshNext(){
 function paintNext(){
   const r = nextState;
   if (!r || booting) return;
+  const wk = $('#next-wiki'), wid = (r.current && r.current.wiki) || (!r.current && r.next && r.next.wiki) || '';
+  wk.hidden = !wid; wk.dataset.id = wid;
   const now = new Date(), box = $('#next-box');
   box.classList.remove('soon');
   if (r.current){
@@ -833,7 +951,7 @@ async function pollAlerts(){
   if (r.error || !r.alerts) return;
   r.alerts.forEach((a) => {
     lastAlert = Math.max(lastAlert, a.id);
-    showToast(a.title + ' · ' + a.body);
+    showToast(a.title + ' · ' + a.body, a.wiki);
     addAct({tool: a.title, text: a.body, icon: '⏰ '}, 'alert');
     if (!a.toast){ try { if ('Notification' in window && Notification.permission === 'granted') new Notification(a.title, {body: a.body}); } catch (e) {} }
     setMood('alert', 6000);
@@ -841,9 +959,12 @@ async function pollAlerts(){
     flashTitle(a.title);
   });
 }
-function showToast(text){
+function showToast(text, wiki){
   $('#mascot-toast').innerHTML = mascotSVG('alert');
   $('#toast-text').textContent = text;
+  $('#toast').dataset.wiki = wiki || '';
+  $('#toast-text').style.cursor = wiki ? 'pointer' : '';
+  $('#toast-text').title = wiki ? '위키 보기' : '';
   const t = $('#toast'); t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
   clearTimeout(showToast.t); showToast.t = setTimeout(() => t.classList.remove('show'), 60000);
 }
@@ -903,10 +1024,11 @@ document.addEventListener('keydown', (e) => {
   if (e.altKey && !e.ctrlKey && /^[1-4]$/.test(e.key)){ e.preventDefault(); pressKey(document.querySelectorAll('.key')[+e.key - 1]); return; }
   if (e.altKey && (e.code === 'KeyM')){ e.preventDefault(); pressKey($('#mem-key')); return; }
   if (e.altKey && (e.code === 'KeyD')){ e.preventDefault(); toggleDay(); return; }
+  if (e.altKey && (e.code === 'KeyW')){ e.preventDefault(); toggleWiki(); return; }
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
     const c = latestPending(); if (c){ e.preventDefault(); act(c.dataset.id, 'confirm'); }
   } else if (e.key === 'Escape'){
-    if (!$('#day-drawer').hidden || !$('#mem-drawer').hidden){ closeDrawers(); msgEl.focus(); return; }
+    if (anyDrawer()){ closeDrawers(); msgEl.focus(); return; }
     if ($('#toast').classList.contains('show')){ $('#toast').classList.remove('show'); return; }
     const c = latestPending(); if (c && !msgEl.value){ e.preventDefault(); act(c.dataset.id, 'cancel'); }
   }
@@ -921,6 +1043,10 @@ $('#day-close').addEventListener('click', () => { closeDrawers(); msgEl.focus();
 $('#prev').addEventListener('click', () => { viewDate = addDays(viewDate, -1); refreshDay(); });
 $('#next').addEventListener('click', () => { viewDate = addDays(viewDate, 1); refreshDay(); });
 $('#agenda-date').addEventListener('click', () => { viewDate = startOfDay(new Date()); refreshDay(); });
+$('#next-wiki').addEventListener('click', () => { const id = $('#next-wiki').dataset.id; if (id) openWiki(id); });
+$('#wiki-close').addEventListener('click', () => { closeDrawers(); msgEl.focus(); });
+$('#wiki-back').addEventListener('click', () => openWikiList());
+$('#toast-text').addEventListener('click', () => { const id = $('#toast').dataset.wiki; if (id){ $('#toast').classList.remove('show'); openWiki(id); } });
 $('#rule-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const inp = $('#rule-input'), text = inp.value.trim();

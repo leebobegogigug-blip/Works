@@ -73,6 +73,7 @@ def start_stack(mode, tmp, theme=None, ongoing=False, alert_soon=False):
     cfg = {"llm": {"base_url": f"http://127.0.0.1:{llm_port}/v1", "model": "사내-LLM", "proxy": ""},
            "calendar": {"backend": "local", "local_db": db}, "open_window": False, "hotkey": "",
            "port": app_port, "user_name": "Bob", "learn_file": os.path.join(tmp, f"rules-{app_port}.json"),
+           "wiki_file": os.path.join(tmp, f"wiki-{app_port}.json"),
            "alerts": {"poll_sec": 1 if alert_soon else 10}}
     if theme:
         cfg["theme"] = theme
@@ -129,14 +130,22 @@ def check_mode(mode, tmp):
         r = api("/api/chat", {"message": "이번 주에 1시간 비는 시간 찾아줘"})
         assert r["reply"].startswith("1시간 비는 시간"), r
         assert "<think>" not in r["reply"]
-        r = api("/api/chat", {"message": "앞으로 스크럼은 항상 15분 기억해"})  # 대화로 학습 (모드별)
-        assert r["learned"] and r["learned"][0]["text"] == "스크럼은 항상 15분", r
+        r = api("/api/chat", {"message": "앞으로 스크럼은 항상 15분 기억해"})  # 대화로 학습 (모드별) → 카드 확정
+        card = r["proposals"][0]
+        assert card["kind"] == "rule" and card["rows"][0][1] == "스크럼은 항상 15분", r
+        assert api(f"/api/proposals/{card['id']}/confirm", {})["rules"] == 1
+        r = api("/api/chat", {"message": "주간회의 준비물은 노트북이랑 지난주 회의록, 안건은 분기 목표 점검이야 정리해줘"})
+        card = r["proposals"][0]
+        assert card["kind"] == "wiki" and ["준비", "노트북 · 지난주 회의록", True] in card["rows"], r
+        assert api(f"/api/proposals/{card['id']}/confirm", {})["proposal"]["status"] == "done"
+        r = api("/api/chat", {"message": "주간회의 준비물 뭐였지?"})
+        assert [a["tool"] for a in r["activity"]] == ["list_events", "wiki_read"] and "노트북" in r["reply"], r
         api("/api/chat", {"message": "내일 일정 알려줘"})
         stats = llm_stats(llm_port)
         assert stats["rules_in_prompt"] and "스크럼은 항상 15분" in stats["last_rules"], stats
         check = subprocess.run([sys.executable, os.path.join(ROOT, "jaba.py"), "--config", cfg_path, "--check"],
                                env=ENV, capture_output=True, text=True, timeout=60)
-        assert "학습 규칙 : 1개" in check.stdout, check.stdout
+        assert "학습 규칙 : 1개" in check.stdout and "일정 위키 : 1개" in check.stdout, check.stdout
         print(f"[{mode}] ok · llm 요청 {stats['requests']}회 (tools 포함 {stats['with_tools']}회)")
         print("   --check ▸ " + "\n   --check ▸ ".join(check.stdout.strip().splitlines()[2:]))
     finally:
@@ -223,6 +232,7 @@ def ui_run(tmp):
             # 오늘 일정 서랍
             p.click("#day-count")
             p.wait_for_selector("#day-drawer:not([hidden])")
+            p.wait_for_selector("#day-drawer .chip")  # 목록은 서랍이 열린 뒤 따로 받아 온다
             assert p.locator("#day-drawer .chip").count() == 1
             assert p.locator("#daylist .row").count() >= 6
             p.wait_for_timeout(500)
@@ -237,8 +247,11 @@ def ui_run(tmp):
             assert "학습했습니다" in p.locator(".msg.bot").last.inner_text()
             assert p.inner_text("#mem-count") == "1"
             say(p, "앞으로 코드리뷰는 30분으로 잡아 기억해")
+            p.wait_for_selector(".card.pending[data-kind='rule']")
+            assert p.inner_text("#mem-count") == "1"  # 대화로 배운 규칙은 확정해야 저장
+            p.click(".card.pending .okb")
             p.wait_for_function("document.querySelector('#mem-count').textContent === '2'")
-            assert p.locator(".act.learn").count() == 2
+            p.wait_for_selector(".plus1")
             st = llm_stats(llm_port)
             assert st["rules_in_prompt"] and "스크럼은 항상 15분" in st["last_rules"], st
             p.keyboard.press("Alt+m")
@@ -255,6 +268,34 @@ def ui_run(tmp):
             assert p.inner_text("#mem-count") == "2"
             p.keyboard.press("Escape")
 
+            # 일정 위키: 대화로 정리 → 확정 → 다음 일정 칸 [위키] · 일정 서랍 W · Alt+W · 질문
+            say(p, "주간회의 준비물은 노트북이랑 지난주 회의록, 안건은 분기 목표 점검이야 정리해줘")
+            p.wait_for_selector(".card.pending[data-kind='wiki']")
+            card = p.inner_text(".card.pending")
+            assert "노트북 · 지난주 회의록" in card and "분기 목표 점검" in card, card
+            p.click(".card.pending .okb")
+            p.wait_for_selector("#next-wiki:not([hidden])")
+            p.click("#next-wiki")
+            p.wait_for_selector("#wiki-body dl")  # 서랍이 열린 뒤 위키를 받아 온다
+            body = p.inner_text("#wiki-body")
+            assert "노트북" in body and "분기 목표 점검" in body and "원문 기록 1개" in body, body
+            p.wait_for_timeout(450)
+            p.screenshot(path=os.path.join(OUT, "jaba-wiki.png"))
+            p.keyboard.press("Escape")
+            p.wait_for_selector("#wiki-drawer", state="hidden")
+            p.keyboard.press("Alt+w")
+            p.wait_for_selector("#wiki-drawer:not([hidden])")
+            p.click("#wiki-back")
+            p.wait_for_selector("#wiki-body .wrow")
+            p.keyboard.press("Escape")
+            p.click("#day-count")
+            p.wait_for_selector("#daylist .row.haswiki .wb")
+            p.click("#daylist .row.haswiki")
+            p.wait_for_selector("#wiki-body dl")
+            p.keyboard.press("Escape")
+            say(p, "주간회의 준비물 뭐였지?")
+            assert "노트북" in p.locator(".msg.bot").last.inner_text()
+
             # 제안 → Esc 취소(구기기) → Ctrl+Enter 확정 → 'ㅇㅇ' 확정
             say(p, "월요일 오전 기획 회의 잡아줘")
             p.wait_for_selector(".card.pending")
@@ -263,15 +304,16 @@ def ui_run(tmp):
             p.screenshot(path=os.path.join(OUT, "jaba-pending.png"))
             p.keyboard.press("Escape")
             p.wait_for_selector(".card.cancelled")
+            done0 = p.locator(".card.done").count()  # 앞에서 확정한 카드 (일정 · 학습 · 위키)
             say(p, "월요일 오전 기획 회의 잡아줘")
             p.wait_for_selector(".card.pending")
             p.keyboard.press("Control+Enter")
-            p.wait_for_function("document.querySelectorAll('.card.done').length === 2")
+            p.wait_for_function(f"document.querySelectorAll('.card.done').length === {done0 + 1}")
             say(p, "내일 오전 회의 잡아줘")
             p.wait_for_selector(".card.pending")
             say(p, "ㅇㅇ")
             p.wait_for_function("document.querySelectorAll('.card.pending').length === 0")
-            assert p.locator(".card.done").count() == 3
+            assert p.locator(".card.done").count() == done0 + 2
 
             # Alt+1 빠른 키, /알림 → 앱 안 알림
             n = bots(p)
