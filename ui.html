@@ -197,6 +197,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .card.cancelled{animation:crumple .45s ease-out both}
 .card.cancelled .rows dd{text-decoration:line-through}
 .card.failed{border-color:var(--err)}
+.card.undone .rows dd{text-decoration:line-through}
+.card.undone{opacity:.7}
+.undo-row{padding:0 12px 10px}
+.undo{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:22px;cursor:pointer}
+.undo:hover{color:var(--ink);border-color:var(--ink-2)}
 .seal{position:absolute;right:12px;top:44px;width:72px;height:72px;border-radius:50%;border:3px solid var(--seal);color:var(--seal);display:grid;place-items:center;font-size:24px;line-height:24px;text-shadow:1.5px 0 0 currentColor;box-shadow:inset 0 0 0 3px var(--panel-2),inset 0 0 0 5px var(--seal);opacity:0;transform:rotate(-14deg);pointer-events:none}
 .card.done .seal{animation:stamp .45s cubic-bezier(.2,1.5,.35,1) forwards}
 .card.done.instant .seal{animation:none;opacity:.9;transform:rotate(-14deg) scale(1)}
@@ -585,7 +590,7 @@ function addAct(a, cls){
 function addSys(text){ logEl.appendChild(el('div', 'sys', text)); scrollLog(); }
 
 /* ── 제안 카드 */
-const STATUS = {pending: '대기', done: '반영됨', cancelled: '취소됨', failed: '실패'};
+const STATUS = {pending: '대기', done: '반영됨', cancelled: '취소됨', failed: '실패', undone: '되돌림'};
 function burst(card){
   const seal = card.querySelector('.seal');
   if (!seal || REDUCED) return;
@@ -622,22 +627,41 @@ function renderCard(p, instant){
   no.addEventListener('click', () => act(p.id, 'cancel'));
   acts.append(ok, no, el('span', 'hint', 'ctrl+↵ · esc'));
   c.append(acts, el('div', 'seal', p.kind === 'delete' ? '삭제' : '확정'));
+  if (p.status === 'done' && p.undo_left > 0) addUndo(c, p.id, p.undo_left);
   c.className = 'card ' + p.status + (instant ? ' instant' : '') + (fresh && p.status === 'pending' ? ' print' : '');
   if (fresh){ logEl.appendChild(c); scrollLog(); }
   if (p.status === 'done' && !fresh && !instant){ setTimeout(() => burst(c), 230); setMood('happy', 2600); }
   if (p.status === 'failed') setMood('error', 3500);
   return c;
 }
+/* 확정 뒤 몇 초 동안 되돌리기 (Ctrl+Z) */
+function addUndo(c, id, left){
+  const row = el('div', 'undo-row');
+  const b = el('button', 'undo', ''); b.type = 'button';
+  const paint = () => { b.textContent = '되돌리기 ' + left + 's · ctrl+z'; };
+  paint();
+  b.addEventListener('click', () => act(id, 'undo'));
+  row.append(b); c.append(row);
+  const t = setInterval(() => {
+    left -= 1;
+    if (left <= 0 || !row.isConnected || c.dataset.status !== 'done'){ clearInterval(t); row.remove(); return; }
+    paint();
+  }, 1000);
+}
+function latestUndo(){
+  const list = [...cards.values()].filter((c) => c.dataset.status === 'done' && c.querySelector('.undo'));
+  return list[list.length - 1];
+}
 async function act(id, action){
   const c = cards.get(id);
-  if (!c || c.dataset.status !== 'pending') return;
+  if (!c || c.dataset.status !== (action === 'undo' ? 'done' : 'pending')) return;
   c.querySelectorAll('button').forEach((b) => { b.disabled = true; });
   const r = await api('/api/proposals/' + id + '/' + action, {});
   if (r.error){ addSys(r.error); setMood('error', 3500); c.querySelectorAll('button').forEach((b) => { b.disabled = false; }); return; }
   renderCard(r.proposal);
   if (typeof r.rules === 'number') setRuleCount(r.rules);
   if (r.proposal.status === 'done' && r.proposal.kind === 'rule'){ learnedFx(1); if (!$('#mem-drawer').hidden) refreshRules(); }
-  else if (r.proposal.status === 'done') refreshAll();
+  else if (r.proposal.status === 'done' || r.proposal.status === 'undone'){ refreshAll(); if (r.proposal.kind === 'rule' && !$('#mem-drawer').hidden) refreshRules(); }
   else tickMood();
   msgEl.focus();
 }
@@ -1118,6 +1142,9 @@ document.addEventListener('keydown', (e) => {
   if (e.altKey && (e.code === 'KeyM')){ e.preventDefault(); pressKey($('#mem-key')); return; }
   if (e.altKey && (e.code === 'KeyD')){ e.preventDefault(); toggleDay(); return; }
   if (e.altKey && (e.code === 'KeyW')){ e.preventDefault(); toggleWiki(); return; }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyZ' && !msgEl.value){
+    const c = latestUndo(); if (c){ e.preventDefault(); act(c.dataset.id, 'undo'); return; }
+  }
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
     const c = latestPending(); if (c){ e.preventDefault(); act(c.dataset.id, 'confirm'); }
   } else if (e.key === 'Escape'){

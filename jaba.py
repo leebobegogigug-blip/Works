@@ -1133,6 +1133,15 @@ class WikiBook:
             raise ValueError("위키에 내용이 하나도 없습니다. 지우려면 '지우기'를 누르세요")
         return self.save(page)
 
+    def restore(self, page: Dict[str, Any]) -> Dict[str, Any]:
+        """저장해 둔 예전 페이지를 원문 기록·시각까지 그대로 되돌려 놓는다 (되돌리기용)"""
+        page = self._fill(_copy(page))
+        with self.lock:
+            pages = [p for p in self.pages if p["id"] != page["id"]] + [page]
+            self.store.write(pages)
+            self.pages, self.seq = pages, max(self.seq, int(page["id"][1:]))
+            return _copy(page)
+
     def clear_sources(self, wid: Any) -> Dict[str, Any]:
         """원문 기록만 지운다 (정리된 내용은 그대로)"""
         key = str(wid or "").strip().lower()
@@ -1807,8 +1816,17 @@ class Proposal:
     target_alias: str = ""
     conflicts: List[Event] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    status: str = "pending"  # pending | done | cancelled | failed
+    status: str = "pending"  # pending | done | cancelled | failed | undone
     error: str = ""
+    undo: Dict[str, Any] = field(default_factory=dict)  # 확정한 것을 되돌리는 데 필요한 것
+    done_at: float = 0.0
+
+    UNDO_SEC = 20
+
+    def undo_left(self, now: Optional[float] = None) -> int:
+        if self.status != "done" or not self.undo:
+            return 0
+        return max(0, int(self.UNDO_SEC - ((now or time.time()) - self.done_at) + 0.999))
 
     def summary(self) -> str:
         f = self.fields
@@ -1881,7 +1899,7 @@ class Proposal:
         return {
             "id": self.id, "kind": self.kind,
             "kind_label": {"create": "새 일정", "update": "변경", "delete": "삭제", "rule": "학습", "wiki": "위키"}[self.kind],
-            "status": self.status, "rows": rows,
+            "status": self.status, "rows": rows, "undo_left": self.undo_left(),
             "conflicts": [f"{fmt_range(c.start, c.end, c.all_day)} {c.title}" for c in self.conflicts],
             "warnings": list(self.warnings), "error": self.error,
         }
@@ -2282,7 +2300,9 @@ class Agent:
                 if p.kind == "rule":
                     if self.rules is None:
                         raise ValueError("학습 기능이 꺼져 있습니다")
-                    rule, _ = self.rules.add(f["text"], "chat")
+                    rule, created = self.rules.add(f["text"], "chat")
+                    if created:
+                        p.undo = {"rule_id": rule["id"]}
                     self.notices.append(f"{p.id} 확정 → 학습됨 ({rule['id']}: {rule['text']})")
                 elif p.kind == "wiki":
                     # 카드를 만든 뒤 다른 카드가 같은 위키를 고쳤거나 새로 만들었어도, 지금 저장된 위키 위에
@@ -2299,6 +2319,7 @@ class Agent:
                         base = wiki.find_series_page(t["match"])
                     page = wiki.save(self._wiki_build(base, t, f["delta"]), f.get("source") or "")
                     f["page"], f["before"] = page, base
+                    p.undo = {"wiki_id": page["id"], "prev": base}
                     self.notices.append(f"{p.id} 확정 → 위키 저장됨 ({page['id']}: {page['title']})")
                 elif p.kind == "create":
                     ev = self.cal.create_event(
@@ -2306,6 +2327,7 @@ class Agent:
                         notes=f["notes"], all_day=f["all_day"],
                         reminder_minutes=int(self.cfg.get("reminder_minutes") or 0))
                     a = self._alias(ev)
+                    p.undo = {"created": ev}
                     self.notices.append(f"{p.id} 확정 → 등록됨 ({a}: {fmt_range(ev.start, ev.end, ev.all_day)} {ev.title})")
                 elif p.kind == "update":
                     b = p.before
@@ -2319,20 +2341,63 @@ class Agent:
                     if f["location"] != b.location:
                         changes["location"] = f["location"]
                     ev = self.cal.update_event(p.target_id, changes)
+                    p.undo = {"before": b, "after": ev}
                     a = self._alias(ev)
                     self.notices.append(f"{p.id} 확정 → 변경됨 ({a}: {fmt_range(ev.start, ev.end, ev.all_day)} {ev.title})")
                 else:
                     assert p.before is not None
                     self._ensure_unchanged(p.before)
                     self.cal.delete_event(p.target_id)
+                    p.undo = {"deleted": p.before}
                     if p.target_alias:
                         self._forget(p.target_alias)
                     self.notices.append(f"{p.id} 확정 → 삭제됨 ({p.fields['title']})")
-                p.status = "done"
+                p.status, p.done_at = "done", time.time()
             except Exception as e:
                 p.status, p.error = "failed", str(e)
                 self.notices.append(f"{p.id} 처리 실패: {e}")
                 log(f"제안 {p.id} 처리 실패: {e}")
+            return p.to_ui()
+
+    def undo(self, pid: str) -> Dict[str, Any]:
+        """확정한 제안을 되돌린다 (확정 뒤 Proposal.UNDO_SEC 초 안에만). 그 사이 바뀌었으면 건드리지 않는다"""
+        with self.lock:
+            p = self.proposals.get(pid)
+            if p is None:
+                raise KeyError("제안을 찾을 수 없습니다 (대화를 비웠을 수 있음)")
+            if p.status == "undone":
+                return p.to_ui()
+            if not p.undo_left():
+                raise ValueError(f"되돌릴 수 있는 시간({Proposal.UNDO_SEC}초)이 지났습니다")
+            u = p.undo
+            if "rule_id" in u:
+                assert self.rules is not None
+                self.rules.remove(u["rule_id"])
+            elif "wiki_id" in u:
+                wiki = self._need_wiki()
+                if u["prev"] is None:
+                    wiki.remove(u["wiki_id"])
+                else:
+                    wiki.restore(u["prev"])
+            elif "created" in u:
+                ev = u["created"]
+                self._ensure_unchanged(ev)
+                self.cal.delete_event(ev.id)
+                alias = self.rev.get(ev.id)
+                if alias:
+                    self._forget(alias)
+            elif "after" in u:
+                b, a = u["before"], u["after"]
+                self._ensure_unchanged(a)
+                back = self.cal.update_event(a.id, {"title": b.title, "start": b.start, "end": b.end, "location": b.location})
+                self._alias(back)  # 되돌린 값으로 별칭 스냅샷도 갱신 (다음 변경·삭제가 옛 값과 비교하지 않게)
+            elif "deleted" in u:
+                b = u["deleted"]
+                ev = self.cal.create_event(title=b.title, start=b.start, end=b.end, location=b.location, notes=b.notes,
+                                           all_day=b.all_day, reminder_minutes=int(self.cfg.get("reminder_minutes") or 0))
+                self._alias(ev)
+            p.status, p.undo = "undone", {}
+            self.notices.append(f"{p.id} 되돌림 (사용자가 확정을 취소함)")
             return p.to_ui()
 
     def _ensure_unchanged(self, before: Event) -> None:
@@ -2717,7 +2782,7 @@ class App:
         return {"rule": self.rules.update(rid, body.get("text")), "rules": self.rules.all()}
 
     def proposal_action(self, pid: str, action: str) -> Dict[str, Any]:
-        p = self.agent.confirm(pid) if action == "confirm" else self.agent.cancel(pid)
+        p = {"confirm": self.agent.confirm, "cancel": self.agent.cancel, "undo": self.agent.undo}[action](pid)
         return {"proposal": p, "rules": len(self.rules.all())}
 
     def shutdown(self) -> None:
@@ -2877,7 +2942,7 @@ def make_handler(app: App) -> Any:
                 body = self._body()
                 if u.path == "/api/chat":
                     return self._json(200, app.chat(str(body.get("message") or "")))
-                m = re.match(r"^/api/proposals/(p\d+)/(confirm|cancel)$", u.path)
+                m = re.match(r"^/api/proposals/(p\d+)/(confirm|cancel|undo)$", u.path)
                 if m:
                     return self._json(200, app.proposal_action(m.group(1), m.group(2)))
                 if u.path == "/api/rules":
@@ -3820,6 +3885,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .card.cancelled{animation:crumple .45s ease-out both}
 .card.cancelled .rows dd{text-decoration:line-through}
 .card.failed{border-color:var(--err)}
+.card.undone .rows dd{text-decoration:line-through}
+.card.undone{opacity:.7}
+.undo-row{padding:0 12px 10px}
+.undo{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:22px;cursor:pointer}
+.undo:hover{color:var(--ink);border-color:var(--ink-2)}
 .seal{position:absolute;right:12px;top:44px;width:72px;height:72px;border-radius:50%;border:3px solid var(--seal);color:var(--seal);display:grid;place-items:center;font-size:24px;line-height:24px;text-shadow:1.5px 0 0 currentColor;box-shadow:inset 0 0 0 3px var(--panel-2),inset 0 0 0 5px var(--seal);opacity:0;transform:rotate(-14deg);pointer-events:none}
 .card.done .seal{animation:stamp .45s cubic-bezier(.2,1.5,.35,1) forwards}
 .card.done.instant .seal{animation:none;opacity:.9;transform:rotate(-14deg) scale(1)}
@@ -4208,7 +4278,7 @@ function addAct(a, cls){
 function addSys(text){ logEl.appendChild(el('div', 'sys', text)); scrollLog(); }
 
 /* ── 제안 카드 */
-const STATUS = {pending: '대기', done: '반영됨', cancelled: '취소됨', failed: '실패'};
+const STATUS = {pending: '대기', done: '반영됨', cancelled: '취소됨', failed: '실패', undone: '되돌림'};
 function burst(card){
   const seal = card.querySelector('.seal');
   if (!seal || REDUCED) return;
@@ -4245,22 +4315,41 @@ function renderCard(p, instant){
   no.addEventListener('click', () => act(p.id, 'cancel'));
   acts.append(ok, no, el('span', 'hint', 'ctrl+↵ · esc'));
   c.append(acts, el('div', 'seal', p.kind === 'delete' ? '삭제' : '확정'));
+  if (p.status === 'done' && p.undo_left > 0) addUndo(c, p.id, p.undo_left);
   c.className = 'card ' + p.status + (instant ? ' instant' : '') + (fresh && p.status === 'pending' ? ' print' : '');
   if (fresh){ logEl.appendChild(c); scrollLog(); }
   if (p.status === 'done' && !fresh && !instant){ setTimeout(() => burst(c), 230); setMood('happy', 2600); }
   if (p.status === 'failed') setMood('error', 3500);
   return c;
 }
+/* 확정 뒤 몇 초 동안 되돌리기 (Ctrl+Z) */
+function addUndo(c, id, left){
+  const row = el('div', 'undo-row');
+  const b = el('button', 'undo', ''); b.type = 'button';
+  const paint = () => { b.textContent = '되돌리기 ' + left + 's · ctrl+z'; };
+  paint();
+  b.addEventListener('click', () => act(id, 'undo'));
+  row.append(b); c.append(row);
+  const t = setInterval(() => {
+    left -= 1;
+    if (left <= 0 || !row.isConnected || c.dataset.status !== 'done'){ clearInterval(t); row.remove(); return; }
+    paint();
+  }, 1000);
+}
+function latestUndo(){
+  const list = [...cards.values()].filter((c) => c.dataset.status === 'done' && c.querySelector('.undo'));
+  return list[list.length - 1];
+}
 async function act(id, action){
   const c = cards.get(id);
-  if (!c || c.dataset.status !== 'pending') return;
+  if (!c || c.dataset.status !== (action === 'undo' ? 'done' : 'pending')) return;
   c.querySelectorAll('button').forEach((b) => { b.disabled = true; });
   const r = await api('/api/proposals/' + id + '/' + action, {});
   if (r.error){ addSys(r.error); setMood('error', 3500); c.querySelectorAll('button').forEach((b) => { b.disabled = false; }); return; }
   renderCard(r.proposal);
   if (typeof r.rules === 'number') setRuleCount(r.rules);
   if (r.proposal.status === 'done' && r.proposal.kind === 'rule'){ learnedFx(1); if (!$('#mem-drawer').hidden) refreshRules(); }
-  else if (r.proposal.status === 'done') refreshAll();
+  else if (r.proposal.status === 'done' || r.proposal.status === 'undone'){ refreshAll(); if (r.proposal.kind === 'rule' && !$('#mem-drawer').hidden) refreshRules(); }
   else tickMood();
   msgEl.focus();
 }
@@ -4741,6 +4830,9 @@ document.addEventListener('keydown', (e) => {
   if (e.altKey && (e.code === 'KeyM')){ e.preventDefault(); pressKey($('#mem-key')); return; }
   if (e.altKey && (e.code === 'KeyD')){ e.preventDefault(); toggleDay(); return; }
   if (e.altKey && (e.code === 'KeyW')){ e.preventDefault(); toggleWiki(); return; }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyZ' && !msgEl.value){
+    const c = latestUndo(); if (c){ e.preventDefault(); act(c.dataset.id, 'undo'); return; }
+  }
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
     const c = latestPending(); if (c){ e.preventDefault(); act(c.dataset.id, 'confirm'); }
   } else if (e.key === 'Escape'){

@@ -2101,6 +2101,61 @@ class TestAgentWiki(AgentBase):
         self.assertIn(["연결", "'주간회의' 제목 일정 모두", False], rows)  # 로컬 캘린더의 매주 일정 → 공용
         self.assertEqual(rows[-1], ["원문 기록", said, False])           # 저장될 원문을 카드에서 미리 보여 준다
 
+    def test_undo_each_kind(self):
+        """확정 뒤 20초 안에는 되돌릴 수 있다: 새 일정 · 변경 · 삭제 · 학습 · 위키"""
+        ev = self.cal.create_event(title="원래", start=self.day.replace(hour=10), end=self.day.replace(hour=11), location="3A")
+        ag = self.agent([
+            tc("propose_create", title="새 회의", start=self.iso(15)), say("확정해 주세요"),
+            tc("list_events", start=self.iso(0), end=self.iso(23)),
+            tc("propose_update", event_id="e2", start=self.iso(14)), say("확정해 주세요"),
+            tc("propose_delete", event_id="e2"), say("확정해 주세요"),
+            tc("remember_rule", rule="스크럼은 15분"), say("확정해 주세요"),
+            tc("propose_wiki", event_id="e3", prep=["노트북"]), say("확정해 주세요"),  # 되살린 일정은 새 id(e3)
+        ])
+        day = lambda: sorted((e.title, e.start.hour) for e in self.cal.list_events(self.day, self.day + timedelta(days=1)))
+        ag.chat("3시 새 회의")
+        self.assertEqual(ag.confirm("p1")["undo_left"], 20)
+        self.assertEqual(ag.undo("p1")["status"], "undone")
+        self.assertEqual(day(), [("원래", 10)])
+        ag.chat("원래 일정 2시로")
+        ag.confirm("p2")
+        ag.undo("p2")
+        self.assertEqual(day(), [("원래", 10)])
+        ag.chat("원래 일정 지워")
+        ag.confirm("p3")
+        self.assertEqual(day(), [])
+        ag.undo("p3")
+        restored = self.cal.list_events(self.day, self.day + timedelta(days=1))
+        self.assertEqual([(e.title, e.start.hour, e.location) for e in restored], [("원래", 10, "3A")])
+        ag.chat("앞으로 스크럼은 15분")
+        ag.confirm("p4")
+        ag.undo("p4")
+        self.assertEqual(ag.rules.all(), [])
+        ag.chat("원래 일정 준비물 노트북")
+        ag.confirm("p5")
+        self.assertEqual(len(self.wiki.all()), 1)
+        ag.undo("p5")
+        self.assertEqual(self.wiki.all(), [])
+        self.assertTrue(any("p5 되돌림" in n for n in ag.notices))
+
+    def test_undo_window_and_changed_meanwhile(self):
+        ag = self.agent([tc("propose_create", title="A", start=self.iso(15)), say("확정해 주세요"),
+                         tc("propose_create", title="B", start=self.iso(16)), say("확정해 주세요")])
+        ag.chat("A")
+        ag.confirm("p1")
+        ag.proposals["p1"].done_at -= 21  # 20초가 지남
+        with self.assertRaises(ValueError):
+            ag.undo("p1")
+        ag.chat("B")
+        ag.confirm("p2")
+        b = ag.proposals["p2"].undo["created"]
+        self.cal.update_event(b.id, {"title": "누가 바꿈"})  # 그 사이 Outlook 에서 바뀜 → 지우지 않는다
+        with self.assertRaises(RuntimeError):
+            ag.undo("p2")
+        self.assertIn("누가 바꿈", [e.title for e in self.cal.list_events(self.day, self.day + timedelta(days=1))])
+        with self.assertRaises(KeyError):
+            ag.undo("p99")
+
     def test_wiki_command(self):
         ag = self.agent([])
         self.assertEqual(ag.chat("/위키")["open_wiki"], "list")

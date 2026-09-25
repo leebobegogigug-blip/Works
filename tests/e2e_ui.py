@@ -320,7 +320,12 @@ def ui_run(tmp):
             p.keyboard.press("Escape")
             p.wait_for_selector("#wiki-drawer", state="hidden")
             p.keyboard.press("Alt+w")
-            p.wait_for_selector("#wiki-drawer:not([hidden])")
+            p.wait_for_selector("#wiki-body dl")
+            p.click("#wiki-body .wacts button >> text=직접 고치기")  # 서랍에서 직접 고치기 → Ctrl+Enter 저장
+            p.fill("#wiki-body textarea[name=prep]", "노트북\n회의실 예약")
+            p.press("#wiki-body textarea[name=prep]", "Control+Enter")
+            p.wait_for_function("document.querySelector('#wiki-body dl') && document.querySelector('#wiki-body').textContent.includes('회의실 예약')")
+            assert "지난주 회의록" not in p.inner_text("#wiki-body")
             p.click("#wiki-back")
             p.wait_for_selector("#wiki-body .wrow")
             p.keyboard.press("Escape")
@@ -350,6 +355,10 @@ def ui_run(tmp):
             say(p, "ㅇㅇ")
             p.wait_for_function("document.querySelectorAll('.card.pending').length === 0")
             assert p.locator(".card.done").count() == done0 + 2
+            p.wait_for_selector(".card.done .undo")  # 방금 확정한 것 되돌리기 (Ctrl+Z)
+            p.keyboard.press("Control+z")
+            p.wait_for_selector(".card.undone")
+            assert p.locator(".card.done").count() == done0 + 1
 
             # Alt+1 빠른 키, /알림 → 앱 안 알림
             n = bots(p)
