@@ -1104,6 +1104,35 @@ class WikiBook:
             self.pages, self.seq = pages, seq
             return _copy(page)
 
+    def edit(self, wid: Any, changes: Dict[str, Any]) -> Dict[str, Any]:
+        """서랍에서 직접 고친 내용 저장 (사용자가 손으로 쓴 것이라 카드 확정 없이). 연결(scope·match)은 그대로.
+        changes: {"title": str, <칸>: str 또는 [str]} — 주어진 칸만 바꾼다. 목록 칸의 빈 줄은 지운다"""
+        if not isinstance(changes, dict):
+            raise ValueError("고칠 내용이 없습니다")
+        page = self.get(wid)
+        if "title" in changes:
+            title = self.clean_item(changes.get("title"), 80)
+            if not title:
+                raise ValueError("위키 이름이 비었습니다")
+            page["title"] = title
+        for k, _, is_list in WIKI_FIELDS:
+            if k not in changes:
+                continue
+            v = changes[k]
+            if is_list:
+                items = v if isinstance(v, list) else str(v or "").split("\n")
+                out: List[str] = []
+                for x in items:
+                    x = self.clean_item(x)
+                    if x and x not in out:
+                        out.append(x)
+                page[k] = out[:self.MAX_LIST]
+            else:
+                page[k] = self.clean_item(v, self.MAX_TEXT)
+        if not any(page.get(k) for k in WIKI_LABEL):
+            raise ValueError("위키에 내용이 하나도 없습니다. 지우려면 '지우기'를 누르세요")
+        return self.save(page)
+
     def clear_sources(self, wid: Any) -> Dict[str, Any]:
         """원문 기록만 지운다 (정리된 내용은 그대로)"""
         key = str(wid or "").strip().lower()
@@ -2861,6 +2890,9 @@ def make_handler(app: App) -> Any:
                 m = re.match(r"^/api/wiki/(w\d+)/delete$", u.path)
                 if m:
                     return self._json(200, app.wiki_remove(m.group(1)))
+                m = re.match(r"^/api/wiki/(w\d+)/edit$", u.path)
+                if m:
+                    return self._json(200, {"page": app.wiki.edit(m.group(1), body.get("changes") or {})})
                 m = re.match(r"^/api/wiki/(w\d+)/clear-sources$", u.path)
                 if m:
                     return self._json(200, {"page": app.wiki.clear_sources(m.group(1))})
@@ -3850,6 +3882,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .wiki .wacts button{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:24px;cursor:pointer}
 .wiki .wacts button:hover{color:var(--ink);border-color:var(--ink-2)}
 .wiki .empty{color:var(--ink-3);line-height:20px}
+.wedit{display:flex;flex-direction:column;gap:4px}
+.wedit label{color:var(--ink-2);line-height:20px;margin-top:6px}
+.wedit input,.wedit textarea{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--line-2);padding:4px 6px;resize:vertical;outline:none;caret-color:var(--accent);line-height:20px}
+.wedit input:focus,.wedit textarea:focus{border-color:var(--ink-2)}
+.wiki .wacts .save{background:var(--accent);color:var(--on-accent);border-color:transparent}
 .wrow{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:baseline;padding:3px 6px;border-radius:6px;line-height:20px;cursor:pointer;animation:slide .3s both}
 .wrow:hover{background:var(--key)}
 .wrow .wn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:var(--b)}
@@ -4341,6 +4378,9 @@ function renderWikiPage(p){
     body.append(d);
   }
   const acts = el('div', 'wacts');
+  const hand = el('button', null, '직접 고치기'); hand.type = 'button';
+  hand.addEventListener('click', () => renderWikiEdit(p));
+  acts.append(hand);
   const edit = el('button', null, '대화로 고치기'); edit.type = 'button';
   edit.addEventListener('click', () => { closeDrawers(); msgEl.value = "'" + p.title + "' 위키(" + p.id + ")에 "; autosize(); msgEl.focus(); });
   const del = el('button', null, '지우기'); del.type = 'button';
@@ -4352,6 +4392,44 @@ function renderWikiPage(p){
   });
   acts.append(edit, del);
   body.append(acts);
+}
+/* 서랍에서 직접 고치기: 목록 칸은 한 줄에 하나 · Ctrl+Enter 저장 · Esc 취소 */
+const WIKI_LIST = {agenda: 1, prep: 1, people: 1, decisions: 1, links: 1};
+function renderWikiEdit(p){
+  const body = $('#wiki-body'); body.textContent = '';
+  const f = el('form', 'wedit'); f.autocomplete = 'off';
+  const title = el('input'); title.name = 'title'; title.value = p.title; title.maxLength = 80;
+  f.append(el('label', null, '이름'), title);
+  WIKI_FIELDS.forEach(([k, label]) => {
+    const ta = el('textarea'); ta.name = k; ta.rows = WIKI_LIST[k] ? Math.max(2, (p[k] || []).length + 1) : 2;
+    ta.value = WIKI_LIST[k] ? (p[k] || []).join('\n') : (p[k] || '');
+    ta.placeholder = WIKI_LIST[k] ? '한 줄에 하나' : '';
+    f.append(el('label', null, label + (WIKI_LIST[k] ? ' · 한 줄에 하나' : '')), ta);
+  });
+  const err = el('div', 'empty');
+  const acts = el('div', 'wacts');
+  const save = el('button', 'save', '저장 ⌃⏎'); save.type = 'submit';
+  const back = el('button', null, '취소 esc'); back.type = 'button';
+  back.addEventListener('click', () => renderWikiPage(p));
+  acts.append(save, back);
+  f.append(err, acts);
+  f.addEventListener('keydown', (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); e.stopPropagation(); f.requestSubmit(); }
+    else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); renderWikiPage(p); }
+  });
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const changes = {title: title.value};
+    WIKI_FIELDS.forEach(([k]) => { const v = f.elements[k].value; changes[k] = WIKI_LIST[k] ? v.split('\n') : v; });
+    save.disabled = true;
+    const r = await api('/api/wiki/' + p.id + '/edit', {changes});
+    save.disabled = false;
+    if (r.error){ err.textContent = 'ERR · ' + r.error; return; }
+    renderWikiPage(r.page); refreshAll();
+  });
+  body.append(f);
+  setTimeout(() => title.focus(), 30);
 }
 function renderWikiList(pages, error){
   const body = $('#wiki-body'); body.textContent = '';

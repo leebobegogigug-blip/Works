@@ -1451,6 +1451,10 @@ class TestServerV2(TestServer):
         q = urllib.parse.urlencode({"event_id": ev.id, "title": ev.title})
         self.assertEqual(self.req("/api/wiki?" + q)[1]["page"]["id"], w["id"])
         self.assertEqual(self.req("/api/wiki?id=w99")[0], 404)
+        code, r = self.req(f"/api/wiki/{w['id']}/edit", {"changes": {"prep": ["견적서", "샘플"]}})
+        self.assertEqual((code, r["page"]["prep"]), (200, ["견적서", "샘플"]))
+        self.assertEqual(self.req(f"/api/wiki/{w['id']}/edit", {"changes": {"title": ""}})[0], 400)
+        self.app.wiki.edit(w["id"], {"prep": ["견적서"]})
         self.app.wiki.save(dict(self.app.wiki.get(w["id"])), "원문: 하한가 92원")
         code, r = self.req(f"/api/wiki/{w['id']}/clear-sources", {})
         self.assertEqual((code, r["page"]["sources"], r["page"]["prep"]), (200, [], ["견적서"]))  # 원문만 지움
@@ -1936,6 +1940,20 @@ class TestWikiBook(unittest.TestCase):
         self.assertEqual(wb.find_id("L7", "치과", "2026-10-01T09:00"), "")
         self.assertEqual([p["id"] for p in wb.search("\\\\fs01\\영업")], ["w1"])  # 경로도 그대로 검색
         self.assertEqual(wb.search('"'), [])
+
+    def test_direct_edit(self):
+        wb = jaba.WikiBook(self.path)
+        w = wb.save(jaba.WikiBook._fill({"title": "주간 스크럼", "scope": "series", "prep": ["번다운"], "goal": "공유"}), "원문")
+        e = wb.edit(w["id"], {"title": "스크럼", "prep": "번다운\n\n  블로커 목록 \n번다운", "goal": ""})
+        self.assertEqual((e["title"], e["prep"], e["goal"], e["match"]), ("스크럼", ["번다운", "블로커 목록"], "", "주간 스크럼"))
+        self.assertEqual(len(e["sources"]), 1)  # 손으로 고친 건 원문 기록을 늘리지 않음
+        self.assertEqual(wb.find_id("L1", "주간스크럼"), w["id"])  # 이름을 바꿔도 연결은 그대로
+        with self.assertRaises(ValueError):
+            wb.edit(w["id"], {"prep": [], "goal": ""})  # 전부 비우기는 '지우기'로
+        with self.assertRaises(ValueError):
+            wb.edit(w["id"], {"title": "  "})
+        with self.assertRaises(KeyError):
+            wb.edit("w99", {"goal": "x"})
 
     def test_failed_write_changes_nothing_and_error_clears(self):
         with open(self.path, "w", encoding="utf-8") as f:

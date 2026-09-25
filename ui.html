@@ -259,6 +259,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .wiki .wacts button{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:24px;cursor:pointer}
 .wiki .wacts button:hover{color:var(--ink);border-color:var(--ink-2)}
 .wiki .empty{color:var(--ink-3);line-height:20px}
+.wedit{display:flex;flex-direction:column;gap:4px}
+.wedit label{color:var(--ink-2);line-height:20px;margin-top:6px}
+.wedit input,.wedit textarea{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--line-2);padding:4px 6px;resize:vertical;outline:none;caret-color:var(--accent);line-height:20px}
+.wedit input:focus,.wedit textarea:focus{border-color:var(--ink-2)}
+.wiki .wacts .save{background:var(--accent);color:var(--on-accent);border-color:transparent}
 .wrow{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:baseline;padding:3px 6px;border-radius:6px;line-height:20px;cursor:pointer;animation:slide .3s both}
 .wrow:hover{background:var(--key)}
 .wrow .wn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:var(--b)}
@@ -750,6 +755,9 @@ function renderWikiPage(p){
     body.append(d);
   }
   const acts = el('div', 'wacts');
+  const hand = el('button', null, '직접 고치기'); hand.type = 'button';
+  hand.addEventListener('click', () => renderWikiEdit(p));
+  acts.append(hand);
   const edit = el('button', null, '대화로 고치기'); edit.type = 'button';
   edit.addEventListener('click', () => { closeDrawers(); msgEl.value = "'" + p.title + "' 위키(" + p.id + ")에 "; autosize(); msgEl.focus(); });
   const del = el('button', null, '지우기'); del.type = 'button';
@@ -761,6 +769,44 @@ function renderWikiPage(p){
   });
   acts.append(edit, del);
   body.append(acts);
+}
+/* 서랍에서 직접 고치기: 목록 칸은 한 줄에 하나 · Ctrl+Enter 저장 · Esc 취소 */
+const WIKI_LIST = {agenda: 1, prep: 1, people: 1, decisions: 1, links: 1};
+function renderWikiEdit(p){
+  const body = $('#wiki-body'); body.textContent = '';
+  const f = el('form', 'wedit'); f.autocomplete = 'off';
+  const title = el('input'); title.name = 'title'; title.value = p.title; title.maxLength = 80;
+  f.append(el('label', null, '이름'), title);
+  WIKI_FIELDS.forEach(([k, label]) => {
+    const ta = el('textarea'); ta.name = k; ta.rows = WIKI_LIST[k] ? Math.max(2, (p[k] || []).length + 1) : 2;
+    ta.value = WIKI_LIST[k] ? (p[k] || []).join('\n') : (p[k] || '');
+    ta.placeholder = WIKI_LIST[k] ? '한 줄에 하나' : '';
+    f.append(el('label', null, label + (WIKI_LIST[k] ? ' · 한 줄에 하나' : '')), ta);
+  });
+  const err = el('div', 'empty');
+  const acts = el('div', 'wacts');
+  const save = el('button', 'save', '저장 ⌃⏎'); save.type = 'submit';
+  const back = el('button', null, '취소 esc'); back.type = 'button';
+  back.addEventListener('click', () => renderWikiPage(p));
+  acts.append(save, back);
+  f.append(err, acts);
+  f.addEventListener('keydown', (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); e.stopPropagation(); f.requestSubmit(); }
+    else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); renderWikiPage(p); }
+  });
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const changes = {title: title.value};
+    WIKI_FIELDS.forEach(([k]) => { const v = f.elements[k].value; changes[k] = WIKI_LIST[k] ? v.split('\n') : v; });
+    save.disabled = true;
+    const r = await api('/api/wiki/' + p.id + '/edit', {changes});
+    save.disabled = false;
+    if (r.error){ err.textContent = 'ERR · ' + r.error; return; }
+    renderWikiPage(r.page); refreshAll();
+  });
+  body.append(f);
+  setTimeout(() => title.focus(), 30);
 }
 function renderWikiList(pages, error){
   const body = $('#wiki-body'); body.textContent = '';
