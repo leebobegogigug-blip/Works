@@ -83,6 +83,9 @@ ocmux는 tmux처럼 여러 인스턴스를 한 창에 묶고, opencode 서버의
 
 ## 04 설치
 
+> **opencode에게 맡기기:** opencode를 열고 `INSTALL.md 를 읽고 순서대로 ocmux 설치를 진행해줘`라고 하면 됩니다.
+> [INSTALL.md](INSTALL.md)는 에이전트용 단계별 설치 절차입니다. 확인 명령, 실패 시 대처, 멈추고 물어볼 지점, 결과 보고 형식이 들어 있습니다.
+
 **필요한 것**
 
 - Windows 10/11 + [Windows Terminal](https://aka.ms/terminal) (`wt`)
