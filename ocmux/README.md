@@ -162,7 +162,7 @@ PS> ocmux ls
 
 - 레이아웃: `-RightWidth 0.5` `-BottomHeight 0.42` `-GameWidth 0.58` `-ComposeHeight 0.30` `-Compact`(아래 줄 없음) `-NoLogs` `-NoCompose`
 - 기타: `-Port` `-BasePort` `-NoOverview` `-Python "py -3"`
-- 비밀번호가 걸린 opencode 서버: 환경 변수 `OPENCODE_SERVER_PASSWORD`를 설정하면 모든 창이 그대로 사용합니다.
+- 비밀번호가 걸린 opencode 서버: 환경 변수 `OPENCODE_SERVER_PASSWORD`를 설정하면 모든 창이 그대로 사용합니다. 모니터 칸에는 명령줄 대신 `%LOCALAPPDATA%\ocmux\server-password` 파일로 넘깁니다(보안 솔루션의 명령줄 로그에 남지 않게). 환경 변수를 지우고 `ocmux add`/`focus` 하면 이 파일도 지워집니다.
 
 **자주 쓰는 키**
 

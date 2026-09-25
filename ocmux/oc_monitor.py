@@ -113,6 +113,18 @@ def load_registry():
     return list(_REG_CACHE["data"] or [])
 
 
+def server_password():
+    """opencode 서버 비밀번호: 환경변수 → ocmux 가 남긴 사용자 전용 파일 (명령줄로는 받지 않는다)"""
+    pw = os.environ.get("OPENCODE_SERVER_PASSWORD")
+    if pw:
+        return pw
+    try:
+        with open(os.path.join(os.path.dirname(registry_path()), "server-password"), "r", encoding="utf-8-sig") as f:
+            return f.read().strip() or None
+    except OSError:
+        return None
+
+
 # ---------------------------------------------------------------- http
 class Api:
     def __init__(self, url, user="opencode", password=None, directory=None):
@@ -1689,7 +1701,7 @@ def main():
     ap.add_argument("--url")
     ap.add_argument("--name", help="인스턴스 이름 (레지스트리 조회/표시용)")
     ap.add_argument("--color", default=None, help="#RRGGBB 태그 색")
-    ap.add_argument("--password", default=os.environ.get("OPENCODE_SERVER_PASSWORD"))
+    ap.add_argument("--password", default=None, help="(비권장: 명령줄에 남음) 기본은 OPENCODE_SERVER_PASSWORD → ocmux 비밀번호 파일")
     ap.add_argument("--dir", default=None)
     ap.add_argument("--interval", type=float, default=2.0)
     ap.add_argument("--max-sessions", type=int, default=15)
@@ -1714,6 +1726,7 @@ def main():
     ap.add_argument("--guide", action="store_true", help="--once 와 함께: `?` 가이드를 켠 화면으로 출력")
     a = ap.parse_args()
     a.level = a.level.upper()
+    a.password = a.password or server_password()
     try:
         {"status": run_status, "overview": run_overview, "logs": run_logs,
          "usage": run_usage, "rpg": run_rpg, "compose": run_compose}[a.mode](a)

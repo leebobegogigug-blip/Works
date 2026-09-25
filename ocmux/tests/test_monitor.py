@@ -42,5 +42,29 @@ class ComposeDoesNotPoll(unittest.TestCase):
         inst.alive = False
 
 
+class ServerPassword(unittest.TestCase):
+    def setUp(self):
+        self.old = os.environ.pop("OPENCODE_SERVER_PASSWORD", None)
+        self.path = os.path.join(os.path.dirname(M.registry_path()), "server-password")
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+
+    def tearDown(self):
+        if self.old is not None:
+            os.environ["OPENCODE_SERVER_PASSWORD"] = self.old
+        if os.path.exists(self.path):
+            os.remove(self.path)
+
+    def test_env_then_file(self):
+        self.assertIsNone(M.server_password())
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write("from-file\n")
+        self.assertEqual(M.server_password(), "from-file")
+        os.environ["OPENCODE_SERVER_PASSWORD"] = "from-env"
+        try:
+            self.assertEqual(M.server_password(), "from-env")
+        finally:
+            del os.environ["OPENCODE_SERVER_PASSWORD"]
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -56,6 +56,7 @@ $Monitor  = Join-Path $Here 'oc_monitor.py'
 $DataDir  = Join-Path $env:LOCALAPPDATA 'ocmux'
 $RegFile  = Join-Path $DataDir 'instances.json'
 $LogDir   = Join-Path $DataDir 'logs'
+$PwFile   = Join-Path $DataDir 'server-password'   # read by the Python panes (never put on a command line)
 $Palette  = @('#6ABA23', '#3F77A6', '#A5AAAE', '#95D85A', '#75A1C7', '#45741B', '#B8CEE0', '#81888D')  # lime / navy / gray
 $Scheme   = 'ocmux Black'
 New-Item -ItemType Directory -Force -Path $DataDir, $LogDir | Out-Null
@@ -167,9 +168,21 @@ function Q([string]$s) {
     # ';' separates wt sub-commands even inside quotes -> escape it
     return '"' + ($s -replace ';', '\;') + '"'
 }
+function Sync-PwFile {
+    # The panes need OPENCODE_SERVER_PASSWORD, but new tabs of an already-open WT window do not inherit
+    # this shell's environment. Passing it as --password would put it on every pane's command line
+    # (visible to process listings and EDR command-line logs), so hand it over through a file in the
+    # per-user data folder instead; the monitor reads the env var first, then this file.
+    if ($env:OPENCODE_SERVER_PASSWORD) {
+        [System.IO.File]::WriteAllText($PwFile, $env:OPENCODE_SERVER_PASSWORD, (New-Object System.Text.UTF8Encoding($false)))
+    } elseif (Test-Path $PwFile) {
+        Remove-Item $PwFile -Force
+    }
+}
 function Invoke-WT([string]$wtArgs) {
     if (-not (Get-Command wt -ErrorAction SilentlyContinue)) { throw 'Windows Terminal (wt.exe) not found' }
     Install-Scheme
+    Sync-PwFile
     Write-Verbose "wt $wtArgs"
     Start-Process wt -ArgumentList $wtArgs
 }
@@ -209,7 +222,7 @@ function Get-OverviewTabArgs {
 function Get-InstanceTabArgs($i) {
     $d     = Q $i.dir
     $title = Q ("{0} {1} :{2}" -f (Ch $i), $i.name, $i.port)
-    $who  = "--url $($i.url) --name $(Q $i.name) --color $($i.color)$(PwArg '--password')"
+    $who  = "--url $($i.url) --name $(Q $i.name) --color $($i.color)"   # password: env / $PwFile (see Sync-PwFile)
     if ($i.headless) {
         $main   = "cmd /k opencode attach $($i.url)$(PwArg '-p') --dir $d"
         $logSrc = "--file $(Q $i.logfile)"
