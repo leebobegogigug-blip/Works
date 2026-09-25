@@ -1,0 +1,330 @@
+﻿<#
+.SYNOPSIS
+  ocmux - tmux-like multi-instance opencode dashboard for Windows Terminal
+
+  Every `ocmux add` opens a NEW TAB (a numbered channel) in the same "ocmux" window:
+    tab "00 overview"        : [ overview (tokens / instances / active work / events / logs) ]
+                               [ usage chart + mixer (all)  | pet ranch (all pets)           ]
+    tab "01 api-server :4096": [ opencode TUI | status (tokens / sessions / events / logs)   ]
+                               [ compose      | usage chart | TOKEN QUEST pet               ]
+    ...
+  In every pane: ? (F1 in compose) shows the guide - numbered callouts + legend.
+
+.EXAMPLE
+  ocmux add                          # current folder, next free port
+  ocmux add C:\work\web -Name web    # another project in a new tab
+  ocmux add C:\work\api -Headless    # hidden `opencode serve` + attach (survives closing the tab)
+  ocmux overview                     # open the overview tab
+  ocmux ls                           # list instances + health
+  ocmux focus api                    # reopen the tab for an instance
+  ocmux rm api                       # unregister (and stop headless server)
+  ocmux prune                        # drop offline instances
+  ocmux setup                        # install 'ocmux Black' color scheme (auto on first run)
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Position = 0)]
+    [ValidateSet('add', 'overview', 'ls', 'focus', 'rm', 'prune', 'setup', 'help')]
+    [string]$Cmd = 'add',
+    [Parameter(Position = 1)]
+    [string]$Target,                 # add: folder / focus,rm: name or port
+    [string]$Name,
+    [int]$Port = 0,
+    [int]$BasePort = 4096,
+    [string]$HostName = '127.0.0.1',
+    [string]$Python = '',            # default: 'py -3' if the Python launcher exists, else 'python'
+    [string]$Window = 'ocmux',
+    [double]$RightWidth = 0.5,
+    [double]$BottomHeight = 0.42,   # usage/pet row height
+    [double]$GameWidth = 0.58,      # pet(TOKEN QUEST) share of the bottom row
+    [Alias('Hero')][string]$PetName,  # name for a NEW pet egg (default: 토큰이)
+    [switch]$Headless,
+    [double]$ComposeHeight = 0.30,  # big input pane under the TUI
+    [switch]$NoCompose,
+    [switch]$Compact,               # no usage/rpg row
+    [switch]$NoLogs,                # no LOGS section inside status
+    [switch]$NoOverview
+)
+
+$ErrorActionPreference = 'Stop'
+if (-not $Python) {
+    # python.org installer puts the 'py' launcher on PATH even when 'python' is not (or is the Store stub)
+    $Python = if (Get-Command py -ErrorAction SilentlyContinue) { 'py -3' } else { 'python' }
+}
+$Here     = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Monitor  = Join-Path $Here 'oc_monitor.py'
+$DataDir  = Join-Path $env:LOCALAPPDATA 'ocmux'
+$RegFile  = Join-Path $DataDir 'instances.json'
+$LogDir   = Join-Path $DataDir 'logs'
+$Palette  = @('#6ABA23', '#3F77A6', '#A5AAAE', '#95D85A', '#75A1C7', '#45741B', '#B8CEE0', '#81888D')  # lime / navy / gray
+$Scheme   = 'ocmux Black'
+New-Item -ItemType Directory -Force -Path $DataDir, $LogDir | Out-Null
+
+# ------------------------------------------------------------------ color scheme (WT JSON fragment)
+# Black background + navy/lime/gray ANSI palette, installed as a Windows Terminal fragment
+function Install-Scheme {
+    $fragDir  = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows Terminal\Fragments\ocmux'
+    $fragFile = Join-Path $fragDir 'ocmux.json'
+    $def = [ordered]@{
+        name = $Scheme
+        background = '#000000'; foreground = '#D4D6D8'
+        cursorColor = '#6ABA23'; selectionBackground = '#1F507A'
+        black = '#000000';  red = '#F2F2F3';  green = '#6ABA23';  yellow = '#95D85A'
+        blue  = '#3F77A6';  purple = '#75A1C7'; cyan = '#B8CEE0'; white = '#D4D6D8'
+        brightBlack = '#5C6166'; brightRed = '#FFFFFF'; brightGreen = '#95D85A'; brightYellow = '#C0E79D'
+        brightBlue  = '#75A1C7'; brightPurple = '#B8CEE0'; brightCyan = '#D6E4EF'; brightWhite = '#FFFFFF'
+    }
+    $json = ConvertTo-Json -InputObject ([ordered]@{ schemes = @($def) }) -Depth 5
+    $old = if (Test-Path $fragFile) { [System.IO.File]::ReadAllText($fragFile) } else { '' }
+    if ($old -ne $json) {
+        New-Item -ItemType Directory -Force -Path $fragDir | Out-Null
+        [System.IO.File]::WriteAllText($fragFile, $json, (New-Object System.Text.UTF8Encoding($false)))
+        Say 'SCHEME' "installed '$Scheme'" $fragFile
+        Say 'NOTE' 'close ALL Windows Terminal windows once so WT loads the new colors' '' 'DarkGray'
+    }
+}
+
+# ------------------------------------------------------------------ registry
+# old blue/pink tab colors -> new palette (same index), so existing instances switch palettes too
+$OldPalette = @('#3B82F6', '#EC4899', '#6366F1', '#F472B6', '#0EA5E9', '#DB2777', '#818CF8', '#D946EF')
+function Get-Reg {
+    if (-not (Test-Path $RegFile)) { return @() }
+    $raw = Get-Content $RegFile -Raw -Encoding UTF8
+    if (-not $raw.Trim()) { return @() }
+    $list = @($raw | ConvertFrom-Json | ForEach-Object { $_ })  # PS5.1: unroll array
+    $changed = $false
+    foreach ($e in $list) {
+        if ($e.color) {
+            $k = [array]::IndexOf($OldPalette, ([string]$e.color).ToUpper())
+            if ($k -ge 0) { $e.color = $Palette[$k]; $changed = $true }
+        }
+        if (-not ($e.PSObject.Properties.Name -contains 'ch') -or -not $e.ch) {
+            # every instance gets a channel number (01, 02, ...) that never changes
+            $e | Add-Member -NotePropertyName ch -NotePropertyValue (Get-FreeCh $list) -Force
+            $changed = $true
+        }
+    }
+    if ($changed) { Save-Reg $list }
+    return $list
+}
+function Get-FreeCh($list) {
+    $used = @($list | Where-Object { $_.PSObject.Properties.Name -contains 'ch' -and $_.ch } | ForEach-Object { [int]$_.ch })
+    for ($c = 1; $c -lt 100; $c++) { if ($used -notcontains $c) { return $c } }
+    return 99
+}
+function Ch($i) { return ('{0:D2}' -f [int]$i.ch) }
+
+# ------------------------------------------------------------------ output (same design language as the panes)
+function Chip([string]$t, [string]$bgc = 'Green', [string]$fgc = 'Black') {
+    Write-Host -NoNewline (" $t ") -BackgroundColor $bgc -ForegroundColor $fgc
+}
+function Txt([string]$t, [string]$c = 'Gray') { Write-Host -NoNewline $t -ForegroundColor $c }
+function Say([string]$tag, [string]$msg, [string]$note = '', [string]$bgc = 'Green') {
+    Chip $tag $bgc; Txt " $msg"
+    if ($note) { Txt "  $note" 'DarkGray' }
+    Write-Host ''
+}
+function Save-Reg($list) {
+    $json = ConvertTo-Json -InputObject @($list) -Depth 5
+    [System.IO.File]::WriteAllText($RegFile, $json, (New-Object System.Text.UTF8Encoding($false)))
+}
+function Find-Inst($reg, $key) {
+    return $reg | Where-Object { $_.name -eq $key -or "$($_.port)" -eq "$key" } | Select-Object -First 1
+}
+
+# ------------------------------------------------------------------ helpers
+function Test-Health([string]$url) {
+    try {
+        $req = [System.Net.HttpWebRequest]::Create("$url/global/health")
+        $req.Proxy = $null
+        $req.Timeout = 1500
+        if ($env:OPENCODE_SERVER_PASSWORD) {
+            $tok = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("opencode:$($env:OPENCODE_SERVER_PASSWORD)"))
+            $req.Headers.Add('Authorization', "Basic $tok")
+        }
+        $resp = $req.GetResponse(); $resp.Close(); return $true
+    } catch [System.Net.WebException] {
+        # older opencode without /global/health -> 404, but any HTTP response means the server is up
+        return ($null -ne $_.Exception.Response)
+    } catch { return $false }
+}
+function Test-PortFree([int]$p) {
+    try {
+        $l = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, $p)
+        $l.Start(); $l.Stop(); return $true
+    } catch { return $false }
+}
+function Get-FreePort($reg) {
+    $used = @($reg | ForEach-Object { [int]$_.port })
+    for ($p = $BasePort; $p -lt $BasePort + 200; $p++) {
+        if ($used -notcontains $p -and (Test-PortFree $p)) { return $p }
+    }
+    throw "no free port from $BasePort"
+}
+function Q([string]$s) {
+    # "C:\" would end with \" (an escaped quote) -> double the trailing backslash
+    if ($s.EndsWith('\')) { $s += '\' }
+    # ';' separates wt sub-commands even inside quotes -> escape it
+    return '"' + ($s -replace ';', '\;') + '"'
+}
+function Invoke-WT([string]$wtArgs) {
+    if (-not (Get-Command wt -ErrorAction SilentlyContinue)) { throw 'Windows Terminal (wt.exe) not found' }
+    Install-Scheme
+    Write-Verbose "wt $wtArgs"
+    Start-Process wt -ArgumentList $wtArgs
+}
+function Stop-Tree($procId) {
+    if (-not $procId) { return }
+    $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+    if (-not $p) { return }                                   # already gone
+    # after a reboot the PID may belong to something else -> only kill our own launcher/opencode
+    if (@('cmd', 'opencode', 'node', 'bun') -notcontains $p.ProcessName) { return }
+    # run through cmd so a 'not found' on stderr never becomes a terminating error in PS 5.1
+    try { cmd.exe /c "taskkill /PID $procId /T /F >nul 2>&1" | Out-Null } catch { }
+}
+function PwArg([string]$flag) {
+    if ($env:OPENCODE_SERVER_PASSWORD) { return " $flag " + (Q $env:OPENCODE_SERVER_PASSWORD) } else { return '' }
+}
+
+# ------------------------------------------------------------------ tab builders
+function Py([string]$mode, [string]$rest) {
+    $x = "cmd /k $Python $(Q $Monitor) $mode $rest"
+    if ($NoLogs) { $x += ' --no-logs' }
+    return $x
+}
+function Get-BottomRow([string]$dir, [string]$usageArgs) {
+    if ($Compact) { return '' }
+    $heroArg = if ($PetName) { " --hero $(Q $PetName)" } else { '' }
+    $a  = " ; split-pane -H -s $BottomHeight --colorScheme $(Q $Scheme) -d $dir $(Py 'usage' $usageArgs)"
+    $a += " ; split-pane -V -s $GameWidth --colorScheme $(Q $Scheme) -d $dir $(Py 'rpg' ($usageArgs + $heroArg))"
+    return $a
+}
+function Get-OverviewTabArgs {
+    $d = Q $DataDir
+    $a  = "new-tab --title $(Q '00 overview') --suppressApplicationTitle --tabColor $(Q '#08365E') --colorScheme $(Q $Scheme) -d $d $(Py 'overview' '--level WARN')"
+    $a += Get-BottomRow $d '--all'
+    $a += ' ; focus-pane -t 0'
+    return $a
+}
+function Get-InstanceTabArgs($i) {
+    $d     = Q $i.dir
+    $title = Q ("{0} {1} :{2}" -f (Ch $i), $i.name, $i.port)
+    $who  = "--url $($i.url) --name $(Q $i.name) --color $($i.color)$(PwArg '--password')"
+    if ($i.headless) {
+        $main   = "cmd /k opencode attach $($i.url)$(PwArg '-p') --dir $d"
+        $logSrc = "--file $(Q $i.logfile)"
+    } else {
+        $main   = "cmd /k opencode --port $($i.port) --hostname $HostName"
+        $logSrc = "--since $($i.created)"
+    }
+    $a  = "new-tab --title $title --suppressApplicationTitle --tabColor $(Q $i.color) --colorScheme $(Q $Scheme) -d $d $main"
+    $a += " ; split-pane -V -s $RightWidth --colorScheme $(Q $Scheme) -d $d $(Py 'status' "$who --dir $d $logSrc")"
+    $a += Get-BottomRow $d $who
+    $a += ' ; focus-pane -t 0'
+    if (-not $NoCompose) {
+        # big input pane under the TUI (Ctrl+V paste, Ctrl+S send) - focus stays here
+        $a += " ; split-pane -H -s $ComposeHeight --colorScheme $(Q $Scheme) -d $d $(Py 'compose' $who)"
+    }
+    return $a
+}
+
+# ------------------------------------------------------------------ commands
+switch ($Cmd) {
+
+'add' {
+    if (-not (Test-Path $Monitor)) { throw "oc_monitor.py not found: $Monitor" }
+    if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) { throw 'opencode not in PATH' }
+    $dir = if ($Target) { (Resolve-Path $Target).ProviderPath } else { (Get-Location).ProviderPath }
+    $reg = @(Get-Reg)
+    $firstEver = ($reg.Count -eq 0)
+
+    $base = if ($Name) { $Name } else { Split-Path $dir -Leaf }
+    $n = $base; $k = 2
+    while (Find-Inst $reg $n) { $n = "$base-$k"; $k++ }
+
+    $p = if ($Port -gt 0) { $Port } else { Get-FreePort $reg }
+    $url = "http://${HostName}:$p"
+    $inst = [ordered]@{
+        name     = $n
+        dir      = $dir
+        port     = $p
+        url      = $url
+        color    = $Palette[$reg.Count % $Palette.Count]
+        headless = [bool]$Headless
+        pid      = $null
+        logfile  = $null
+        created  = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        ch       = Get-FreeCh $reg
+    }
+
+    if ($Headless) {
+        $inst.logfile = Join-Path $LogDir "$n.log"
+        Say 'SERVE' "starting opencode serve ($n) on $url" '...' 'DarkGray'
+        $proc = Start-Process cmd.exe -WindowStyle Hidden -PassThru -WorkingDirectory $dir `
+            -ArgumentList "/c opencode serve --port $p --hostname $HostName --print-logs --log-level INFO 2> $(Q $inst.logfile)"
+        $inst.pid = $proc.Id
+        $ok = $false
+        for ($t = 0; $t -lt 40; $t++) { if (Test-Health $url) { $ok = $true; break }; Start-Sleep -Milliseconds 500 }
+        if (-not $ok) { Stop-Tree $proc.Id; throw "server did not come up at $url (20s). see $($inst.logfile)" }
+    }
+
+    $reg += [pscustomobject]$inst
+    Save-Reg $reg
+
+    $wtArgs = "-w $Window "
+    if ($firstEver -and -not $NoOverview) { $wtArgs += (Get-OverviewTabArgs) + ' ; ' }
+    $wtArgs += Get-InstanceTabArgs ([pscustomobject]$inst)
+    Invoke-WT $wtArgs
+    Say 'ADD' ("{0}  {1,-16} {2}" -f ('{0:D2}' -f [int]$inst.ch), $n, $url) $dir
+}
+
+'overview' {
+    Invoke-WT ("-w $Window " + (Get-OverviewTabArgs))
+}
+
+'focus' {
+    $i = Find-Inst (Get-Reg) $Target
+    if (-not $i) { throw "no instance '$Target'" }
+    if (-not $i.headless -and -not (Test-Health $i.url)) {
+        # TUI mode: tab was closed -> relaunch opencode on the same port
+        $i.created = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    }
+    Invoke-WT ("-w $Window " + (Get-InstanceTabArgs $i))
+}
+
+'ls' {
+    $reg = @(Get-Reg)
+    if ($reg.Count -eq 0) { Say 'LS' 'no instances' '-> ocmux add' 'DarkGray'; break }
+    # TE-style table: channel number, name, port, mode, state LED, folder
+    Txt (" {0,-3} {1,-18} {2,-6} {3,-9} {4,-10} {5}" -f 'CH', 'NAME', 'PORT', 'MODE', 'STATE', 'DIR') 'DarkGray'
+    Write-Host ''
+    foreach ($i in ($reg | Sort-Object { [int]$_.ch })) {
+        $on = Test-Health $i.url
+        Chip (Ch $i) 'DarkGreen' 'Black'
+        Txt (" {0,-18} {1,-6} {2,-9} " -f $i.name, $i.port, $(if ($i.headless) { 'headless' } else { 'tui' }))
+        if ($on) { Txt '● online   ' 'Green' } else { Txt '○ offline  ' 'DarkGray' }
+        Txt $i.dir 'DarkGray'
+        Write-Host ''
+    }
+}
+
+'rm' {
+    $reg = @(Get-Reg)
+    $i = Find-Inst $reg $Target
+    if (-not $i) { throw "no instance '$Target'" }
+    if ($i.headless) { Stop-Tree $i.pid }
+    Save-Reg @($reg | Where-Object { $_.name -ne $i.name })
+    Say 'RM' ("{0}  {1}" -f (Ch $i), $i.name) 'close its tab with Ctrl+Shift+W' 'Gray'
+}
+
+'prune' {
+    $reg = @(Get-Reg)
+    $keep = @($reg | Where-Object { Test-Health $_.url })
+    Save-Reg $keep
+    Say 'PRUNE' ("{0} offline instance(s) removed" -f ($reg.Count - $keep.Count)) '' 'Gray'
+}
+
+'setup' { Install-Scheme; Say 'SCHEME' "'$Scheme' ready" }
+
+'help' { Get-Help $MyInvocation.MyCommand.Path -Detailed }
+}
