@@ -113,6 +113,18 @@ def load_registry():
     return list(_REG_CACHE["data"] or [])
 
 
+def server_password():
+    """opencode 서버 비밀번호: 환경변수 → ocmux 가 남긴 사용자 전용 파일 (명령줄로는 받지 않는다)"""
+    pw = os.environ.get("OPENCODE_SERVER_PASSWORD")
+    if pw:
+        return pw
+    try:
+        with open(os.path.join(os.path.dirname(registry_path()), "server-password"), "r", encoding="utf-8-sig") as f:
+            return f.read().strip() or None
+    except OSError:
+        return None
+
+
 # ---------------------------------------------------------------- http
 class Api:
     def __init__(self, url, user="opencode", password=None, directory=None):
@@ -146,6 +158,66 @@ class Api:
     def stream(self, path):
         req = urllib.request.Request(self._u(path), headers=dict(self.headers, Accept="text/event-stream"))
         return self.opener.open(req, timeout=60 * 60 * 24)
+
+
+# ---------------------------------------------------------------- 조회 나눠 쓰기
+class PollShare:
+    """같은 opencode 서버(주소 + 폴더)를 여러 칸이 따로 조회하지 않게: 리더 한 칸만 조회하고 결과를
+    스냅샷 파일로 남기면, 나머지 칸은 그 파일만 읽는다. 리더가 닫히면(잠금이 오래되면) 다른 칸이 이어받는다."""
+
+    def __init__(self, url, directory=None, interval=2.0):
+        key = hashlib.md5(f"{url}|{directory or ''}".encode("utf-8")).hexdigest()[:12]
+        base = os.path.dirname(registry_path())
+        self.lock_path = os.path.join(base, f"poll-{key}.lock")
+        self.snap_path = os.path.join(base, f"poll-{key}.json")
+        self.me = f"{os.getpid()}-{id(self)}"
+        self.stale = max(6.0, interval * 3)
+
+    @staticmethod
+    def _read(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+
+    @staticmethod
+    def _write(path, obj):
+        tmp = f"{path}.{os.getpid()}.tmp"
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(obj, f, ensure_ascii=False)
+            os.replace(tmp, path)
+            return True
+        except OSError:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            return False
+
+    def _fresh(self, ts, now):
+        return isinstance(ts, (int, float)) and -5 <= now - ts <= self.stale
+
+    def leader(self, now=None):
+        """이 칸이 조회를 맡는가. 잠금이 없거나 오래됐으면 가져오고, 맡은 동안은 매번 갱신한다"""
+        now = time.time() if now is None else now
+        lk = self._read(self.lock_path)
+        if isinstance(lk, dict) and lk.get("id") != self.me and self._fresh(lk.get("ts"), now):
+            return False
+        if not self._write(self.lock_path, {"id": self.me, "pid": os.getpid(), "ts": now}):
+            return True  # 파일을 못 쓰면 나눠 쓰기 없이 혼자 조회 (예전처럼)
+        lk = self._read(self.lock_path)  # 동시에 가져간 칸이 있으면 나중에 쓴 쪽이 리더
+        return not isinstance(lk, dict) or lk.get("id") == self.me
+
+    def publish(self, snap, now=None):
+        self._write(self.snap_path, dict(snap, ts=time.time() if now is None else now))
+
+    def read(self, now=None):
+        now = time.time() if now is None else now
+        snap = self._read(self.snap_path)
+        return snap if isinstance(snap, dict) and self._fresh(snap.get("ts"), now) else None
 
 
 # ---------------------------------------------------------------- 사용자 응답 대기 (허락/질문) 이벤트
@@ -232,14 +304,19 @@ def calc_stats(msgs):
 class Instance:
     """opencode 서버 1개 = 폴링 스레드 + SSE 스레드"""
 
+    # 일하는 세션의 전체 메시지(/session/{id}/message)는 이 간격(초)으로만 다시 받는다.
+    # 칸마다 이 폴링이 따로 돌아서, 2초마다 받으면 긴 세션일수록 opencode 서버가 무거워진다.
+    BUSY_REFETCH = 10.0
+
     def __init__(self, name, url, color=None, directory=None, password=None, interval=2.0,
-                 max_sessions=15, event_sink=None, headless=False):
+                 max_sessions=15, event_sink=None, headless=False, share=True):
         self.name, self.url = name, url
         self.color = fix_color(color) or PALETTE[int(hashlib.md5(name.encode()).hexdigest(), 16) % len(PALETTE)]
         self.api = Api(url, os.environ.get("OPENCODE_SERVER_USERNAME", "opencode"), password, directory)
         self.interval, self.max_sessions = interval, max_sessions
         self.lock = threading.Lock()
         self.sessions, self.status, self.stats, self.stats_ver, self.running_tool = {}, {}, {}, {}, {}
+        self.stats_at = {}   # sid -> 마지막으로 메시지를 받은 시각
         self.events = collections.deque(maxlen=200)
         self.event_sink = event_sink  # overview 통합 이벤트
         self.connected, self.sse_ok, self.version, self.err = False, False, "?", ""
@@ -257,6 +334,7 @@ class Instance:
         self.ev_total = 0     # 받은 이벤트 수
         self.last_event_t = 0.0
         self.ch = channel_of(name)
+        self.share = PollShare(url, directory, interval) if share else None
 
     @property
     def tag(self):
@@ -281,62 +359,125 @@ class Instance:
     # --- polling
     def _poll(self):
         while self.alive:
-            try:
-                try:
-                    self.version = self.api.get("/global/health", timeout=2).get("version", "?")
-                except Exception:
-                    pass
-                t_req = time.time()
-                sessions = self.api.get("/session")
-                ms = (time.time() - t_req) * 1000
-                self.rtt_ms = ms if not self.rtt_ms else self.rtt_ms * 0.7 + ms * 0.3
-                try:
-                    status = self.api.get("/session/status")  # 보통 non-idle 세션만 포함
-                except urllib.error.HTTPError:
-                    status = None
-                sessions.sort(key=lambda s: s["time"]["updated"], reverse=True)
-                sessions = sessions[: self.max_sessions]
-                cur_status = status if status is not None else self.status
-                for s in sessions:
-                    sid, ver = s["id"], s["time"]["updated"]
-                    if self.stats_ver.get(sid) != ver or cur_status.get(sid, {}).get("type") == "busy":
-                        try:
-                            st = calc_stats(self.api.get(f"/session/{sid}/message"))
-                            with self.lock:
-                                self.stats[sid], self.stats_ver[sid] = st, ver
-                        except Exception:
-                            pass
-                with self.lock:
-                    self.sessions = {s["id"]: s for s in sessions}
-                    for s in sessions:
-                        self.created_ms.setdefault(s["id"], (s.get("time") or {}).get("created") or 0)
-                    if status is not None:
-                        self.status = status
-                        # idle 이 된 세션의 '응답 대기'는 정리 (이벤트를 놓쳤을 때 대비)
-                        for wid, w in list(self.waits.items()):
-                            if (status.get(w["sid"]) or {}).get("type") in (None, "idle") and time.time() - w["since"] > 5:
-                                self.waits.pop(wid, None)
-                    self.ready = True
-                    if sessions:
-                        self.last_activity = max(self.last_activity, sessions[0]["time"]["updated"])
-                    if not self.connected:
-                        self.connected = True
-                        self.err = ""
-                        was_off = True
-                    else:
-                        was_off = False
-                    self.offline_since = None
-                if was_off:
-                    self.event(GRN, "online")
-            except Exception as e:
-                with self.lock:
-                    was_on = self.connected
-                    self.connected, self.err = False, f"{type(e).__name__}: {e}"
-                    if self.offline_since is None:
-                        self.offline_since = time.time()
-                if was_on:
-                    self.event(RED, "offline")
+            self.poll_once()
             time.sleep(self.interval)
+
+    def poll_once(self):
+        """리더면 opencode 를 조회하고 스냅샷을 남긴다. 아니면 리더의 스냅샷만 읽는다"""
+        if self.share is not None and not self.share.leader():
+            snap = self.share.read()
+            if snap is not None:
+                self._apply(snap)
+            return
+        self._fetch()
+        if self.share is not None:
+            self.share.publish(self._snapshot())
+
+    def _snapshot(self):
+        with self.lock:
+            return {"version": self.version, "rtt": self.rtt_ms, "connected": self.connected, "err": self.err,
+                    "sessions": list(self.sessions.values()), "status": self.status, "stats": dict(self.stats),
+                    "stats_ver": dict(self.stats_ver), "created": dict(self.created_ms)}
+
+    def _apply(self, snap):
+        """다른 칸(리더)이 조회한 결과를 이 칸에 반영한다 (online/offline 이벤트도 같이)"""
+        with self.lock:
+            self.version, self.rtt_ms = snap.get("version") or self.version, snap.get("rtt") or 0.0
+            was = self.connected
+            if snap.get("connected"):
+                sessions = [x for x in snap.get("sessions") or [] if isinstance(x, dict) and "id" in x]
+                self.sessions = {x["id"]: x for x in sessions}
+                self.stats.update(snap.get("stats") or {})
+                self.stats_ver.update(snap.get("stats_ver") or {})
+                for sid, c in (snap.get("created") or {}).items():
+                    self.created_ms.setdefault(sid, c)
+                status = snap.get("status")
+                if isinstance(status, dict):
+                    self.status = status
+                    for wid, w in list(self.waits.items()):
+                        if (status.get(w["sid"]) or {}).get("type") in (None, "idle") and time.time() - w["since"] > 5:
+                            self.waits.pop(wid, None)
+                self.ready, self.connected, self.err, self.offline_since = True, True, "", None
+                if sessions:
+                    self.last_activity = max(self.last_activity, sessions[0]["time"]["updated"])
+            else:
+                self.connected, self.err = False, snap.get("err") or "offline"
+                if self.offline_since is None:
+                    self.offline_since = time.time()
+        if self.connected and not was:
+            self.event(GRN, "online")
+        elif was and not self.connected:
+            self.event(RED, "offline")
+
+    def _fetch(self):
+        """opencode 를 직접 조회해 이 칸의 상태를 채운다 (리더만)"""
+        try:
+            try:
+                self.version = self.api.get("/global/health", timeout=2).get("version", "?")
+            except Exception:
+                pass
+            t_req = time.time()
+            sessions = self.api.get("/session")
+            ms = (time.time() - t_req) * 1000
+            self.rtt_ms = ms if not self.rtt_ms else self.rtt_ms * 0.7 + ms * 0.3
+            try:
+                status = self.api.get("/session/status")  # 보통 non-idle 세션만 포함
+            except urllib.error.HTTPError:
+                status = None
+            sessions.sort(key=lambda s: s["time"]["updated"], reverse=True)
+            sessions = sessions[: self.max_sessions]
+            cur_status = status if status is not None else self.status
+            for s in sessions:
+                sid, ver = s["id"], s["time"]["updated"]
+                busy = cur_status.get(sid, {}).get("type") == "busy"
+                if self.need_stats(sid, ver, busy):
+                    try:
+                        st = calc_stats(self.api.get(f"/session/{sid}/message"))
+                        with self.lock:
+                            self.stats[sid], self.stats_ver[sid] = st, ver
+                            self.stats_at[sid] = time.time()
+                    except Exception:
+                        pass
+            with self.lock:
+                self.sessions = {s["id"]: s for s in sessions}
+                for s in sessions:
+                    self.created_ms.setdefault(s["id"], (s.get("time") or {}).get("created") or 0)
+                if status is not None:
+                    self.status = status
+                    # idle 이 된 세션의 '응답 대기'는 정리 (이벤트를 놓쳤을 때 대비)
+                    for wid, w in list(self.waits.items()):
+                        if (status.get(w["sid"]) or {}).get("type") in (None, "idle") and time.time() - w["since"] > 5:
+                            self.waits.pop(wid, None)
+                self.ready = True
+                if sessions:
+                    self.last_activity = max(self.last_activity, sessions[0]["time"]["updated"])
+                if not self.connected:
+                    self.connected = True
+                    self.err = ""
+                    was_off = True
+                else:
+                    was_off = False
+                self.offline_since = None
+            if was_off:
+                self.event(GRN, "online")
+        except Exception as e:
+            with self.lock:
+                was_on = self.connected
+                self.connected, self.err = False, f"{type(e).__name__}: {e}"
+                if self.offline_since is None:
+                    self.offline_since = time.time()
+            if was_on:
+                self.event(RED, "offline")
+
+    def need_stats(self, sid, ver, busy, now=None):
+        """이 세션의 메시지를 다시 받아 토큰을 셀 때인가.
+        쉬는 세션은 바뀌었을 때만(끝난 뒤 값은 정확), 일하는 세션은 BUSY_REFETCH 간격으로만."""
+        if sid not in self.stats_ver:
+            return True
+        if busy:
+            now = time.time() if now is None else now
+            return now - self.stats_at.get(sid, 0) >= self.BUSY_REFETCH
+        return self.stats_ver.get(sid) != ver
 
     # --- SSE
     def _sse(self):
@@ -1206,15 +1347,19 @@ def loop(a, frame, tick=0.5, word="OCMUX", on_key=None, table=None):
                     on_key(k)
 
 
-def single_instance(a):
+def single_instance(a, start=True):
+    """start=False: 폴링/SSE 스레드 없이 주소·색·채널만 (compose 처럼 보내기만 하는 칸)"""
     name, url, color, directory, headless = a.name or "opencode", a.url, a.color, a.dir, False
-    if a.name and not a.url:
+    reg_dir = getattr(a, "reg_dir", False)
+    if a.name and (not a.url or reg_dir):
         for r in load_registry():
             if r.get("name") == a.name:
-                url, color, directory = r.get("url"), color or r.get("color"), directory or r.get("dir")
-                headless = bool(r.get("headless"))
+                if not a.url:
+                    url, color, headless = r.get("url"), color or r.get("color"), bool(r.get("headless"))
+                directory = directory or r.get("dir")
     url = url or "http://127.0.0.1:4096"
-    return Instance(name, url, color, directory, a.password, a.interval, a.max_sessions, headless=headless).start()
+    inst = Instance(name, url, color, directory, a.password, a.interval, a.max_sessions, headless=headless)
+    return inst.start() if start else inst
 
 
 class RegistryWatcher:
@@ -1583,7 +1728,7 @@ def drain_burst(toks):
 
 
 def run_compose(a):
-    inst = single_instance(a)
+    inst = single_instance(a, start=False)   # 보내기만 한다 → 서버를 폴링하지 않음
     ed = Editor()
     status, status_until = "", 0.0
     flash = None          # (색, 끝나는 시각, 키) — 누른 조작 키의 색으로 테두리가 잠깐 켜진다
@@ -1648,8 +1793,9 @@ def compose_after_send(inst, text, submitted, status):
     """전송 후 펫 연동: 이벤트 버스 기록 + 펫 반응 한 줄 (펫 모듈이 없으면 그대로)"""
     try:
         import ocmux_pet
+        # 보낸 글 원문은 디스크(버스 파일)에 남기지 않는다 — 펫 반응에 필요한 분류 결과만
         ocmux_pet.bus_write(inst.name, {"type": "compose", "chars": len(text), "submitted": submitted,
-                                        "text": text[:400]})
+                                        "ctx": ocmux_pet.reaction_context(text)})
         line = ocmux_pet.compose_reaction(inst.name, text)
         if line:
             return status + "  " + line
@@ -1670,8 +1816,10 @@ def main():
     ap.add_argument("--url")
     ap.add_argument("--name", help="인스턴스 이름 (레지스트리 조회/표시용)")
     ap.add_argument("--color", default=None, help="#RRGGBB 태그 색")
-    ap.add_argument("--password", default=os.environ.get("OPENCODE_SERVER_PASSWORD"))
+    ap.add_argument("--password", default=None, help="(비권장: 명령줄에 남음) 기본은 OPENCODE_SERVER_PASSWORD → ocmux 비밀번호 파일")
     ap.add_argument("--dir", default=None)
+    ap.add_argument("--reg-dir", action="store_true",
+                    help="폴더를 명령줄 대신 레지스트리(--name)에서 읽기 (cmd 가 경로 속 %%…%% 를 풀지 않게)")
     ap.add_argument("--interval", type=float, default=2.0)
     ap.add_argument("--max-sessions", type=int, default=15)
     ap.add_argument("--hide-idle-sub", action="store_true", help="idle subagent 세션 숨김")
@@ -1695,6 +1843,7 @@ def main():
     ap.add_argument("--guide", action="store_true", help="--once 와 함께: `?` 가이드를 켠 화면으로 출력")
     a = ap.parse_args()
     a.level = a.level.upper()
+    a.password = a.password or server_password()
     try:
         {"status": run_status, "overview": run_overview, "logs": run_logs,
          "usage": run_usage, "rpg": run_rpg, "compose": run_compose}[a.mode](a)

@@ -12,6 +12,7 @@ ocmux_pet.py - TOKEN QUEST: 토큰펫 게임 엔진 (화면 없음 / 순수 로�
 import collections
 import datetime
 import difflib
+import itertools
 import json
 import os
 import random
@@ -165,10 +166,15 @@ def read_save(path, tries=10):
     return last, None
 
 
+_BUS_SEQ = itertools.count(1)
+
+
 def bus_write(scope, event):
-    """다른 창(compose 등) → 펫 창으로 이벤트 전달 (append-only JSONL)"""
+    """다른 창(compose 등) → 펫 창으로 이벤트 전달 (append-only JSONL).
+    id 는 이 프로세스 안에서 유일 — 시계가 거친 PC(Windows 는 ~15ms)에서 같은 ts 가 겹쳐도 구분한다"""
     ev = dict(event)
     ev.setdefault("ts", time.time())
+    ev.setdefault("id", f"{os.getpid()}-{next(_BUS_SEQ)}")
     path = bus_path(scope)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -183,16 +189,80 @@ def bus_write(scope, event):
         pass
 
 
+def scrub_bus(scope):
+    """예전 버전이 버스 파일에 남긴 compose 원문(text)을 지운다. 원문이 있을 때만 다시 쓴다 → 지웠으면 True"""
+    path = bus_path(scope)
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+    except OSError:
+        return False
+    out, changed = [], False
+    for ln in lines:
+        try:
+            ev = json.loads(ln)
+        except ValueError:
+            out.append(ln)
+            continue
+        if isinstance(ev, dict) and "text" in ev:
+            ev.pop("text")
+            changed = True
+            out.append(_dumps(ev) + "\n")
+        else:
+            out.append(ln)
+    if not changed:
+        return False
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.writelines(out)
+        os.replace(tmp, path)
+        return True
+    except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return False
+
+
 class BusReader:
-    """bus 파일 tail. 파일이 잘려(오래된 줄 정리) 처음부터 다시 읽어도 이미 받은 이벤트는 ts 로 걸러낸다"""
+    """bus 파일 tail. 파일이 잘려(오래된 줄 정리) 처음부터 다시 읽어도 이미 받은 이벤트는 (ts, id) 로 걸러낸다.
+    ts 가 같은 이벤트끼리는 id 로 구분한다 (시계가 거친 PC 에서 연달아 쓴 이벤트가 버려지지 않게)"""
 
     def __init__(self, scope):
+        scrub_bus(scope)  # 예전 compose 원문 정리 (펫 창이 뜰 때 한 번)
         self.path = bus_path(scope)
-        self.last_ts = time.time()
+        self.last_ts, self.seen = 0.0, set()  # seen: ts == last_ts 인 이벤트들의 id
         try:
             self.pos = os.path.getsize(self.path)
+            with open(self.path, "rb") as f:  # 이미 있던 이벤트는 받은 것으로 친다 (잘린 뒤 다시 읽혀도 재생 안 되게)
+                for line in f.read().decode("utf-8", "replace").splitlines():
+                    self._accept(line)
         except OSError:
             self.pos = 0
+
+    @staticmethod
+    def _key(ev, line):
+        return str(ev.get("id") or line)
+
+    def _accept(self, line):
+        """처음 보는 이벤트면 기록하고 돌려준다. 이미 받았으면 None"""
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            return None
+        ts = ev.get("ts", 0) if isinstance(ev, dict) else 0
+        if not isinstance(ts, (int, float)) or ts < self.last_ts:
+            return None
+        key = self._key(ev, line)
+        if ts == self.last_ts:
+            if key in self.seen:
+                return None
+            self.seen.add(key)
+        else:
+            self.last_ts, self.seen = ts, {key}
+        return ev
 
     def poll(self):
         try:
@@ -213,15 +283,9 @@ class BusReader:
                 return []
             self.pos += end + 1
             for line in data[:end].decode("utf-8", "replace").splitlines():
-                try:
-                    ev = json.loads(line)
-                except ValueError:
-                    continue
-                ts = ev.get("ts", 0) if isinstance(ev, dict) else 0
-                if not isinstance(ts, (int, float)) or ts <= self.last_ts:
-                    continue
-                self.last_ts = ts
-                out.append(ev)
+                ev = self._accept(line)
+                if ev is not None:
+                    out.append(ev)
         except OSError:
             pass
         return out
@@ -3688,7 +3752,8 @@ class PetGame:
         if agent:
             self.stance = agent
 
-    def _on_compose(self, chars=0, text="", submitted=True):
+    def _on_compose(self, chars=0, text="", submitted=True, ctx=None):
+        """ctx: compose 창이 미리 고른 반응 종류 (글 원문은 넘겨받지 않음). text 는 예전 버스 줄 호환용"""
         self.last_activity = self.now()
         self.inc("compose")
         self.quest("compose")
@@ -3698,7 +3763,7 @@ class PetGame:
             self.unlock("longprompt")
         if not self.is_egg():
             self.p["mood"] = clamp(self.p["mood"] + 3, 0, 100)
-            self.say(reaction_context(text, chars))
+            self.say(ctx if ctx in D.LINES else reaction_context(text, chars))
         self.note(f"주인님의 지시 수신 ({chars}자) → 영감 버프 (경험치 +10%, 10분)")
 
     # --- opencode 할 일(todo) = 메인 퀘스트

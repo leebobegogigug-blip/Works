@@ -42,6 +42,7 @@ param(
     [double]$ComposeHeight = 0.30,  # big input pane under the TUI
     [switch]$NoCompose,
     [switch]$Compact,               # no usage/rpg row
+    [switch]$NoPet,                 # no TOKEN QUEST pane (monitor only: usage takes the whole bottom row)
     [switch]$NoLogs,                # no LOGS section inside status
     [switch]$NoOverview
 )
@@ -56,6 +57,7 @@ $Monitor  = Join-Path $Here 'oc_monitor.py'
 $DataDir  = Join-Path $env:LOCALAPPDATA 'ocmux'
 $RegFile  = Join-Path $DataDir 'instances.json'
 $LogDir   = Join-Path $DataDir 'logs'
+$PwFile   = Join-Path $DataDir 'server-password'   # read by the Python panes (never put on a command line)
 $Palette  = @('#6ABA23', '#3F77A6', '#A5AAAE', '#95D85A', '#75A1C7', '#45741B', '#B8CEE0', '#81888D')  # lime / navy / gray
 $Scheme   = 'ocmux Black'
 New-Item -ItemType Directory -Force -Path $DataDir, $LogDir | Out-Null
@@ -167,9 +169,21 @@ function Q([string]$s) {
     # ';' separates wt sub-commands even inside quotes -> escape it
     return '"' + ($s -replace ';', '\;') + '"'
 }
+function Sync-PwFile {
+    # The panes need OPENCODE_SERVER_PASSWORD, but new tabs of an already-open WT window do not inherit
+    # this shell's environment. Passing it as --password would put it on every pane's command line
+    # (visible to process listings and EDR command-line logs), so hand it over through a file in the
+    # per-user data folder instead; the monitor reads the env var first, then this file.
+    if ($env:OPENCODE_SERVER_PASSWORD) {
+        [System.IO.File]::WriteAllText($PwFile, $env:OPENCODE_SERVER_PASSWORD, (New-Object System.Text.UTF8Encoding($false)))
+    } elseif (Test-Path $PwFile) {
+        Remove-Item $PwFile -Force
+    }
+}
 function Invoke-WT([string]$wtArgs) {
     if (-not (Get-Command wt -ErrorAction SilentlyContinue)) { throw 'Windows Terminal (wt.exe) not found' }
     Install-Scheme
+    Sync-PwFile
     Write-Verbose "wt $wtArgs"
     Start-Process wt -ArgumentList $wtArgs
 }
@@ -196,7 +210,9 @@ function Get-BottomRow([string]$dir, [string]$usageArgs) {
     if ($Compact) { return '' }
     $heroArg = if ($PetName) { " --hero $(Q $PetName)" } else { '' }
     $a  = " ; split-pane -H -s $BottomHeight --colorScheme $(Q $Scheme) -d $dir $(Py 'usage' $usageArgs)"
-    $a += " ; split-pane -V -s $GameWidth --colorScheme $(Q $Scheme) -d $dir $(Py 'rpg' ($usageArgs + $heroArg))"
+    if (-not $NoPet) {
+        $a += " ; split-pane -V -s $GameWidth --colorScheme $(Q $Scheme) -d $dir $(Py 'rpg' ($usageArgs + $heroArg))"
+    }
     return $a
 }
 function Get-OverviewTabArgs {
@@ -209,7 +225,7 @@ function Get-OverviewTabArgs {
 function Get-InstanceTabArgs($i) {
     $d     = Q $i.dir
     $title = Q ("{0} {1} :{2}" -f (Ch $i), $i.name, $i.port)
-    $who  = "--url $($i.url) --name $(Q $i.name) --color $($i.color)$(PwArg '--password')"
+    $who  = "--url $($i.url) --name $(Q $i.name) --color $($i.color)"   # password: env / $PwFile (see Sync-PwFile)
     if ($i.headless) {
         $main   = "cmd /k opencode attach $($i.url)$(PwArg '-p') --dir $d"
         $logSrc = "--file $(Q $i.logfile)"
@@ -218,7 +234,8 @@ function Get-InstanceTabArgs($i) {
         $logSrc = "--since $($i.created)"
     }
     $a  = "new-tab --title $title --suppressApplicationTitle --tabColor $(Q $i.color) --colorScheme $(Q $Scheme) -d $d $main"
-    $a += " ; split-pane -V -s $RightWidth --colorScheme $(Q $Scheme) -d $d $(Py 'status' "$who --dir $d $logSrc")"
+    # the folder is read from the registry (--reg-dir), not put on the cmd line where cmd would expand %...%
+    $a += " ; split-pane -V -s $RightWidth --colorScheme $(Q $Scheme) -d $d $(Py 'status' "$who --reg-dir $logSrc")"
     $a += Get-BottomRow $d $who
     $a += ' ; focus-pane -t 0'
     if (-not $NoCompose) {
@@ -235,10 +252,19 @@ switch ($Cmd) {
     if (-not (Test-Path $Monitor)) { throw "oc_monitor.py not found: $Monitor" }
     if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) { throw 'opencode not in PATH' }
     $dir = if ($Target) { (Resolve-Path $Target).ProviderPath } else { (Get-Location).ProviderPath }
+    if ($Headless -and $dir.Contains('%')) {
+        # headless panes run `opencode attach ... --dir <folder>` through cmd, which expands %NAME%
+        throw "-Headless cannot use a folder whose path contains '%' ($dir). Rename the folder or add it without -Headless"
+    }
     $reg = @(Get-Reg)
     $firstEver = ($reg.Count -eq 0)
 
     $base = if ($Name) { $Name } else { Split-Path $dir -Leaf }
+    # the name ends up inside wt/cmd command lines: " breaks the quoting, % ^ & | < > are cmd metacharacters
+    if ($base -match '["%^&|<>]') {
+        if ($Name) { throw "name must not contain any of: `" % ^ & | < >  (got '$Name')" }
+        $base = $base -replace '["%^&|<>]', '_'
+    }
     $n = $base; $k = 2
     while (Find-Inst $reg $n) { $n = "$base-$k"; $k++ }
 

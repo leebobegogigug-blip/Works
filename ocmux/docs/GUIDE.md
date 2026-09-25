@@ -50,7 +50,7 @@ PS> ocmux ls
 
 Channel numbers are given once and never change (a removed channel's number is reused by the next `add`).
 Options: `-Port` `-BasePort` `-NoOverview` `-Python "py -3"` · layout: `-RightWidth 0.5` `-BottomHeight 0.42`
-`-GameWidth 0.58` `-ComposeHeight 0.30` `-Compact` (no bottom row) `-NoLogs` `-NoCompose`
+`-GameWidth 0.58` `-ComposeHeight 0.30` `-Compact` (no bottom row) `-NoPet` (monitor only, usage fills the bottom row) `-NoLogs` `-NoCompose`
 
 ## 03 layout
 
@@ -307,8 +307,9 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 101 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper):
-  `py -3 -m unittest discover -s tests`
+- tests (standard library `unittest`, 115 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+  monitor polling/password/compose privacy, and `ocmux.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
+  `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `ocmux.ps1` with Windows PowerShell 5.1
 - one-frame snapshot of any pane, for screenshots or checks without a live terminal:
   `py -3 oc_monitor.py rpg --name demo --once 1 --cols 80 --rows 24` (add `--guide` to show the `?` guide)
 - `oc_monitor.py` modes: `status` `overview` `logs` `usage` `rpg` `compose` — `py -3 oc_monitor.py -h` lists every flag
