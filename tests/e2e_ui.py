@@ -177,7 +177,8 @@ def check_mode(mode, tmp):
 
 
 NAVY, LIME, GREY = "rgb(0, 35, 65)", "rgb(106, 186, 35)", "rgb(165, 170, 174)"
-BLACK_PANEL, INK_BLACK, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(11, 11, 11)", "rgb(239, 238, 233)"
+PRIME, PRIME_INK = "rgb(31, 80, 122)", "rgb(242, 242, 238)"  # TE v2: 네이비 주색 · 라임 강조
+BLACK_PANEL, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(239, 238, 233)"
 
 
 def css(page, sel, prop):
@@ -233,10 +234,12 @@ def ui_run(tmp):
             p = new_page(url, "light")
             assert "남은 일정" in p.inner_text(".msg.bot"), p.inner_text(".msg.bot")
             assert css(p, ".device", "backgroundColor") == BLACK_PANEL
-            assert css(p, ".send", "backgroundColor") == LIME
-            assert css(p, ".key.k3", "backgroundColor") == NAVY and css(p, ".key.k1", "backgroundColor") == LIME
+            assert css(p, ".send", "backgroundColor") == PRIME  # 주 버튼은 네이비
+            cap = "(s) => getComputedStyle(document.querySelector(s), '::before').backgroundColor"
+            assert p.evaluate(cap, ".key.k1 .dial") == PRIME and p.evaluate(cap, ".key.k2 .dial") == GREY  # 노브 캡
+            assert css(p, ".lbl b", "backgroundColor") == PRIME and p.locator(".lbl").count() == 4  # 01~04 번호 라벨
             assert p.locator("#next-count svg.seg").count() == 1 and p.locator("#clock-time svg.seg").count() == 1
-            assert p.locator("#mascot svg rect").count() > 80
+            assert p.locator("#mascot svg .ms").count() == 1 and p.locator("#mascot svg .mled").count() == 1  # JB-1
             assert p.locator(".track .ev").count() >= 6 and p.locator(".track .nowline").count() == 1
             assert p.inner_text("#next-title") != "self-test"
             # 도스 픽셀 폰트: 내장 WOFF 가 실제로 로드되고 전체에 쓰인다
@@ -248,7 +251,7 @@ def ui_run(tmp):
             wide_boxes = p.evaluate("""() => [...document.querySelectorAll('.device, .bar, .lcd, .overview, .log, .keys, .input, .foot')]
                 .filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.className)""")
             assert not wide_boxes, wide_boxes  # 글자가 커져도 가로로 넘치지 않는다
-            assert css(p, ".msg.user", "backgroundColor") == GREY
+            assert re.fullmatch(r"\d\d:\d\d", p.get_attribute(".msg.user", "data-ts"))  # 로그 줄: 시각 · 기호 · 내용
             # 아래 줄: 로컬 저장 · 모델 드롭다운
             assert p.inner_text("#foot-info") == "로컬 저장"
             p.wait_for_function("document.querySelectorAll('#model option').length === 2")
@@ -340,7 +343,7 @@ def ui_run(tmp):
             # 제안 → Esc 취소(구기기) → Ctrl+Enter 확정 → 'ㅇㅇ' 확정
             say(p, "월요일 오전 기획 회의 잡아줘")
             p.wait_for_selector(".card.pending")
-            assert css(p, ".card.pending .okb", "color") == INK_BLACK
+            assert css(p, ".card.pending .okb", "color") == PRIME_INK and css(p, ".card.pending .okb", "backgroundColor") == PRIME
             p.wait_for_timeout(750)
             p.screenshot(path=os.path.join(OUT, "jaba-pending.png"))
             p.keyboard.press("Escape")
@@ -382,7 +385,7 @@ def ui_run(tmp):
             s.wait_for_selector(".track .ev.now")
             assert css(s, ".track .ev.now", "backgroundColor") == LIME
             assert css(s, ".track .ev.past", "opacity") == "1"
-            assert s.inner_text("#next-k") == "now", s.inner_text("#next-k")
+            assert s.inner_text("#next-k").lower() == "now", s.inner_text("#next-k")  # 화면엔 대문자로
             s.wait_for_timeout(400)
             s.screenshot(path=os.path.join(OUT, "jaba-now.png"))
 

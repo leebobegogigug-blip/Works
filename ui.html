@@ -6,7 +6,7 @@
 <meta name="jaba-token" content="__TOKEN__">
 <title>jaba · 일정 비서</title>
 <link rel="preload" href="/font/jaba-dos.woff" as="font" type="font/woff" crossorigin>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Crect x='1' y='2' width='10' height='9' fill='%23f2f2ee'/%3E%3Crect x='1' y='2' width='10' height='2' fill='%236aba23'/%3E%3Crect x='3' y='0' width='1' height='3' fill='%23a5aaae'/%3E%3Crect x='8' y='0' width='1' height='3' fill='%23a5aaae'/%3E%3Crect x='3' y='5' width='1' height='2' fill='%230b0b0b'/%3E%3Crect x='8' y='5' width='1' height='2' fill='%230b0b0b'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='6.5' width='15' height='12.5' fill='%230b0b0b' stroke='%23f2f2ee' stroke-width='1.4'/%3E%3Crect x='6.5' y='8.5' width='11' height='7.5' fill='%231f507a'/%3E%3Crect x='8.7' y='10.7' width='1.8' height='1.8' fill='%23f2f2ee'/%3E%3Crect x='13.5' y='10.7' width='1.8' height='1.8' fill='%23f2f2ee'/%3E%3Cpath d='M8 6.5V3' stroke='%23f2f2ee' stroke-width='1.4'/%3E%3Crect x='7' y='1' width='2' height='2' fill='%236aba23'/%3E%3C/svg%3E">
 <style>
 @font-face{font-family:"JabaDOS";src:url(/font/jaba-dos.woff) format("woff");font-display:block}
 :root{
@@ -31,6 +31,16 @@
   --m-ring:#a5aaae;--m-top:#6aba23;--m-body:#f2f2ee;--m-ink:#0b0b0b;--m-cheek:#8fd14f;
   --dos:"JabaDOS","Cascadia Mono",Consolas,"D2Coding","GulimChe","굴림체",monospace;
   --b:1px 0 0 currentColor; /* 도스식 굵게: 1px 옆에 한 번 더 찍기 (합성 볼드보다 선명) */
+  /* TE v2: 네이비가 주색(뼈대 · 버튼), 라임은 강조(지금 · 켜짐 · 대기 · 알림)만 */
+  --prime:#1f507a;--prime-2:#3f77a6;--prime-deep:#002341;--prime-ink:#f2f2ee;--grid:rgba(63,119,166,.2);
+  --seg-on:#f2f2ee;--seg-off:rgba(63,119,166,.16);--seg-glow:rgba(242,242,238,.16);
+  --btn:#1f507a;--btn-ink:#f2f2ee;--btn-edge:#002341;--card-edge:#3f77a6;
+  --ev:#1f507a;--ev-ink:#f2f2ee;
+  --k1:#1f507a;--k1-ink:#f2f2ee;--k1-edge:#002341;
+  --k3:#f2f2ee;--k3-ink:#002341;--k3-edge:#8f8f8a;
+  --k4:#0b0b0b;--k4-ink:#6aba23;--k4-edge:#000;
+  --k5:#0e1620;--k5-ink:#f2f2ee;--k5-edge:#000;--dial:#101820;
+  --m-body:#0b0b0b;--m-line:#f2f2ee;--m-screen:#1f507a;--m-face:#f2f2ee;--m-led:#6aba23;--m-led-off:#3a3f44;
   color-scheme:dark;
 }
 /* "light": 밝은 본체 + 주황 · "system": OS 라이트면 라이트, 다크면 기본 다크 */
@@ -53,6 +63,8 @@
   --k5:#e2e1db;--k5-ink:#161616;--k5-edge:#b4b3ac;
   --screw:#dcdbd5;--screw-edge:#b4b3ac;--screw-slot:#9d9c96;
   --m-ring:#8f8d86;--m-top:#ff4f00;--m-body:#fff;--m-ink:#161616;--m-cheek:#ffb199;
+  --prime:#161616;--prime-2:#5a5954;--prime-deep:#161616;--prime-ink:#f3f2ed;--grid:rgba(22,22,22,.07);--dial:#d5d4ce;
+  --m-body:#fff;--m-line:#161616;--m-screen:#4a4945;--m-face:#fff;--m-led:#ff4f00;--m-led-off:#8f8d86;
   color-scheme:light;
 }
 @media (prefers-color-scheme:light){:root[data-theme="system"]{
@@ -74,6 +86,8 @@
   --k5:#e2e1db;--k5-ink:#161616;--k5-edge:#b4b3ac;
   --screw:#dcdbd5;--screw-edge:#b4b3ac;--screw-slot:#9d9c96;
   --m-ring:#8f8d86;--m-top:#ff4f00;--m-body:#fff;--m-ink:#161616;--m-cheek:#ffb199;
+  --prime:#161616;--prime-2:#5a5954;--prime-deep:#161616;--prime-ink:#f3f2ed;--grid:rgba(22,22,22,.07);--dial:#d5d4ce;
+  --m-body:#fff;--m-line:#161616;--m-screen:#4a4945;--m-face:#fff;--m-led:#ff4f00;--m-led-off:#8f8d86;
   color-scheme:light;
 }}
 *{box-sizing:border-box}
@@ -357,29 +371,160 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 @keyframes popin{0%{transform:scale(0)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}}
 @media (max-width:380px){.leds,#mode{display:none}.hint{display:none}}
+/* ════════ TE v2 · 격자 8px · 가는 선 · 번호 라벨 · 노브 (색은 위 토큰) ════════ */
+.device{border-radius:2px;border-color:var(--prime);background-image:radial-gradient(var(--grid) 1px,transparent 1px);background-size:8px 8px;background-position:4px 4px;
+  grid-template-rows:auto auto auto auto auto minmax(0,1fr) auto auto auto auto}
+.screw{background:none;border-color:var(--line-2)}
+.screw::after{height:1px;margin-top:0;background:var(--line-2)}
+.bar{padding:14px 24px 2px;align-items:flex-end}
+.logo{display:flex;flex-direction:column}
+.logo .model-no{font-size:16px;line-height:16px;color:var(--ink-3);letter-spacing:1px;text-shadow:none;margin-top:4px}
+.logo::after{display:none}
+.led i{width:6px;height:6px}
+.lbl{display:flex;align-items:center;gap:8px;padding:0 24px;margin:12px 0 6px;line-height:16px;color:var(--ink-3);letter-spacing:1px;text-transform:uppercase;flex:none}
+.lbl b{background:var(--prime);color:var(--prime-ink);padding:0 3px;text-shadow:none;letter-spacing:0}
+.lbl i{flex:1;height:1px;background:var(--prime)}
+.lbl em{font-style:normal;color:var(--ink-2)}
+.chat .lbl{margin:12px 0 2px}
+
+/* 01 화면: 모서리 재단선 · 흰 숫자 · 라임은 콜론만 */
+.lcd{margin:0 24px;border-radius:0;border-color:var(--prime);box-shadow:none;padding:12px 16px}
+.lcd::after{opacity:.5}
+.crop{position:absolute;width:8px;height:8px;border:0 solid var(--prime-2);z-index:1;pointer-events:none}
+.ca{left:4px;top:4px;border-left-width:1px;border-top-width:1px}.cb{right:4px;top:4px;border-right-width:1px;border-top-width:1px}
+.cc{left:4px;bottom:4px;border-left-width:1px;border-bottom-width:1px}.cd{right:4px;bottom:4px;border-right-width:1px;border-bottom-width:1px}
+.lcd-top{text-transform:uppercase;letter-spacing:1px}
+#next-k{background:none;color:var(--accent);padding:0}
+#next-k::before{content:"● "}
+.seg .colon .on{fill:var(--accent)}
+.next-count .seg{filter:none}
+.lcd .wk{border-radius:0;border-color:var(--prime-2);color:var(--prime-2)}
+
+/* 02 오늘: 사각 트랙 · 빗금은 지난 일정 · 라임은 지금만 */
+.overview{padding:0 24px 2px}
+#track-bar{border-radius:0;box-shadow:inset 0 0 0 1px var(--prime)}
+.track .ev{border-radius:0}
+.track .ev.past{background:repeating-linear-gradient(135deg,var(--line-2) 0 1px,transparent 1px 4px);box-shadow:inset 0 0 0 1px var(--line-2);opacity:1}
+.track .ev.now{box-shadow:none}
+.track .nowline{border-radius:0;animation:none}
+#ticks span,#ticks span:first-child,#ticks span:last-child{transform:none;border-left:1px solid var(--line-2);padding-left:3px}
+.day-count{border-radius:0;border-color:var(--prime-2);margin-top:-16px}
+.day-count.done{background:var(--prime);color:var(--prime-ink)}
+
+/* 03 기록: 말풍선 대신 '시각 · 기호 · 내용' 로그 줄 */
+.chat{border-top:0}
+.log{padding:6px 24px 8px}
+.msg,.msg.bot{align-self:stretch;max-width:none;position:relative;padding:0 0 0 72px;color:var(--ink-2);line-height:22px}
+.msg.user{align-self:stretch;background:none;color:var(--ink);padding:0 0 0 72px;border-radius:0}
+.msg::before,.msg.bot::before{content:attr(data-ts);position:absolute;left:0;top:0;width:auto;height:auto;background:none;color:var(--ink-3)}
+.msg::after{content:"·";position:absolute;left:52px;top:0;color:var(--ink-3)}
+.msg.user::after{content:"▸";color:var(--prime-2)}
+.act{padding-left:72px}
+.act::before{content:"└ ";color:var(--line-2)}
+.thinking{padding-left:72px}
+.thinking i{background:var(--prime-2)}
+.sys{border-radius:0;margin-left:72px}
+
+/* 제안 카드 = 사양서: 네이비 머리띠 · 점선 줄 · 두 칸 버튼 */
+.card{align-self:stretch;width:auto;margin:4px 0 6px 72px;border:1px solid var(--card-edge);border-radius:0;padding:0;background:var(--panel)}
+.card-h{padding:4px 10px;background:var(--prime-deep);color:var(--prime-ink);border-bottom:1px solid var(--card-edge);text-transform:uppercase;letter-spacing:1px}
+.tag,.card[data-kind=delete] .tag{background:var(--prime-ink);color:var(--prime-deep);letter-spacing:0}
+.card.pending .card-h .st::before{content:"● ";color:var(--accent)}
+.perf{display:none}
+.rows{padding:8px 10px 4px;padding-right:84px;gap:0 8px}
+.rows dt,.rows dd{border-bottom:1px dotted var(--line)}
+.rows dd.chg{color:var(--ink)}
+.rows dd.chg::before{content:"▸ ";color:var(--accent)}
+.note{padding:0 10px;color:var(--ink-2)}
+.note::before{content:"! ";color:var(--accent)}
+.note.err{color:var(--err)}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:8px 0 0;border-top:1px solid var(--card-edge)}
+.okb{width:auto;height:32px;border-radius:0;background:var(--btn);color:var(--btn-ink);box-shadow:none;text-align:left;padding:0 10px;text-shadow:none;letter-spacing:1px}
+.okb::before{content:"";display:inline-block;width:6px;height:6px;background:var(--accent);margin-right:8px;vertical-align:1px}
+.okb:active{transform:none;box-shadow:none;filter:brightness(1.25)}
+.nob{height:32px;border-radius:0;background:transparent;box-shadow:none;border-left:1px solid var(--card-edge);text-align:left;padding:0 10px;letter-spacing:1px}
+.nob:active{transform:none;background:var(--key)}
+.hint{display:none}
+.undo-row{padding:8px 10px}
+.undo{border-radius:0;border-color:var(--prime-2)}
+.card.done{border-color:var(--line-2)}
+.card.done .card-h{background:transparent;color:var(--ink-2);border-bottom-color:var(--line-2)}
+
+/* 서랍 */
+.drawer{border-radius:0;border:1px solid var(--prime-2)}
+.num{background:var(--prime);color:var(--prime-ink)}
+
+/* 04 조작부: 노브 4개 + 고무 키 */
+.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 88px;gap:8px;align-items:end;padding:2px 24px 0}
+.key.knob{background:none;box-shadow:none;border-radius:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:6px;text-shadow:none;color:var(--ink);white-space:nowrap}
+.key.knob span{position:static;opacity:1}
+.key.knob:active,.key.knob.pressed{transform:none;box-shadow:none}
+.knob .dial{position:relative;display:block;width:48px;height:48px;border-radius:50%;background:var(--dial);border:1px solid var(--prime);box-shadow:0 3px 0 #000}
+.knob .dial::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--kb);box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
+.knob .dial::after{content:"";position:absolute;left:50%;top:9px;width:2px;height:10px;margin-left:-1px;background:var(--ki);transform-origin:50% 15px;transform:rotate(var(--rot,0deg));transition:transform .3s cubic-bezier(.3,1.6,.5,1)}
+.knob:active .dial::after,.knob.pressed .dial::after{transform:rotate(calc(var(--rot,0deg) + 60deg))}
+.knob .dial{outline:1px dashed transparent}
+.knob .kn{color:var(--ink-3);letter-spacing:1px;text-transform:uppercase;line-height:16px}
+.knob .kn em{font-style:normal;color:var(--prime-2);margin-right:4px}
+.knob .kl{line-height:16px}
+.k1{--rot:-40deg}.k2{--rot:10deg}.k3{--rot:60deg}.k4{--rot:-80deg}
+.rubbers{display:flex;flex-direction:column;gap:8px}
+.key.rub{flex:none;height:32px;padding:0 8px;display:flex;align-items:center;gap:6px;border-radius:0;border:1px solid var(--prime);box-shadow:0 3px 0 #000;text-shadow:none}
+.key.rub span{position:static;opacity:1;color:var(--ink-3)}
+.key.rub:active,.key.rub.pressed{transform:translateY(2px);box-shadow:0 1px 0 #000}
+.k6{--kb:var(--k5);--ki:var(--k5-ink);--ke:var(--k5-edge)}
+.k5 .badge{top:50%;margin-top:-8px}
+
+/* 05 입력 · 아래 줄 */
+.input{margin:14px 24px 0;padding:0 0 0 8px;border:1px solid var(--prime);align-items:center;gap:8px}
+.prompt{line-height:40px;color:var(--prime-2)}
+#msg{border-bottom:0;padding:8px 2px}
+.send{width:40px;height:40px;border-radius:0;box-shadow:none;border-left:1px solid var(--prime-2);font-size:24px;line-height:24px}
+.send:active{transform:none;box-shadow:none;filter:brightness(1.25)}
+.foot{margin-top:14px;border-top:1px solid var(--prime);padding:8px 24px 12px;text-transform:uppercase;letter-spacing:1px}
+#model{border-radius:0;border-color:var(--prime-2);text-transform:none;letter-spacing:0}
+.ghost{border-radius:0;border-color:var(--prime-2)}
+.toast{border-radius:0;background:var(--prime-deep);color:var(--prime-ink);border-left:4px solid var(--accent);text-shadow:none}
+@media (max-width:420px){.keys{grid-template-columns:repeat(4,minmax(0,1fr)) 72px;padding:2px 12px 0}.lbl,.overview{padding-left:12px;padding-right:12px}.lcd,.input{margin-left:12px;margin-right:12px}.log{padding-left:12px;padding-right:12px}}
+/* 마스코트 JB-1 */
+.lcd .mascot,.toast .mascot{--m-line:var(--lcd-ink);--m-body:var(--lcd)}  /* 화면·토스트는 테마와 상관없이 어두운 바탕 */
+.mascot svg{overflow:visible}
+.mascot .mb{fill:var(--m-body);stroke:var(--m-line);stroke-width:1.1}
+.mascot .ms{fill:var(--m-screen)}
+.mascot .mf{fill:none;stroke:var(--m-face);stroke-width:1.1;stroke-linecap:square;stroke-linejoin:miter}
+.mascot .mfill{fill:var(--m-face)}
+.mascot .ml{fill:none;stroke:var(--m-line);stroke-width:1.1}
+.mascot .mled{fill:var(--m-led-off)}.mascot .mled.on{fill:var(--m-led)}
+.mascot.alert .mled.on{animation:blink .5s steps(2) infinite}
+.mascot .mdot{fill:var(--m-line);opacity:.45}
+.mascot .mbang{stroke:var(--m-led);stroke-width:1.4}
 </style>
 </head>
 <body>
 <div class="device" id="device">
   <i class="screw s1"></i><i class="screw s2"></i><i class="screw s3"></i><i class="screw s4"></i>
   <header class="bar">
-    <span class="logo">jaba</span>
+    <span class="logo">jaba<small class="model-no">JB-1 · 일정 비서</small></span>
     <span class="leds">
       <span class="led" id="led-llm"><i></i>llm</span>
       <span class="led" id="led-cal"><i></i><span id="cal-name">cal</span></span>
     </span>
     <span class="clock"><span id="clock-date"></span><span id="clock-time" role="img" aria-label="--:--"></span></span>
   </header>
+  <div class="lbl"><b>01</b>next<i></i><em>T−</em></div>
   <section class="lcd" id="next-box" aria-label="다음 일정">
+    <i class="crop ca"></i><i class="crop cb"></i><i class="crop cc"></i><i class="crop cd"></i>
     <div class="lcd-top"><span id="next-k">next</span><span id="next-meta"></span><button class="wk" id="next-wiki" type="button" title="이 일정 위키 (Alt+W)" hidden>위키</button><span id="next-when"></span></div>
     <div class="lcd-mid"><div class="next-count" id="next-count" role="img" aria-label="--:--"></div><div class="next-title" id="next-title">&nbsp;</div></div>
     <span class="mascot idle" id="mascot" aria-hidden="true"></span>
   </section>
+  <div class="lbl"><b>02</b>today<i></i></div>
   <section class="overview" aria-label="오늘 한눈에">
     <button class="track" id="track" type="button" aria-label="오늘 일정 펼치기"><span id="track-bar"></span><span id="ticks"></span></button>
     <button class="day-count" id="day-count" type="button">–</button>
   </section>
   <main class="chat">
+    <div class="lbl"><b>03</b>log<i></i></div>
     <div class="log" id="log" aria-live="polite"></div>
     <div class="drawer" id="day-drawer" hidden>
       <div class="drawer-h"><span class="num">01</span><span id="day-label">today</span><span class="spacer"></span>
@@ -399,12 +544,16 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
       <div class="wiki" id="wiki-body"></div>
     </div>
   </main>
+  <div class="lbl"><b>04</b>deck<i></i><em>alt + 1–4</em></div>
   <div class="keys">
-    <button class="key k1" type="button" data-q="오늘 남은 일정 알려줘"><span>1</span>오늘</button>
-    <button class="key k2" type="button" data-q="내일 일정 알려줘"><span>2</span>내일</button>
-    <button class="key k3" type="button" data-q="이번 주 남은 일정 정리해줘"><span>3</span>이번 주</button>
-    <button class="key k4" type="button" data-q="이번 주에 1시간 비는 시간 찾아줘"><span>4</span>빈 시간</button>
-    <button class="key k5" id="mem-key" type="button" aria-label="학습 서랍"><span>M</span>학습<b class="badge" id="mem-count">0</b></button>
+    <button class="key knob k1" type="button" data-q="오늘 남은 일정 알려줘"><i class="dial"></i><span class="kn"><em>1</em>today</span><span class="kl">오늘</span></button>
+    <button class="key knob k2" type="button" data-q="내일 일정 알려줘"><i class="dial"></i><span class="kn"><em>2</em>next</span><span class="kl">내일</span></button>
+    <button class="key knob k3" type="button" data-q="이번 주 남은 일정 정리해줘"><i class="dial"></i><span class="kn"><em>3</em>week</span><span class="kl">이번 주</span></button>
+    <button class="key knob k4" type="button" data-q="이번 주에 1시간 비는 시간 찾아줘"><i class="dial"></i><span class="kn"><em>4</em>free</span><span class="kl">빈 시간</span></button>
+    <div class="rubbers">
+      <button class="key k5 rub" id="mem-key" type="button" aria-label="학습 서랍"><span>M</span>학습<b class="badge" id="mem-count">0</b></button>
+      <button class="key k6 rub" id="wiki-key" type="button" aria-label="일정 위키 (Alt+W)"><span>W</span>위키</button>
+    </div>
   </div>
   <form class="input" id="form" autocomplete="off">
     <span class="prompt" aria-hidden="true">C:₩&gt;</span>
@@ -491,27 +640,41 @@ function seg7(text, blinkColon){
   return '<svg class="seg" viewBox="-3 0 ' + (x + 2) + ' 22" aria-hidden="true">' + body + '</svg>';
 }
 
-/* ── 픽셀 마스코트 (달력 한 장) */
-const M_BODY = ['...r....r...', '..LrLLLLrL..', '.LLLLLLLLLL.', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '.WWWWWWWWWW.',
-                '.WWWWWWWWWW.', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '..WWWWWWWW..', '...KK..KK...'];
+/* ── 마스코트 "JB-1": 네모 화면 얼굴 + 노브 + 안테나 불빛. 선 · 기본 도형만 (OP-1 화면 그림처럼) */
 const FACES = {
-  idle:   'K3,5 K3,6 K8,5 K8,6 K5,8 K6,8 N2,7 N9,7',
-  blink:  'K3,6 K8,6 K5,8 K6,8 N2,7 N9,7',
-  think:  'K4,4 K4,5 K9,4 K9,5 K6,8 N1,7',
-  think2: 'K2,4 K2,5 K7,4 K7,5 K5,8 N10,7',
-  happy:  'K2,6 K3,5 K4,6 K7,6 K8,5 K9,6 K4,8 K5,9 K6,9 K7,8 N1,7 N10,7',
-  alert:  'K3,4 K3,5 K3,6 K8,4 K8,5 K8,6 K5,8 K6,8 K5,9 K6,9',
-  error:  'K2,4 K4,4 K3,5 K2,6 K4,6 K7,4 K9,4 K8,5 K7,6 K9,6 K4,9 K5,8 K6,8 K7,9',
-  sleep:  'K2,6 K3,6 K8,6 K9,6 K5,9 K6,9 N2,8 N9,8'
+  idle:   {eyes: 'sq'},
+  blink:  {eyes: 'line'},
+  think:  {eyes: 'sq', look: 1, knob: 70},
+  think2: {eyes: 'sq', look: -1, knob: -40},
+  happy:  {eyes: 'arc', led: 1, knob: 120},
+  alert:  {eyes: 'big', led: 1, bang: 1},
+  error:  {eyes: 'x', mouth: 1, knob: 180},
+  sleep:  {eyes: 'line', low: 1}
 };
-const MOODS = ['idle', 'think', 'happy', 'error', 'alert', 'sleep'];
 function mascotSVG(face){
-  let r = '';
-  const px = (c, x, y) => '<rect class="' + c + '" x="' + x + '" y="' + y + '" width="1.02" height="1.02"/>';
-  M_BODY.forEach((row, y) => { for (let x = 0; x < row.length; x++){ if (row[x] !== '.') r += px(row[x], x, y); } });
-  (FACES[face] || FACES.idle).split(' ').forEach((t) => { const p = t.slice(1).split(','); r += px(t[0], p[0], p[1]); });
-  return '<svg viewBox="0 0 12 12" shape-rendering="crispEdges">' + r + '</svg>';
+  const f = FACES[face] || FACES.idle, dx = (f.look || 0) * 1.3, ey = f.low ? 12.8 : (f.look ? 11 : 11.8);
+  const eye = (x) => {
+    x += dx;
+    if (f.eyes === 'line') return '<path class="mf" d="M' + (x - 1.1) + ' ' + ey + 'h2.2"/>';
+    if (f.eyes === 'arc') return '<path class="mf" d="M' + (x - 1.3) + ' ' + (ey + .7) + 'l1.3 -1.4l1.3 1.4"/>';
+    if (f.eyes === 'x') return '<path class="mf" d="M' + (x - 1) + ' ' + (ey - 1) + 'l2 2m0 -2l-2 2"/>';
+    const r = f.eyes === 'big' ? 1.35 : .85;
+    return '<rect class="mfill" x="' + (x - r) + '" y="' + (ey - r) + '" width="' + 2 * r + '" height="' + 2 * r + '"/>';
+  };
+  return '<svg viewBox="0 0 24 24">'
+    + '<path class="ml" d="M9 19v3h-1.6M15 19v3h1.6"/>'                                  // 다리
+    + '<path class="ml" d="M8 6.5V3.4"/><rect class="mled' + (f.led ? ' on' : '') + '" x="7" y="1.4" width="2" height="2"/>'  // 안테나 · 불빛
+    + '<path class="ml" d="M16 6.5V6"/><circle class="ml" cx="16" cy="4" r="1.9"/>'      // 노브
+    + '<path class="ml" d="M16 4V2.6" transform="rotate(' + (f.knob || 0) + ' 16 4)"/>'
+    + '<rect class="mb" x="4.5" y="6.5" width="15" height="12.5"/>'                        // 몸
+    + '<rect class="ms" x="6.5" y="8.5" width="11" height="7.2"/>'                         // 화면
+    + eye(9.6) + eye(14.4)
+    + (f.mouth ? '<path class="mf" d="M10 14.6l1 -.8l1 .8l1 -.8l1 .8"/>' : '')
+    + '<rect class="mdot" x="7" y="17" width="1" height="1"/><rect class="mdot" x="8.6" y="17" width="1" height="1"/><rect class="mdot" x="10.2" y="17" width="1" height="1"/>'
+    + (f.bang ? '<path class="mbang" d="M21.6 7.5v4.2M21.6 13v1"/>' : '')
+    + '</svg>';
 }
+const MOODS = ['idle', 'think', 'happy', 'error', 'alert', 'sleep'];
 let mood = 'idle', moodUntil = 0, thinkTimer = null;
 function drawMascot(face){ $('#mascot').innerHTML = mascotSVG(face || mood); }
 function setMood(m, ms){
@@ -566,6 +729,7 @@ function typeOut(node, text){
 }
 function addMsg(role, text, animate){
   const d = el('div', 'msg ' + role);
+  d.dataset.ts = hm(new Date());
   if (role === 'bot'){ if (animate) typeOut(d, text); else d.innerHTML = fmtText(text); } else d.textContent = text;
   logEl.appendChild(d); scrollLog(); return d;
 }
@@ -1156,6 +1320,7 @@ document.addEventListener('keydown', (e) => {
 $('#form').addEventListener('submit', (e) => { e.preventDefault(); send(msgEl.value); });
 document.querySelectorAll('.key[data-q]').forEach((k) => k.addEventListener('click', () => send(k.dataset.q)));
 $('#mem-key').addEventListener('click', () => toggleMem());
+$('#wiki-key').addEventListener('click', () => toggleWiki());
 $('#mem-close').addEventListener('click', () => toggleMem(false));
 $('#track').addEventListener('click', () => toggleDay());
 $('#day-count').addEventListener('click', () => toggleDay());
