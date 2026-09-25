@@ -73,7 +73,7 @@ python jaba.py --autostart on    :: (선택) 로그인할 때 자동 실행
 | 반영 확인 | `python build.py --check` (UI · 폰트 둘 다) |
 | 폰트 다시 만들기 (선택) | `pip install fonttools` → `python tools/make_font.py <unifont.otf>` → `python build.py` |
 | 테스트 | `python -m unittest tests.test_jaba` (표준 라이브러리만) |
-| 브라우저 E2E (선택) | `pip install playwright` → `python -m playwright install chromium` → `python tests/e2e_ui.py` |
+| 브라우저 E2E (선택 · CI 에서는 자동) | `pip install playwright` → `python -m playwright install chromium` → `python tests/e2e_ui.py` (시간대는 알아서 낮으로 맞춤) |
 
 `tests/fake_llm_server.py`는 OpenAI 호환 가짜 서버라서 사내 LLM 없이도 전체 흐름을 돌려볼 수 있습니다.
 

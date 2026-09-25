@@ -22,3 +22,29 @@ jobs:
         run: python build.py --check
       - name: 단위·통합 테스트
         run: python -m unittest -v tests.test_jaba
+
+  e2e:
+    # 브라우저 E2E (가짜 LLM + jaba + Chromium). Playwright 는 테스트에만 쓰고 jaba 실행에는 필요 없다
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      SHOT_DIR: shots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Playwright 설치
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: 브라우저 E2E
+        run: python tests/e2e_ui.py
+      - name: 스크린샷 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: shots/
+          if-no-files-found: ignore

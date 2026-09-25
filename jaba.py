@@ -1104,6 +1104,19 @@ class WikiBook:
             self.pages, self.seq = pages, seq
             return _copy(page)
 
+    def clear_sources(self, wid: Any) -> Dict[str, Any]:
+        """원문 기록만 지운다 (정리된 내용은 그대로)"""
+        key = str(wid or "").strip().lower()
+        with self.lock:
+            hit = next((p for p in self.pages if p["id"] == key), None)
+            if hit is None:
+                raise KeyError(f"위키 {key} 가 없습니다")
+            new = dict(hit, sources=[])
+            pages = [new if p is hit else p for p in self.pages]
+            self.store.write(pages)
+            self.pages = pages
+            return _copy(new)
+
     def remove(self, wid: Any) -> Dict[str, Any]:
         key = str(wid or "").strip().lower()
         with self.lock:
@@ -2848,6 +2861,9 @@ def make_handler(app: App) -> Any:
                 m = re.match(r"^/api/wiki/(w\d+)/delete$", u.path)
                 if m:
                     return self._json(200, app.wiki_remove(m.group(1)))
+                m = re.match(r"^/api/wiki/(w\d+)/clear-sources$", u.path)
+                if m:
+                    return self._json(200, {"page": app.wiki.clear_sources(m.group(1))})
                 if u.path == "/api/alerts/test":
                     return self._json(200, app.test_alert())
                 if u.path == "/api/reset":
@@ -3827,6 +3843,8 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .wiki a{color:var(--accent)}
 .wiki details{margin-top:12px;color:var(--ink-3)}
 .wiki summary{cursor:pointer;line-height:20px}
+.wiki .clr{margin-top:6px;border:1px solid var(--line-2);background:none;color:var(--ink-3);border-radius:8px;padding:0 10px;line-height:22px;cursor:pointer}
+.wiki .clr:hover{color:var(--ink);border-color:var(--ink-2)}
 .wiki .src{line-height:20px;padding:3px 0;border-top:1px dashed var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
 .wiki .wacts{display:flex;gap:8px;margin-top:12px}
 .wiki .wacts button{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:24px;cursor:pointer}
@@ -4312,6 +4330,14 @@ function renderWikiPage(p){
   if (src.length){
     const d = el('details'); d.append(el('summary', null, '원문 기록 ' + src.length + '개'));
     src.slice().reverse().forEach((x) => d.append(el('div', 'src', String(x.at || '').replace('T', ' ').slice(5, 16) + '  ' + x.text)));
+    const clr = el('button', 'clr', '원문 기록 지우기'); clr.type = 'button';
+    clr.addEventListener('click', async () => {
+      if (!confirm('원문 기록 ' + src.length + '개를 지울까요? (정리된 내용은 그대로)')) return;
+      const r = await api('/api/wiki/' + p.id + '/clear-sources', {});
+      if (r.error){ addSys(r.error); return; }
+      renderWikiPage(r.page);
+    });
+    d.append(clr);
     body.append(d);
   }
   const acts = el('div', 'wacts');
@@ -4385,17 +4411,18 @@ let modelName = '';
 function setMode(mode){ $('#mode').textContent = modelName && mode === 'json' ? 'json' : ''; $('#mode').title = mode === 'json' ? '도구 호출을 JSON 글로 주고받는 중' : ''; }
 
 /* ── 모델 선택 (서버의 /v1/models + config 의 llm.models) */
-function fillModels(list, current, ready){
+function fillModels(list, current, ready, err){
   const sel = $('#model'); sel.textContent = '';
   if (!ready){ sel.append(el('option', null, 'LLM 미설정')); sel.disabled = true; return; }
   (list.length ? list : [current]).forEach((m) => { const o = el('option', null, m); o.value = m; sel.append(o); });
   sel.value = current; sel.disabled = list.length < 2;
-  sel.title = list.length < 2 ? 'LLM 모델 (고를 수 있는 다른 모델이 없음)' : 'LLM 모델 (바꾸면 config.json 에 저장)';
+  sel.title = (list.length < 2 ? 'LLM 모델 (고를 수 있는 다른 모델이 없음)' : 'LLM 모델 (바꾸면 config.json 에 저장)')
+    + (err ? '\n서버 모델 목록을 받지 못함: ' + err + '\n→ config.json 의 llm.models 에 적어 두면 여기 보입니다' : '');
 }
 async function loadModels(refresh){
   const r = await api('/api/models' + (refresh ? '?refresh=1' : ''));
   if (r.error && !r.models){ return; }
-  fillModels(r.models || [], r.current || modelName, !!r.ready);
+  fillModels(r.models || [], r.current || modelName, !!r.ready, r.error);
 }
 $('#model').addEventListener('focus', () => { if ($('#model').options.length < 2) loadModels(true); });
 $('#model').addEventListener('change', async () => {

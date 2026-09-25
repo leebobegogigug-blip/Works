@@ -1412,6 +1412,15 @@ class TestServerV2(TestServer):
         llm.list_models = lambda: ["m", "qwen3-32b"]  # 서버의 /v1/models
         llm.active_mode = "json"
         self.app.llm = self.app.agent.llm = llm
+        real_list = llm.list_models
+
+        def refuse():
+            raise jaba.LLMError("모델 목록을 받지 못했습니다 (404)", 404)
+        llm.list_models = refuse
+        code, r = self.req("/api/models")
+        self.assertEqual((r["models"], r["error"]), (["m", "m2"], "모델 목록을 받지 못했습니다 (404)"))  # 막혀도 설정 목록은
+        self.app._models = (0.0, [], "")
+        llm.list_models = real_list
         code, r = self.req("/api/models")
         self.assertEqual((code, r["current"], r["models"]), (200, "m", ["m", "m2", "qwen3-32b"]))
         code, r = self.req("/api/model", {"model": "qwen3-32b"})
@@ -1441,6 +1450,11 @@ class TestServerV2(TestServer):
         q = urllib.parse.urlencode({"event_id": ev.id, "title": ev.title})
         self.assertEqual(self.req("/api/wiki?" + q)[1]["page"]["id"], w["id"])
         self.assertEqual(self.req("/api/wiki?id=w99")[0], 404)
+        self.app.wiki.save(dict(self.app.wiki.get(w["id"])), "원문: 하한가 92원")
+        code, r = self.req(f"/api/wiki/{w['id']}/clear-sources", {})
+        self.assertEqual((code, r["page"]["sources"], r["page"]["prep"]), (200, [], ["견적서"]))  # 원문만 지움
+        self.assertEqual(self.app.wiki.get(w["id"])["sources"], [])
+        self.assertEqual(self.req("/api/wiki/w99/clear-sources", {})[0], 404)
         code, r = self.req(f"/api/wiki/{w['id']}/delete", {})
         self.assertEqual((code, r["pages"]), (200, []))
         self.assertEqual(self.req(f"/api/wiki/{w['id']}/delete", {})[0], 404)

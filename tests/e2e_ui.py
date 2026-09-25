@@ -9,9 +9,25 @@ import sys
 import tempfile
 import time
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-TZ = "Asia/Seoul" if hasattr(time, "tzset") else None  # Windows 는 PC 시간대를 그대로 쓴다
+
+def pick_tz():
+    """시험 일정을 '지금 ±4시간'에 심으므로 현지 시각이 한낮이어야 전부 오늘 안에 들어간다.
+    한국이 낮(08~17시)이면 한국 시간, 아니면 지금이 오전 11시쯤인 고정 오프셋 시간대 (Etc/GMT±N · 부호가 반대).
+    jaba · 가짜 LLM · 브라우저가 모두 같은 시간대를 쓴다. Windows 는 PC 시간대를 그대로 쓴다."""
+    if not hasattr(time, "tzset"):
+        return None
+    now = datetime.now(timezone.utc)
+    if 8 <= (now + timedelta(hours=9)).hour <= 17:
+        return "Asia/Seoul"
+    off = int(round(11 - (now.hour + now.minute / 60))) % 24
+    if off > 14:
+        off -= 24
+    return "Etc/UTC" if off == 0 else (f"Etc/GMT-{off}" if off > 0 else f"Etc/GMT+{-off}")
+
+
+TZ = pick_tz()
 if TZ:
     os.environ["TZ"] = TZ
     time.tzset()
@@ -296,6 +312,11 @@ def ui_run(tmp):
             assert "노트북" in body and "분기 목표 점검" in body and "원문 기록 1개" in body, body
             p.wait_for_timeout(450)
             p.screenshot(path=os.path.join(OUT, "jaba-wiki.png"))
+            p.click("#wiki-body summary")  # 원문 기록 펼치기 → 지우기 (정리된 내용은 그대로)
+            p.once("dialog", lambda d: d.accept())
+            p.click("#wiki-body .clr")
+            p.wait_for_function("!document.querySelector('#wiki-body details')")
+            assert "노트북" in p.inner_text("#wiki-body")
             p.keyboard.press("Escape")
             p.wait_for_selector("#wiki-drawer", state="hidden")
             p.keyboard.press("Alt+w")
