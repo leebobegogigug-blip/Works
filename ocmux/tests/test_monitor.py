@@ -94,7 +94,7 @@ class ComposeBus(unittest.TestCase):
         """Windows(Python 3.8 등)는 time.time() 이 ~15ms 단위라 연달아 쓴 이벤트의 ts 가 같다 → 전부 받아야 한다"""
         import ocmux_pet as P
         real = P.time.time
-        P.time.time = lambda: round(real(), 1)  # 100ms 단위 시계로 흉내
+        P.time.time = lambda: int(real() * 10) / 10  # 100ms 단위 시계로 흉내 (내림 — 실제 시각보다 앞서지 않게)
         try:
             r = P.BusReader("bus-coarse")
             for i in range(20):
