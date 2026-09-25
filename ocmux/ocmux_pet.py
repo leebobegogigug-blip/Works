@@ -692,7 +692,7 @@ class PetGame:
             if p.get("form") not in (None, "egg") and not p.get("personality"):
                 r = random.Random(f"{s.get('scope')}:{s.get('created')}")
                 p["personality"] = r.choice(sorted(D.PERSONALITIES))
-                self.welcome = [f"✦ 업데이트 ✦ {p.get('name', DEFAULT_NAME)}에게 성격이 생겼어요: "
+                self.welcome = [f"◈ 업데이트 ◈ {p.get('name', DEFAULT_NAME)}에게 성격이 생겼어요: "
                                 f"{D.PERSONALITIES[p['personality']]['name']}",
                                 "새 기능: [G] 훈육(떼쓰기) · 진화/명예의 전당 · opencode 할 일 = 메인 퀘스트 · 주간 레이드 · 개발 퀴즈"]
             s["anniv_w"] = int(s.get("last_anniv", 0) or 0) // 7
@@ -706,7 +706,7 @@ class PetGame:
                 s["story"] = new_story(now, max(D.STORY["fast"], n + 1))
                 s["story"]["base"] = dict(s.get("stats") or {})     # 미션은 지금부터 센다
                 self.welcome = (self.welcome or []) + [
-                    f"✦ 업데이트 ✦ 메인 스토리 시즌 1 「{D.STORY['title']}」 시작!",
+                    f"◈ 업데이트 ◈ 메인 스토리 시즌 1 「{D.STORY['title']}」 시작!",
                     "[7] 스토리 화면: 챕터 대화 · 미션 · 챕터 보스 [B] · 커밋 조각 12개",
                     f"새 지역 6곳(야근의 탑 ~ 메인 브랜치 성)은 챕터가 열릴 때마다 {D.STORY['every']}일에 하나씩 열려요"]
             s["v"] = 4
@@ -1046,7 +1046,7 @@ class PetGame:
                 # 그날 창을 안 켰어도 다음에 켤 때 챙겨준다 (한 번만)
                 self.s["anniv_w"] = weeks
                 self.add_item("cake")
-                self.flash(f"✦ {weeks}주 기념일! {self.p['name']}이(가) 태어난 지 {weeks * 7}일 ✦ (케이크 선물)", "#6ABA23", 6)
+                self.flash(f"◈ {weeks}주 기념일! {self.p['name']}이(가) 태어난 지 {weeks * 7}일 ◈ (케이크 선물)", "#6ABA23", 6)
                 self.unlock("anniv")
         se = current_season(now)
         if se:
@@ -1067,7 +1067,7 @@ class PetGame:
     def diary_lines(self, e):
         md = e["date"][5:].replace("-", "/")
         todo = e.get("todos_done", 0)
-        out = [f"✦ {md} 개발 일지 ✦",
+        out = [f"◈ {md} 개발 일지 ◈",
                f"응답 {e['quests']}번 · 토큰 {fmt_num(e['tokens'])} · 도구 {e['tools']}번 · 에러 {e['errors']}번 · 컴포즈 {e['compose']}번"
                + (f" · 할 일 {todo}개 완료" if todo else ""),
                f"몬스터 {e['kills']}마리 · 던전 {e['floors']}층 · 보스 {e['bosses']} · 동료 합류 {e['allies']}번"
@@ -1245,7 +1245,7 @@ class PetGame:
             S = self.stats()
             p["hp"], p["mp"] = S["maxhp"], S["maxmp"]
             self.fx["levelup"] = self.now() + 2.5
-            self.flash(f"✧ LEVEL UP!! Lv.{p['lvl']} ✧  HP·MP 회복", "#6ABA23", 4)
+            self.flash(f"◈ LEVEL UP!! Lv.{p['lvl']} ◈  HP·MP 회복", "#6ABA23", 4)
             self.note(f"레벨 업! Lv.{p['lvl']}")
             self.say("levelup")
             new_sk = [sk["name"] for sid, sk in D.SKILLS.items() if sk["lvl"] == p["lvl"] and sid in D.BASIC_SKILLS]
@@ -1283,7 +1283,7 @@ class PetGame:
         p["hp"], p["mp"] = S["maxhp"], S["maxmp"]
         self.fx["evolve"] = ("egg", "bit", now + 4.0)
         pp = D.PERSONALITIES[p["personality"]]
-        self.flash(f"부화!! {p['name']} 탄생 ✦ 성격: {pp['name']}", "#6ABA23", 5)
+        self.flash(f"부화!! {p['name']} 탄생 ◈ 성격: {pp['name']}", "#6ABA23", 5)
         self.note(f"알이 깨지고 {p['name']}이(가) 태어났다! 성격: {pp['name']} — {pp['desc']}")
         self.notify("부화!", f"{p['name']}이(가) 태어났어요 ({pp['name']})")
         self.speech = ("…안녕하세요? 주인님?", now + 8)
@@ -1375,7 +1375,7 @@ class PetGame:
         ok, _ = self.can_retire()
         if ok:
             fam["retire_hint"] = fam.get("gen", 1)
-            self.flash("✦ 은퇴식 가능! 도감 [6] → 프로필 → [R] (명예의 전당 + 다음 세대 알)", "#6ABA23", 7)
+            self.flash("◈ 은퇴식 가능! 도감 [6] → 프로필 → [R] (명예의 전당 + 다음 세대 알)", "#6ABA23", 7)
             self.note("은퇴식을 열 수 있게 됐다. 서두를 필요는 없어요 (도감 > 프로필 > [R])")
 
     def _check_evolve(self):
@@ -2579,7 +2579,7 @@ class PetGame:
             st = self.story()
             c = D.CHAPTERS[st["ch"]] if st and st["phase"] in ("play", "boss") else None
             if c and c["zone"] == z["id"] and c.get("notes") and self.rng.random() < 0.6:
-                self.note("✦ " + self.rng.choice(c["notes"]))      # 지금 챕터의 지역에서만 보이는 이야기 조각
+                self.note("◈ " + self.rng.choice(c["notes"]))      # 지금 챕터의 지역에서만 보이는 이야기 조각
             else:
                 self.note(self.rng.choice(NOTHING_LINES))
             e["state"], e["t"] = "pause", now
@@ -2905,7 +2905,7 @@ class PetGame:
         m["hp"] -= dmg
         now = self.now()
         self.fx["mon_hit"] = now + 0.35
-        self.pop(("★" if crit else "") + f"-{dmg}", "mon", "#6ABA23" if crit else color)
+        self.pop(("☼" if crit else "") + f"-{dmg}", "mon", "#6ABA23" if crit else color)
         return dmg
 
     def _pet_act(self, act, S, b):
@@ -2934,7 +2934,7 @@ class PetGame:
                 return
             dmg, is_crit = self._dmg(atk, m["df"], 1.0, 0.0, crit)
             self._hit_mon(dmg, is_crit)
-            self.note(self.rng.choice(ATTACK_LINES).format(p=name) + (" CRITICAL★" if is_crit else "") + f" -{dmg}")
+            self.note(self.rng.choice(ATTACK_LINES).format(p=name) + (" CRITICAL☼" if is_crit else "") + f" -{dmg}")
             w = self.s["equip"].get("weapon")
             if w and D.ITEMS[w["id"]]["eff"].get("stun") and self.rng.random() < D.ITEMS[w["id"]]["eff"]["stun"]:
                 m["st"]["stun"] = 1
@@ -2977,7 +2977,7 @@ class PetGame:
         if k == "dmg":
             dmg, is_crit = self._dmg(power_atk, m["df"], sk["power"], 1.0 if sk.get("pierce") else 0.0, crit)
             self._hit_mon(dmg, is_crit, color="#95D85A")
-            self.note(f"{name}의 {sk['name']}!! -{dmg}" + (" CRITICAL★" if is_crit else ""))
+            self.note(f"{name}의 {sk['name']}!! -{dmg}" + (" CRITICAL☼" if is_crit else ""))
             if sk.get("stun"):
                 m["st"]["stun"] = sk["stun"]
                 self.note(f"{m['name']}이(가) 멈췄다! ({sk['stun']}턴)")
@@ -3192,7 +3192,7 @@ class PetGame:
             dmg, is_crit = self._dmg(atk, pdf, mult, 0.0, 0.05)
             p["hp"] -= dmg
             total += dmg
-            self.pop(("★" if is_crit else "") + f"-{dmg}", "pet", "#F2F2F3")
+            self.pop(("☼" if is_crit else "") + f"-{dmg}", "pet", "#F2F2F3")
         if total:
             b["last_dmg"] = total
             self.fx["hurt"] = self.now() + 0.4
@@ -3290,7 +3290,7 @@ class PetGame:
                 self.s["prog"]["cleared"].append(z["id"])
                 self.unlock(f"zone_{z['id']}")
                 nxt = D.ZONES[e["zone"] + 1]["name"] if e["zone"] + 1 < len(D.ZONES) else None
-                self.flash(f"★ 지역 정복! {z['name']} ★" + (f"  다음: {nxt}" if nxt else ""), "#6ABA23", 6)
+                self.flash(f"☼ 지역 정복! {z['name']} ☼" + (f"  다음: {nxt}" if nxt else ""), "#6ABA23", 6)
                 self.notify("지역 정복", f"{self.p['name']}이(가) {z['name']}을(를) 정복했어요!", "success")
             self.end_expedition("지역 보스 격파!")
             return
@@ -3607,7 +3607,7 @@ class PetGame:
         t = (title or "응답")[:24]
         # 가장 보고 싶은 알림이라 줄 맨 앞으로 (보던 배너는 바로 뒤로 미룬다)
         cur = self.banner
-        self.banners.appendleft((fix_josa(f"★ 응답 도착! {t} ★ +{gold}G"), "#6ABA23", 6))
+        self.banners.appendleft((fix_josa(f"☼ 응답 도착! {t} ☼ +{gold}G"), "#6ABA23", 6))
         if cur and "응답 도착" not in cur[0]:
             self.banner = None
             if len(self.banners) < (self.banners.maxlen or 99):
@@ -3774,9 +3774,9 @@ class PetGame:
             self.inc("todos_done")
             self.quest("todo")
             got += 1
-            self.note(f"할 일 완료 ☑ {it['c'][:40]} (+{gold}G +{exp}EXP)")
+            self.note(f"할 일 완료 ⊠ {it['c'][:40]} (+{gold}G +{exp}EXP)")
         if got:
-            self.pop(f"☑x{got}" if got > 1 else "☑", "pet", "#6ABA23", 1.4)
+            self.pop(f"⊠x{got}" if got > 1 else "⊠", "pet", "#6ABA23", 1.4)
             if not self.is_egg():
                 self.say("todo_done")
                 self.fx["joy"] = now + 1.5
@@ -3796,7 +3796,7 @@ class PetGame:
             self.inc("todo_lists")
             if big and self.rng.random() < 0.3:
                 self.add_item(self.rng.choice(["tokenjelly", "hotfixpatch", "cacheflush", "cake"]))
-            self.flash(f"★ 할 일 {n}개 전부 완료! 목록 완주 보너스 +{gold}G ★", "#6ABA23", 6)
+            self.flash(f"☼ 할 일 {n}개 전부 완료! 목록 완주 보너스 +{gold}G ☼", "#6ABA23", 6)
             self.note(f"할 일 목록 완주: {ql.get('title') or '할 일 목록'} ({n}개, +{gold}G +{exp}EXP)")
             self.notify("할 일 완주", f"{p['name']}: 할 일 {n}개 완료! +{gold}G")
             if not self.is_egg():
@@ -3811,7 +3811,7 @@ class PetGame:
         self.last_activity = now
         if not self.is_egg():
             self.say("perm" if wkind == "perm" else "ask", dur=10)
-        head = "⚠ opencode가 허락을 기다려요" if wkind == "perm" else "? opencode가 질문했어요"
+        head = "‼ opencode가 허락을 기다려요" if wkind == "perm" else "? opencode가 질문했어요"
         self.flash(f"{head}: {label[:40]}", "#F2F2F3", 6)
         self.note(f"{head}: {label[:60]}")
         if self.s["settings"].get("perm_bell", True):
@@ -3951,7 +3951,7 @@ class PetGame:
                   base=dict(self.s["stats"]))
         self._story_log(f"CH{i + 1:02d} 「{c['title']}」 시작")
         if not quiet:
-            self.flash(f"✦ 새 챕터! CH{i + 1:02d} 「{c['title']}」 ✦ [7] 스토리", "#6ABA23", 7)
+            self.flash(f"◈ 새 챕터! CH{i + 1:02d} 「{c['title']}」 ◈ [7] 스토리", "#6ABA23", 7)
             self.note(f"스토리 CH{i + 1:02d} 「{c['title']}」이(가) 열렸다 — {c['teaser']}")
             self.notify("새 챕터", f"CH{i + 1:02d} {c['title']}", "success")
             if not self.is_egg():
@@ -4039,7 +4039,7 @@ class PetGame:
                 else:
                     self.note(f"스토리 미션 완료: {m['text']}")
                     self._story_log(f"미션 완료 · {m['text']}")
-                    self.flash(f"✓ 스토리 미션 완료: {m['text']}", "#95D85A", 4)
+                    self.flash(f"√ 스토리 미션 완료: {m['text']}", "#95D85A", 4)
                 self.mark()
         if st["phase"] == "play" and all(m["done"] for m in ms if not m["opt"]):
             st["phase"] = "boss"
@@ -4068,7 +4068,7 @@ class PetGame:
         for iid in r.get("gear") or []:
             self.add_item(iid)
             loot.append(item_name(iid))
-        self.flash(f"★ 보너스 미션 달성! +{gold}G" + (f" · {', '.join(loot)}" if loot else ""), "#6ABA23", 6)
+        self.flash(f"☼ 보너스 미션 달성! +{gold}G" + (f" · {', '.join(loot)}" if loot else ""), "#6ABA23", 6)
         self.note(f"CH{i + 1:02d} 보너스 미션 달성 (+{gold}G{', ' + ', '.join(loot) if loot else ''})")
         self._story_log("보너스 미션 달성")
         if st["bonus_n"] >= 6:
@@ -4226,7 +4226,7 @@ class PetGame:
         if r.get("ach"):
             self.unlock(r["ach"])
         n_sh = len(st["cleared"])
-        self.flash(f"★ CH{i + 1:02d} CLEAR! 커밋 조각 #{i + 1} 확보 ({n_sh}/{len(D.CHAPTERS)}) ★ +{gold}G", "#6ABA23", 7)
+        self.flash(f"☼ CH{i + 1:02d} CLEAR! 커밋 조각 #{i + 1} 확보 ({n_sh}/{len(D.CHAPTERS)}) ☼ +{gold}G", "#6ABA23", 7)
         self.note(f"CH{i + 1:02d} 「{c['title']}」 클리어! 커밋 조각 #{i + 1} ({c['hash']}) · +{gold}G +{exp}EXP"
                   + (f" · {', '.join(loot)}" if loot else ""))
         self.notify("챕터 클리어", f"{p['name']}: CH{i + 1:02d} {c['title']} — 커밋 조각 #{i + 1}", "success")
@@ -4301,7 +4301,7 @@ class PetGame:
         if fam["gen"] >= 3:
             self.unlock("gen3")
         self.fx["retire"] = (old_form, old_name, now + 6.0)
-        self.flash(f"✦ {old_name} 은퇴! 명예의 전당에 올랐어요 ✦ {fam['gen']}대 알 도착", "#6ABA23", 7)
+        self.flash(f"◈ {old_name} 은퇴! 명예의 전당에 올랐어요 ◈ {fam['gen']}대 알 도착", "#6ABA23", 7)
         self.note(f"은퇴식: {old_name} ({D.FORMS[old_form]['name']} Lv.{rec['lvl']}) → 명예의 전당. "
                   f"{fam['gen']}대 {self.p['name']}의 알이 도착했다")
         self.notify("은퇴식", f"{old_name}이(가) 명예의 전당에 올랐어요")
@@ -4392,7 +4392,7 @@ class PetGame:
         self.inc("raids")
         self.quest("raid")
         self.say("raid")
-        self.flash(f"⚔ 주간 레이드 출격! vs {ms['name']} (남은 체력 {fmt_num(ms['hp'])})", "#6ABA23", 4)
+        self.flash(f"† 주간 레이드 출격! vs {ms['name']} (남은 체력 {fmt_num(ms['hp'])})", "#6ABA23", 4)
         self.note(f"주간 레이드 출격: {ms['name']} · 오늘 남은 출격 {info['tries_left'] - 1}번")
         self.mark()
         return True
@@ -4428,7 +4428,7 @@ class PetGame:
         self._write_raid_file()
         info = self.raid_info(fresh=True)
         pct = 100 * info["dealt"] / max(1, info["hp"])
-        head = {"win": "★ 레이드 보스 격파!! (막타)", "lose": "쓰러졌지만 피해는 남았다", "timeup": "제한 시간 종료",
+        head = {"win": "☼ 레이드 보스 격파!! (막타)", "lose": "쓰러졌지만 피해는 남았다", "timeup": "제한 시간 종료",
                 "retreat": "먼저 빠짐"}.get(b["over"], "레이드 종료")
         self.last_summary = (dict(raid=True, boss=b["mon"]["name"], reason=head, dealt=dealt, gold=gold, exp=exp,
                                   pct=pct, rank=info.get("rank"), total=info["dealt"], hp=info["hp"],
@@ -4467,7 +4467,7 @@ class PetGame:
         if mvp:
             self.add_item("duck_charm")
             self.unlock("raid_mvp")
-        self.flash(f"★ 주간 레이드 격파 보상! +{gold}G · 보스 코어 x2 · 레거시 두루마리" + (" · MVP 러버덕!" if mvp else ""),
+        self.flash(f"☼ 주간 레이드 격파 보상! +{gold}G · 보스 코어 x2 · 레거시 두루마리" + (" · MVP 러버덕!" if mvp else ""),
                    "#6ABA23", 7)
         self.note(f"주간 레이드 보상 수령 (+{gold}G, 보스 코어 2, 두루마리 1{', MVP 부적' if mvp else ''})")
         self.notify("주간 레이드", f"{self.p['name']}: 레이드 보스 격파 보상!")

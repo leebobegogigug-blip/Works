@@ -114,11 +114,11 @@ There is no red: warnings are the brightest white.
 |---|---|---|---|
 | `●` | on · online · activity LED | `○` | off · offline |
 | `◐` | running (spins) | `▶` | tool started · selected |
-| `✓` | done | `×` | error · failed |
-| `⚠` | waiting for **you** (permission / question) | `☑` | todo |
+| `√` | done | `×` | error · failed |
+| `‼` | waiting for **you** (permission / question) | `⊠` | todo |
 | `⇣` | context compacted | `!` | pet call |
 | `▮` | one LED step | `◆` | boss floor · chapter boss |
-| `★` | cleared · critical hit · bonus mission done | `☆` | bonus mission open |
+| `☼` | cleared · critical hit · bonus mission done | `⋆` | bonus mission open |
 | `◇` | place caption in story talks | | |
 
 ### 04.3 widgets
@@ -165,7 +165,7 @@ segment count-in and lit pads in bug-whack · typewriter text in story talks (on
  ● IN 110.6k    ● OUT 7.3k    ● CACHE 37.9k    ● COST $0.12        ← ①②③④
  ── 02 SESSIONS ● ────────────────────────────────────────── ACTIVE 2
   PERM  결제 API 리팩터링 1pay01        build   48.2k  3.1k …
-        ⚠ 허락 대기 bash pytest tests/payment -q · opencode 창에서 응답
+        ‼ 허락 대기 bash pytest tests/payment -q · opencode 창에서 응답
         QUEST 2/4 ▮▮▯▯ 지금 호출부 어댑터 주입
         ◐ edit src/payment/gateway.py
  ── 03 EVENTS ● ──   ── 04 LOGS ● ──
@@ -237,7 +237,7 @@ Kept: gold, bag, decorations, achievements, dexes, streak. **Family bonus**: +5%
 One Monday morning every build in the world turns red. The last green build has shattered into twelve commit shards;
 the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for heavy users: it is paced in weeks, not hours.
 
-- **12 chapters = 12 zones.** A chapter is: prologue talk → 3 required missions (+1 bonus ★) → chapter boss (talk + fight)
+- **12 chapters = 12 zones.** A chapter is: prologue talk → 3 required missions (+1 bonus ☼) → chapter boss (talk + fight)
   → epilogue, commit shard `#n` with its hash, gold, gear and EXP (half a level; a full level for the last chapter).
 - **missions** fill up from normal work: clear the zone boss · defeat N monsters in that zone · finish opencode todos ·
   answer permissions within a minute · minigames · crafting / enhancing … Progress counts from the chapter's start.
@@ -264,9 +264,9 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 |---|---|
 | tokens | food (≤ 60 fullness), EXP (1,000 tokens = 1, tapering above 2M tokens a day — 07.6), MP; input tokens raise INT |
 | root session BUSY | auto-expedition; at home the pet types on a laptop, the room meter moves |
-| idle (response arrived) | quest reward, "★ response" banner, expedition returns with loot |
+| idle (response arrived) | quest reward, "☼ response" banner, expedition returns with loot |
 | `todo.updated` | **main quest** (QUEST line), rewards per item + list bonus |
-| permission / question | "결재 부탁!" sign, `⚠결재` in the top bar, optional bell (WT tab 🔔); fast answer → bonus |
+| permission / question | "결재 부탁!" sign, `‼결재` in the top bar, optional bell (WT tab 🔔); fast answer → bonus |
 | subagents | allies join fights and leave gifts |
 | tool calls | crafting shards · tool error → a bug |
 | `session.error` | bugs, mood drop, a **boss** (429 dragon for rate limits) |
@@ -300,7 +300,10 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
   `"multiLinePasteWarning": false`. If `Ctrl+V` does nothing inside opencode, add `{ "command": "paste", "keys": "ctrl+v" }`.
 - **WT keys**: `Alt+Arrow` pane · `Alt+Shift+Arrow` resize · `Ctrl+Tab` tab · `Ctrl+Shift+W` close pane ·
   bind `togglePaneZoom` to blow a pane up to full size.
-- **fonts**: some symbols (`▮` `◔`) may come from a fallback font depending on your terminal font.
+- **fonts**: recommended font is **GNU Unifont 15.1.01** (8×16 bitmap; set face `Unifont`, size 12 at 100% scaling,
+  `"antialiasingMode": "aliased"`). It covers every glyph ocmux draws, and all screenshots use it. Every icon ocmux
+  draws is one cell wide in Unifont (`√ ‼ ⊠ ☼ ⋆ ◈` instead of `✓ ⚠ ☑ ★ ☆ ✦`, which Unifont draws two cells wide).
+  With other fonts some symbols (`▮` `◔`) may come from a fallback font.
 
 ## 10 development
 

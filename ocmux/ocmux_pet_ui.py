@@ -159,13 +159,13 @@ def face_sprite(g, now, form=None, face=None):
 # ============================================================== 가이드 (`?`) 문구
 # 매뉴얼처럼 짧게: 이름(영문 대문자) + 한 줄 설명. 화면에 번호표로 붙는다.
 GUIDE = {
-    "tabs": ("MODES", "1~7 · Tab 으로 모드 전환. 7스토리 옆 LED = 새 챕터·보스·에필로그. 오른쪽 끝: ⚠결재 · 작업 중 릴 · 전원 LED · 골드"),
+    "tabs": ("MODES", "1~7 · Tab 으로 모드 전환. 7스토리 옆 LED = 새 챕터·보스·에필로그. 오른쪽 끝: ‼결재 · 작업 중 릴 · 전원 LED · 골드"),
     "keys": ("KEYS", "지금 누를 수 있는 키. 누르면 불이 켜짐. 색 있는 키 = 같은 색 값을 바꾸는 키"),
     "msg": ("MESSAGE", "펫의 말 · 알림 한 줄"),
     "room": ("ROOM", "펫이 사는 방. 오른쪽 위 미터 = AI 활동량, 아래 = 나이 · 무게. 원정 중엔 테이프 릴"),
     "level": ("LEVEL", "레벨(세그먼트) · EXP · HP/MP LED · 돌봄/훈육 노브 · 능력치 · GEN = 세대"),
     "hatch": ("HATCH", "부화 진행률. 3분이 지나고 첫 응답이 오면 깨어나요"),
-    "needs": ("NEEDS", "포만①파랑 · 기분②초록 · 체력③흰색 · 건강④회색. 같은 색 키 F · P · Z · M 이 올려요"),
+    "needs": ("NEEDS", "포만 1 파랑 · 기분 2 초록 · 체력 3 흰색 · 건강 4 회색. 같은 색 키 F · P · Z · M 이 올려요"),
     "status": ("STATUS", "허락 대기 · 호출 · 버그 · 태세 · 버프가 이 줄에 떠요"),
     "quest": ("QUEST", "opencode 할 일(todo) 진행도 = 메인 퀘스트"),
     "log": ("LOG", "최근 기록. 제목 옆 LED 가 켜지면 방금 새 줄"),
@@ -192,7 +192,7 @@ GUIDE = {
     "sys": ("SYS", "저장 파일 · 마지막 저장 · 화면 fps · 토큰 경험치 효율 — 숨기지 않는 엔지니어링"),
     "chapter": ("CHAPTER", "지금 챕터와 줄거리. ←→ 로 지난 챕터 보기 · ↵ 대화 보기 (NEW = 아직 안 본 대화)"),
     "shards": ("SHARDS", "커밋 조각 12개 = 시즌 진행도. 챕터 보스를 쓰러뜨릴 때마다 하나씩 켜져요"),
-    "missions": ("MISSIONS", "챕터 미션. ✓ 필수를 다 채우면 ◆ 챕터 보스에 도전 [B] · ★ 보너스는 추가 보상"),
+    "missions": ("MISSIONS", "챕터 미션. √ 필수를 다 채우면 ◆ 챕터 보스에 도전 [B] · ☼ 보너스는 추가 보상"),
     "next": ("NEXT", "다음 챕터가 열리는 날. 챕터(=새 지역)는 일주일에 하나씩 열려요"),
     "slog": ("LOG", "스토리 기록: 챕터 시작 · 미션 완료 · 보스전 결과"),
     "talk": ("TALK", "대화. ↵ 다음 줄 (글자가 다 안 나왔으면 한 번에) · Esc 건너뛰기"),
@@ -561,7 +561,7 @@ class PetUI:
     # --- 도감
     SETTINGS = [("auto_exp", "자동 원정 (AI가 일하면 출발, 응답 오면 귀환)"), ("auto_battle", "자동 전투"),
                 ("auto_items", "전투 중 자동 아이템 사용 (커피/핫픽스)"), ("toast", "opencode 화면에 토스트 알림 (레벨업/진화/보스)"),
-                ("bell", "응답 도착 시 벨 소리"), ("perm_bell", "opencode가 허락/질문을 기다리면 벨 소리 (탭에 🔔 표시)")]
+                ("bell", "응답 도착 시 벨 소리"), ("perm_bell", "opencode가 허락/질문을 기다리면 벨 소리 (탭에 벨 표시)")]
 
     def _key_dex(self, k, raw):
         g = self.g
@@ -897,7 +897,7 @@ class PetUI:
         if g.waits:
             w = next(iter(g.waits.values()))
             label = "결재" if w["kind"] == "perm" else "질문"
-            alert = (BG_LIME + BLACK + B if int(now * 2) % 2 else BG_NAVY + LIME + B) + f"⚠{label}" + RST
+            alert = (BG_LIME + BLACK + B if int(now * 2) % 2 else BG_NAVY + LIME + B) + f"‼{label}" + RST
             parts.append(alert)
         if g.s.get("call"):
             parts.append(f"{BG_NAVY}{LIME if int(now * 2) % 2 else NV2}{B}!{RST}")
@@ -920,7 +920,7 @@ class PetUI:
         g = self.g
         if g.banner:
             text, color, until = g.banner
-            urgent = color in (P3["white"],) or text.startswith(("⚠", "!!", "?"))
+            urgent = color in (P3["white"],) or text.startswith(("‼", "!!", "?"))
             if urgent:
                 on = int(now * 3) % 2 or (until - gnow) < 2.5
                 cv.ansi_clip(0, y, (f"{BG_LIME}{BLACK}{B}" if on else f"{BG_NAVY}{WH}{B}") + f" {text} " + RST, W)
@@ -1722,7 +1722,7 @@ class PetUI:
         for i, info in enumerate(zi):
             z = info["z"]
             if info["cleared"]:
-                mark = f"{LIME}★{RST}"
+                mark = f"{LIME}☼{RST}"
             elif info["unlocked"]:
                 mark = f"{LIME3}●{RST}"
             else:
@@ -1750,9 +1750,9 @@ class PetUI:
             pct = 100 * ri["dealt"] / max(1, ri["hp"])
             state = (f"{LIME}{B}격파!{RST}" if ri["cleared"] else
                      f"{G4}{pct:.0f}%{RST} {G1}· 오늘 {ri['tries_left']}/{D.RAID['per_day']}{RST}")
-            rows.append(f"{WH}{B}RD{RST} {WH}⚔{RST} {chip('WEEKLY RAID', 'black', 'white')} {G4}{D.MONSTERS[ri['boss']]['name']}{RST} {state}")
+            rows.append(f"{WH}{B}RD{RST} {WH}†{RST} {chip('WEEKLY RAID', 'black', 'white')} {G4}{D.MONSTERS[ri['boss']]['name']}{RST} {state}")
         else:
-            rows.append(f"{G1}RD ⚔ 주간 레이드 (부화하면 참가){RST}")
+            rows.append(f"{G1}RD † 주간 레이드 (부화하면 참가){RST}")
         list_h = min(len(rows), max(3, H - 5))
         self._list(cv, x0, y0 + 1, W, list_h, rows, c)
         self._anchor(x0 + title_end(1, "DUNGEON"), y0, "dungeon")
@@ -2043,14 +2043,14 @@ class PetUI:
             cv.ansi_clip(ix, iy, f"{G1}#{RST}{G4}{last['hash']}{RST}" if last else f"{G1}#-------{RST}", w - 4)
 
     def _story_missions(self, cv, x0, y, W, h, st, i, now):
-        """03 MISSIONS: ✓ 완료 · ▶ 진행 중 · ○ 남음 · ☆/★ 보너스 · ◆ 챕터 보스. 반환: 다음 y"""
+        """03 MISSIONS: √ 완료 · ▶ 진행 중 · ○ 남음 · ⋆/☼ 보너스 · ◆ 챕터 보스. 반환: 다음 y"""
         g = self.g
         c = D.CHAPTERS[i]
         ms = g.story_missions(i)
         req = [m for m in ms if not m["opt"]]
         done = sum(m["done"] for m in req)
         bonus = next((m for m in ms if m["opt"]), None)
-        right = f"{G1}필수{RST} {G4}{done}/{len(req)}{RST}" + (f" {G1}보너스{RST} {LIME if bonus['done'] else G2}{'★' if bonus['done'] else '☆'}{RST}" if bonus else "")
+        right = f"{G1}필수{RST} {G4}{done}/{len(req)}{RST}" + (f" {G1}보너스{RST} {LIME if bonus['done'] else G2}{'☼' if bonus['done'] else '⋆'}{RST}" if bonus else "")
         cv.ansi(x0, y, sect(3, "MISSIONS", W, right=right if W >= 44 else ""))
         self._anchor(x0 + title_end(3, "MISSIONS") + 1, y, "missions")
         y += 1
@@ -2065,9 +2065,9 @@ class PetUI:
         rows = []
         for k, m in enumerate(ms):
             if m["opt"]:
-                mark = f"{LIME}★{RST}" if m["done"] else f"{G2}☆{RST}"
+                mark = f"{LIME}☼{RST}" if m["done"] else f"{G2}⋆{RST}"
             elif m["done"]:
-                mark = f"{LIME}✓{RST}"
+                mark = f"{LIME}√{RST}"
             elif k == first_open:
                 mark = f"{WH}▶{RST}"
             else:
@@ -2502,7 +2502,7 @@ class PetUI:
             cv.ansi(bx + 3, by + 4, meter(el / 1.2 * 100, 100, bw - 6), BG_NAVY)
             for i in range(3):
                 sx = bx + 2 + int((math.sin(el * 17 + i * 2.1) + 1) / 2 * (bw - 5))
-                cv.ansi(sx, by + 1 + (i % 2) * 4, f"{LIME3}✦{RST}", BG_NAVY)
+                cv.ansi(sx, by + 1 + (i % 2) * 4, f"{LIME3}◈{RST}", BG_NAVY)
             return
         if res["ok"]:
             head, col, msg = chip("SUCCESS", "black", "lime"), P3["lime"], "강화 성공!!"
@@ -2548,7 +2548,7 @@ class PetUI:
                 for w in wrap_sep(ln, W):
                     if y >= end:
                         break
-                    cv.ansi(x0, y, (f"{LIME}{B}{w}{RST}" if ln.startswith("✦") else f"{G4}{w}{RST}"))
+                    cv.ansi(x0, y, (f"{LIME}{B}{w}{RST}" if ln.startswith("◈") else f"{G4}{w}{RST}"))
                     y += 1
             # 최근 7일 토큰 스파크라인
             if len(diary) > 1 and y0 + H - 1 > y:
@@ -2593,7 +2593,7 @@ class PetUI:
             for aid, name, desc, gold, title in D.ACHIEVEMENTS:
                 got = aid in g.s["ach"]
                 tt = f" {chip(title, 'gray4', 'navy1', False)}" if title and got else ""
-                rows.append((f"{LIME}★ {name}{RST}" if got else f"{G2}☆ {name}{RST}") + f" {G1}{desc}{RST}{tt}")
+                rows.append((f"{LIME}☼ {name}{RST}" if got else f"{G2}⋆ {name}{RST}") + f" {G1}{desc}{RST}{tt}")
             c = min(self.cur.get("dex_ach", 0), len(rows) - 1)
             got_n = len(g.s["ach"])
             right = f"{segbar(got_n, len(D.ACHIEVEMENTS), 10)} {G4}{got_n}{RST}{G1}/{len(D.ACHIEVEMENTS)}{RST}"
@@ -2707,10 +2707,10 @@ class PetUI:
                 cv.ansi_clip(x0, y, f"{G4}{title}{RST}" + ("" if q else f" {chip('지난 목록', 'gray4', 'navy1', False)}"), W)
                 y += 1
             blink = int(now * 2) % 2
-            marks = {"completed": f"{LIME}☑{RST}", "in_progress": f"{LIME if blink else LIME1}»{RST}", "cancelled": f"{G2}×{RST}"}
+            marks = {"completed": f"{LIME}⊠{RST}", "in_progress": f"{LIME if blink else LIME1}»{RST}", "cancelled": f"{G2}×{RST}"}
             rows = []
             for it in ql["items"]:
-                mk = marks.get(it["st"], f"{G1}☐{RST}")
+                mk = marks.get(it["st"], f"{G1}□{RST}")
                 txt = (f"{G2}{it['c']}{RST}" if it["st"] in ("completed", "cancelled") else
                        f"{WH}{B}{it['c']}{RST}" if it["st"] == "in_progress" else f"{G4}{it['c']}{RST}")
                 rows.append(f"{mk} {txt}")
@@ -2736,7 +2736,7 @@ class PetUI:
                 return
             tgt, prog = qq["target"], qq["prog"]
             st = chip("DONE", "black", "lime") if qq["done"] else f"{G4}{P.fmt_num(prog)}{RST}{G1}/{P.fmt_num(tgt)}{RST}"
-            mk = f"{LIME}★{RST}" if qq["done"] else f"{G1}·{RST}"
+            mk = f"{LIME}☼{RST}" if qq["done"] else f"{G1}·{RST}"
             cv.ansi_clip(x0, y, f"{mk} {G4}{qq['text']}{RST} {segbar(prog, tgt, 8)} {st} {G1}+{qq['gold']}G{RST}", W)
             y += 1
         buffs = []
@@ -3048,7 +3048,7 @@ class PetUI:
         for i in range(14):
             sx = x0 + (i * 11 + int(now * 5)) % max(1, W)
             sy = y0 + 1 + (i * 7 + int(now * 2)) % max(1, H - 1)
-            cv.text(sx, sy, "✦" if (i + int(now * 3)) % 3 == 0 else "·", LIME if i % 3 == 0 else NV3)
+            cv.text(sx, sy, "◈" if (i + int(now * 3)) % 3 == 0 else "·", LIME if i % 3 == 0 else NV3)
         head = chip("RETIRE", "black", "lime") + f" {G4}{B}{old_name}{RST}{G}, 그동안 고마웠어요!{RST}"
         cv.ansi_clip(max(x0, x0 + (W - vlen(head)) // 2), y0, head, W)
         cy = y0 + max(2, H // 2 - 2)
@@ -3341,7 +3341,7 @@ def render_ranch(scopes, W, H, reg_colors=None, anchors=None):
             cv.ansi_clip(x + 1, y + 5, f"{G1}QUEST{RST} {LIME}{q['done']}/{q['total']}{RST} {G}{q.get('cur') or ''}{RST}", card_w - 3)
         elif isinstance(sm.get("story"), dict):
             so = sm["story"]
-            state = {"boss": f"{WH}◆ 보스{RST}", "wait": f"{LIME3}✓ 다음 주{RST}", "end": f"{LIME}완결{RST}"}.get(
+            state = {"boss": f"{WH}◆ 보스{RST}", "wait": f"{LIME3}√ 다음 주{RST}", "end": f"{LIME}완결{RST}"}.get(
                 so.get("phase"), f"{G1}{so.get('done', 0)}/{so.get('total', 0)}{RST}")
             cv.ansi_clip(x + 1, y + 5, f"{NV4}CH{so.get('ch', 1):02d}{RST} {G4}{so.get('title', '')}{RST} {state}", card_w - 3)
         else:

@@ -399,13 +399,13 @@ class Instance:
                 self.todos[sid] = todos
             done = sum(1 for t in todos if t["status"] == "completed")
             if todos and done != sum(1 for t in old if t["status"] == "completed") or (todos and not old):
-                self.event(GRN, f"[{short(sid)}] ☑ todo {done}/{len(todos)}")
+                self.event(GRN, f"[{short(sid)}] ⊠ todo {done}/{len(todos)}")
         elif typ in WAIT_ASK_EVENTS:
             w = wait_info(typ, p)
             if w:
                 with self.lock:
                     self.waits[w["id"]] = w
-                icon = "⚠ 허락 필요" if w["kind"] == "perm" else "? 질문"
+                icon = "‼ 허락 필요" if w["kind"] == "perm" else "? 질문"
                 self.event(MAG, f"[{short(w['sid'])}] {icon}: {w['label']}")
         elif typ in WAIT_DONE_EVENTS:
             wid = p.get("permissionID") or p.get("requestID") or p.get("id")
@@ -413,7 +413,7 @@ class Instance:
                 w = self.waits.pop(wid, None)
             if w:
                 reply = p.get("response") or p.get("reply") or ("answered" if typ.startswith("question") else "")
-                self.event(G1, f"[{short(w['sid'])}] ✓ {reply or 'done'}")
+                self.event(G1, f"[{short(w['sid'])}] √ {reply or 'done'}")
         elif typ == "session.compacted":
             self.event(CYN, f"[{short(p.get('sessionID'))}] ⇣ compacted (컨텍스트 압축)")
         elif typ == "session.deleted":
@@ -445,11 +445,11 @@ class Instance:
                 with self.lock:
                     self.running_tool.pop(sid, None)
                 t = s.get("time", {})
-                self.event(G1, f"[{short(sid)}] ✓ {tool} {title} ({(t.get('end', 0) - t.get('start', 0)) / 1000:.1f}s)")
+                self.event(G1, f"[{short(sid)}] √ {tool} {title} ({(t.get('end', 0) - t.get('start', 0)) / 1000:.1f}s)")
             elif status == "error":
                 with self.lock:
                     self.running_tool.pop(sid, None)
-                self.event(RED, f"[{short(sid)}] ✗ {tool}: {str(s.get('error', ''))[:120]}")
+                self.event(RED, f"[{short(sid)}] × {tool}: {str(s.get('error', ''))[:120]}")
         elif typ == "session.created":
             info = p.get("info", {})
             kind = "subagent" if info.get("parentID") else "session"
@@ -725,7 +725,7 @@ def render_overview(insts, sink, W, H, logf=None, anchors=None):
                        f"{pcol}({pet['face']}){RST} {G4}{pet['name']}{RST} {G1}LV{RST}{LIME}{pet['lvl']}{RST}"
                        + (f" {LIME}{B}{ICON['call']}{RST}" if pet.get("call") else "")
                        + (f" {WH}{B}{ICON['wait']}{RST}" if pet.get("wait") and not pet.get("stale") else "")
-                       + (f" {NV4}⚔{RST}" if pet.get("where") in ("exp", "raid") else ""))
+                       + (f" {NV4}†{RST}" if pet.get("where") in ("exp", "raid") else ""))
         else:
             pet_txt = f"{G2}-{RST}"
         vals = [dot, ch_chip(inst), inst.tag, f"{G}{port}{RST}", mode, f"{G4}{s['n']}{RST}", busy_txt, agents_txt,
@@ -1494,21 +1494,21 @@ MON_GUIDE = {
     "channel": ("CHANNEL", "채널 번호(인스턴스 색) · 이름 · 포트 · opencode 버전"),
     "sys": ("SYS", "rtt = 서버 응답 시간 · poll = 갱신 주기 · ev = 받은 이벤트 수. 숨기지 않는 엔지니어링"),
     "pet": ("PET", "이 탭 펫의 한 줄 상태: 포만 · 기분 · 체력 · 허락 대기 · 퀘스트"),
-    "tokens": ("TOKENS", "핵심 값 4개: ①파랑 IN · ②초록 OUT · ③흰색 CACHE · ④회색 COST. 표·차트도 같은 색"),
+    "tokens": ("TOKENS", "핵심 값 4개: 1 파랑 IN · 2 초록 OUT · 3 흰색 CACHE · 4 회색 COST. 표·차트도 같은 색"),
     "sessions": ("SESSIONS", "세션 트리. BUSY 라임 · RTRY 흰색 · PERM/ASK 깜빡 = 사용자 응답 대기. i = idle 서브 보이기"),
-    "events": ("EVENTS", "이벤트 흐름. ▶ 도구 시작 · ✓ 끝 · × 오류 · ⚠ 대기 · ☑ 할 일 · ⇣ 압축. LED = 방금 새 이벤트"),
+    "events": ("EVENTS", "이벤트 흐름. ▶ 도구 시작 · √ 끝 · × 오류 · ‼ 대기 · ⊠ 할 일 · ⇣ 압축. LED = 방금 새 이벤트"),
     "logs": ("LOGS", "opencode 로그. 레벨 칩 ERR/WRN/INF/DBG · 키는 흐리게 값은 밝게. LED = 방금 새 줄"),
     "overview": ("OVERVIEW", "모든 인스턴스 요약: 등록 수 · 온라인 수"),
     "instances": ("INSTANCES", "채널마다 한 줄: 포트 · 모드 · 세션 · 바쁨 · 에이전트 · 토큰 · 펫"),
     "active": ("ACTIVE WORK", "지금 일하는 세션 전부 (할 일 [2/4] · 돌아가는 도구)"),
     "usage": ("USAGE", "토큰 흐름. 흐르는 동안 테이프 릴이 돌아요"),
     "rate": ("RATE", "최근 1분 토큰 수 (세그먼트 숫자)"),
-    "chart": ("TOKENS", "10초 단위 막대: ①파랑 = IN · ②초록 = OUT"),
+    "chart": ("TOKENS", "10초 단위 막대: 1 파랑 = IN · 2 초록 = OUT"),
     "mixer": ("MIX", "채널 막대: 인스턴스별 최근 1분 비율. 맨 위 LED = 작업 중"),
     "compose": ("COMPOSE", "긴 메시지를 써서 opencode 입력칸으로 보내는 칸"),
     "counter": ("COUNTER", "REC = 안 보낸 글 있음 · CHR 글자 · LN 줄 · SENT 보낸 횟수"),
     "message": ("MESSAGE", "입력 상자. 조작 키를 누르면 그 키 색으로 테두리가 켜져요"),
-    "keys": ("KEYS", "①파랑 ^P 넣기만 · ②초록 ^S 전송 · ③흰색 ^R 복구 · ④회색 ^L 지우기"),
+    "keys": ("KEYS", "1 파랑 ^P 넣기만 · 2 초록 ^S 전송 · 3 흰색 ^R 복구 · 4 회색 ^L 지우기"),
     "ranch": ("RANCH", "모든 탭의 펫 목장 (읽기 전용)"),
     "raidbar": ("RAID", "이번 주 공동 레이드 진행 · MVP"),
     "cards": ("CARDS", "채널 번호 · 펫 · 상태 칩 · 퀘스트/한마디"),

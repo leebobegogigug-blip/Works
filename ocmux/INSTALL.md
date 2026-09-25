@@ -189,45 +189,49 @@ Remove-Item (Join-Path $env:LOCALAPPDATA 'ocmux\pet-install-check*') -ErrorActio
 
 ## 8. 추천 글꼴 설치 (선택 · 관리자 권한 없이)
 
-사용자에게 먼저 묻는다. "도트 한글 글꼴 갈무리모노(GalmuriMono11, 무료 OFL)를 터미널 글꼴로 설치할까요?"
-**아니요**면 9단계로 넘어간다.
+사용자에게 먼저 묻는다. "도트 글꼴 GNU Unifont 15.1.01(무료, OFL/GPL)을 터미널 글꼴로 설치할까요?"
+**아니요**면 9단계를 건너뛰고 10단계로 간다.
 
-**8-1. 내려받기** (GitHub 최신 릴리스에서 zip 자산을 찾는다)
+**8-1. 내려받기**
 
 ```powershell
-$tmp = Join-Path $env:TEMP 'galmuri'
+$tmp = Join-Path $env:TEMP 'unifont'
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
-$rel = Invoke-RestMethod 'https://api.github.com/repos/quiple/galmuri/releases/latest' -Headers @{ 'User-Agent' = 'ocmux-install' }
-$asset = $rel.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1
-$asset.name
-Invoke-WebRequest $asset.browser_download_url -OutFile (Join-Path $tmp 'galmuri.zip') -UseBasicParsing
-Expand-Archive (Join-Path $tmp 'galmuri.zip') -DestinationPath $tmp -Force
-$ttf = Get-ChildItem $tmp -Recurse -Filter 'GalmuriMono11.ttf' | Select-Object -First 1
-$ttf.FullName
+$otf = Join-Path $tmp 'unifont-15.1.01.otf'
+$urls = @(
+  'https://unifoundry.com/pub/unifont/unifont-15.1.01/font-builds/unifont-15.1.01.otf',
+  'https://ftp.gnu.org/gnu/unifont/unifont-15.1.01/unifont-15.1.01.otf'
+)
+foreach ($u in $urls) {
+  try { Invoke-WebRequest $u -OutFile $otf -UseBasicParsing; if ((Get-Item $otf).Length -gt 1MB) { "downloaded: $u"; break } } catch { "failed: $u" }
+}
+Test-Path $otf
 ```
 
+**확인:** `True`이고 파일 크기가 수 MB다.
+
 **실패하면**
-- 네트워크 차단 등으로 받지 못하면 멈추고 사용자에게 부탁한다.
-  "https://github.com/quiple/galmuri/releases 에서 zip을 받아 `GalmuriMono11.ttf` 경로를 알려 주세요."
-- 자산 이름이 바뀌어 `GalmuriMono11.ttf`가 없으면, `Get-ChildItem $tmp -Recurse -Filter *.ttf`로 목록을 보여 주고 묻는다.
+- 두 주소 모두 막혔으면 멈추고 사용자에게 부탁한다.
+  "`unifont-15.1.01.otf`를 받아서 경로를 알려 주세요 (https://unifoundry.com/unifont/)."
+- 사용자가 경로를 주면 그 파일을 `$otf`로 쓴다.
 
 **8-2. 현재 사용자용으로 설치** (Windows 10 1809 이상)
 
 ```powershell
-$ttf = Get-ChildItem (Join-Path $env:TEMP 'galmuri') -Recurse -Filter 'GalmuriMono11.ttf' | Select-Object -First 1
+$otf = Join-Path $env:TEMP 'unifont\unifont-15.1.01.otf'
 $fontDir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts'
 New-Item -ItemType Directory -Force -Path $fontDir | Out-Null
-$dest = Join-Path $fontDir $ttf.Name
-if (-not (Test-Path $dest)) { Copy-Item $ttf.FullName $dest }
+$dest = Join-Path $fontDir 'unifont-15.1.01.otf'
+if (-not (Test-Path $dest)) { Copy-Item $otf $dest }
 New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' `
-  -Name 'GalmuriMono11 (TrueType)' -Value $dest -PropertyType String -Force | Out-Null
+  -Name 'Unifont (OpenType)' -Value $dest -PropertyType String -Force | Out-Null
 'font installed'
 ```
 
 **확인:** `Test-Path $dest`가 `True`다.
 - Windows Terminal은 창을 모두 닫았다가 다시 열어야 새 글꼴을 인식한다.
 - 일부 버전은 "현재 사용자용" 글꼴을 목록에 늦게 띄운다. 9단계 뒤에도 글꼴이 안 바뀌면 사용자에게 부탁한다.
-  "`GalmuriMono11.ttf` 우클릭 → **모든 사용자용으로 설치**를 해 주세요." 이 방법은 관리자 권한이 필요할 수 있다.
+  "`unifont-15.1.01.otf` 우클릭 → **모든 사용자용으로 설치**를 해 주세요." 이 방법은 관리자 권한이 필요할 수 있다.
 
 ---
 
@@ -253,7 +257,7 @@ Copy-Item $s "$s.bak-ocmux-$(Get-Date -Format yyyyMMdd-HHmmss)"
 `profiles` → `defaults` 안에 아래 두 키를 넣는다. 이미 있는 `font` 객체가 있으면 `face`, `size`만 바꾼다.
 
 ```jsonc
-"font": { "face": "GalmuriMono11", "size": 9 },
+"font": { "face": "Unifont", "size": 12 },
 "antialiasingMode": "aliased"
 ```
 
@@ -263,9 +267,9 @@ Copy-Item $s "$s.bak-ocmux-$(Get-Date -Format yyyyMMdd-HHmmss)"
 - 텍스트로 해당 부분만 고친다.
 - `defaults`가 `"defaults": {}` 처럼 비어 있으면 그 안에 넣는다.
 - 구조가 예상과 달라 안전하게 고치기 어렵다면 수정하지 말고 사용자에게 안내만 한다.
-  "설정 → 프로필 기본값 → 모양 → 글꼴에서 GalmuriMono11, 크기 9를 고르세요."
+  "설정 → 프로필 기본값 → 모양 → 글꼴에서 Unifont, 크기 12를 고르세요."
 
-**확인:** 파일을 다시 읽어 `GalmuriMono11`이 `defaults` 안에 딱 한 번 들어갔는지 본다.
+**확인:** 파일을 다시 읽어 `Unifont`가 `defaults` 안에 딱 한 번 들어갔는지 본다.
 
 **실패하면:** 백업 파일로 되돌린다.
 
