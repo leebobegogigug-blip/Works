@@ -160,6 +160,66 @@ class Api:
         return self.opener.open(req, timeout=60 * 60 * 24)
 
 
+# ---------------------------------------------------------------- 조회 나눠 쓰기
+class PollShare:
+    """같은 opencode 서버(주소 + 폴더)를 여러 칸이 따로 조회하지 않게: 리더 한 칸만 조회하고 결과를
+    스냅샷 파일로 남기면, 나머지 칸은 그 파일만 읽는다. 리더가 닫히면(잠금이 오래되면) 다른 칸이 이어받는다."""
+
+    def __init__(self, url, directory=None, interval=2.0):
+        key = hashlib.md5(f"{url}|{directory or ''}".encode("utf-8")).hexdigest()[:12]
+        base = os.path.dirname(registry_path())
+        self.lock_path = os.path.join(base, f"poll-{key}.lock")
+        self.snap_path = os.path.join(base, f"poll-{key}.json")
+        self.me = f"{os.getpid()}-{id(self)}"
+        self.stale = max(6.0, interval * 3)
+
+    @staticmethod
+    def _read(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+
+    @staticmethod
+    def _write(path, obj):
+        tmp = f"{path}.{os.getpid()}.tmp"
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(obj, f, ensure_ascii=False)
+            os.replace(tmp, path)
+            return True
+        except OSError:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            return False
+
+    def _fresh(self, ts, now):
+        return isinstance(ts, (int, float)) and -5 <= now - ts <= self.stale
+
+    def leader(self, now=None):
+        """이 칸이 조회를 맡는가. 잠금이 없거나 오래됐으면 가져오고, 맡은 동안은 매번 갱신한다"""
+        now = time.time() if now is None else now
+        lk = self._read(self.lock_path)
+        if isinstance(lk, dict) and lk.get("id") != self.me and self._fresh(lk.get("ts"), now):
+            return False
+        if not self._write(self.lock_path, {"id": self.me, "pid": os.getpid(), "ts": now}):
+            return True  # 파일을 못 쓰면 나눠 쓰기 없이 혼자 조회 (예전처럼)
+        lk = self._read(self.lock_path)  # 동시에 가져간 칸이 있으면 나중에 쓴 쪽이 리더
+        return not isinstance(lk, dict) or lk.get("id") == self.me
+
+    def publish(self, snap, now=None):
+        self._write(self.snap_path, dict(snap, ts=time.time() if now is None else now))
+
+    def read(self, now=None):
+        now = time.time() if now is None else now
+        snap = self._read(self.snap_path)
+        return snap if isinstance(snap, dict) and self._fresh(snap.get("ts"), now) else None
+
+
 # ---------------------------------------------------------------- 사용자 응답 대기 (허락/질문) 이벤트
 # opencode 버전마다 이름이 조금씩 다르다: permission.updated(구) / permission.asked / permission.v2.asked,
 # question.asked / question.v2.asked (question 도구: AI가 사용자에게 선택지를 물어봄)
@@ -249,7 +309,7 @@ class Instance:
     BUSY_REFETCH = 10.0
 
     def __init__(self, name, url, color=None, directory=None, password=None, interval=2.0,
-                 max_sessions=15, event_sink=None, headless=False):
+                 max_sessions=15, event_sink=None, headless=False, share=True):
         self.name, self.url = name, url
         self.color = fix_color(color) or PALETTE[int(hashlib.md5(name.encode()).hexdigest(), 16) % len(PALETTE)]
         self.api = Api(url, os.environ.get("OPENCODE_SERVER_USERNAME", "opencode"), password, directory)
@@ -274,6 +334,7 @@ class Instance:
         self.ev_total = 0     # 받은 이벤트 수
         self.last_event_t = 0.0
         self.ch = channel_of(name)
+        self.share = PollShare(url, directory, interval) if share else None
 
     @property
     def tag(self):
@@ -298,64 +359,115 @@ class Instance:
     # --- polling
     def _poll(self):
         while self.alive:
-            try:
-                try:
-                    self.version = self.api.get("/global/health", timeout=2).get("version", "?")
-                except Exception:
-                    pass
-                t_req = time.time()
-                sessions = self.api.get("/session")
-                ms = (time.time() - t_req) * 1000
-                self.rtt_ms = ms if not self.rtt_ms else self.rtt_ms * 0.7 + ms * 0.3
-                try:
-                    status = self.api.get("/session/status")  # 보통 non-idle 세션만 포함
-                except urllib.error.HTTPError:
-                    status = None
-                sessions.sort(key=lambda s: s["time"]["updated"], reverse=True)
-                sessions = sessions[: self.max_sessions]
-                cur_status = status if status is not None else self.status
-                for s in sessions:
-                    sid, ver = s["id"], s["time"]["updated"]
-                    busy = cur_status.get(sid, {}).get("type") == "busy"
-                    if self.need_stats(sid, ver, busy):
-                        try:
-                            st = calc_stats(self.api.get(f"/session/{sid}/message"))
-                            with self.lock:
-                                self.stats[sid], self.stats_ver[sid] = st, ver
-                                self.stats_at[sid] = time.time()
-                        except Exception:
-                            pass
-                with self.lock:
-                    self.sessions = {s["id"]: s for s in sessions}
-                    for s in sessions:
-                        self.created_ms.setdefault(s["id"], (s.get("time") or {}).get("created") or 0)
-                    if status is not None:
-                        self.status = status
-                        # idle 이 된 세션의 '응답 대기'는 정리 (이벤트를 놓쳤을 때 대비)
-                        for wid, w in list(self.waits.items()):
-                            if (status.get(w["sid"]) or {}).get("type") in (None, "idle") and time.time() - w["since"] > 5:
-                                self.waits.pop(wid, None)
-                    self.ready = True
-                    if sessions:
-                        self.last_activity = max(self.last_activity, sessions[0]["time"]["updated"])
-                    if not self.connected:
-                        self.connected = True
-                        self.err = ""
-                        was_off = True
-                    else:
-                        was_off = False
-                    self.offline_since = None
-                if was_off:
-                    self.event(GRN, "online")
-            except Exception as e:
-                with self.lock:
-                    was_on = self.connected
-                    self.connected, self.err = False, f"{type(e).__name__}: {e}"
-                    if self.offline_since is None:
-                        self.offline_since = time.time()
-                if was_on:
-                    self.event(RED, "offline")
+            self.poll_once()
             time.sleep(self.interval)
+
+    def poll_once(self):
+        """리더면 opencode 를 조회하고 스냅샷을 남긴다. 아니면 리더의 스냅샷만 읽는다"""
+        if self.share is not None and not self.share.leader():
+            snap = self.share.read()
+            if snap is not None:
+                self._apply(snap)
+            return
+        self._fetch()
+        if self.share is not None:
+            self.share.publish(self._snapshot())
+
+    def _snapshot(self):
+        with self.lock:
+            return {"version": self.version, "rtt": self.rtt_ms, "connected": self.connected, "err": self.err,
+                    "sessions": list(self.sessions.values()), "status": self.status, "stats": dict(self.stats),
+                    "stats_ver": dict(self.stats_ver), "created": dict(self.created_ms)}
+
+    def _apply(self, snap):
+        """다른 칸(리더)이 조회한 결과를 이 칸에 반영한다 (online/offline 이벤트도 같이)"""
+        with self.lock:
+            self.version, self.rtt_ms = snap.get("version") or self.version, snap.get("rtt") or 0.0
+            was = self.connected
+            if snap.get("connected"):
+                sessions = [x for x in snap.get("sessions") or [] if isinstance(x, dict) and "id" in x]
+                self.sessions = {x["id"]: x for x in sessions}
+                self.stats.update(snap.get("stats") or {})
+                self.stats_ver.update(snap.get("stats_ver") or {})
+                for sid, c in (snap.get("created") or {}).items():
+                    self.created_ms.setdefault(sid, c)
+                status = snap.get("status")
+                if isinstance(status, dict):
+                    self.status = status
+                    for wid, w in list(self.waits.items()):
+                        if (status.get(w["sid"]) or {}).get("type") in (None, "idle") and time.time() - w["since"] > 5:
+                            self.waits.pop(wid, None)
+                self.ready, self.connected, self.err, self.offline_since = True, True, "", None
+                if sessions:
+                    self.last_activity = max(self.last_activity, sessions[0]["time"]["updated"])
+            else:
+                self.connected, self.err = False, snap.get("err") or "offline"
+                if self.offline_since is None:
+                    self.offline_since = time.time()
+        if self.connected and not was:
+            self.event(GRN, "online")
+        elif was and not self.connected:
+            self.event(RED, "offline")
+
+    def _fetch(self):
+        """opencode 를 직접 조회해 이 칸의 상태를 채운다 (리더만)"""
+        try:
+            try:
+                self.version = self.api.get("/global/health", timeout=2).get("version", "?")
+            except Exception:
+                pass
+            t_req = time.time()
+            sessions = self.api.get("/session")
+            ms = (time.time() - t_req) * 1000
+            self.rtt_ms = ms if not self.rtt_ms else self.rtt_ms * 0.7 + ms * 0.3
+            try:
+                status = self.api.get("/session/status")  # 보통 non-idle 세션만 포함
+            except urllib.error.HTTPError:
+                status = None
+            sessions.sort(key=lambda s: s["time"]["updated"], reverse=True)
+            sessions = sessions[: self.max_sessions]
+            cur_status = status if status is not None else self.status
+            for s in sessions:
+                sid, ver = s["id"], s["time"]["updated"]
+                busy = cur_status.get(sid, {}).get("type") == "busy"
+                if self.need_stats(sid, ver, busy):
+                    try:
+                        st = calc_stats(self.api.get(f"/session/{sid}/message"))
+                        with self.lock:
+                            self.stats[sid], self.stats_ver[sid] = st, ver
+                            self.stats_at[sid] = time.time()
+                    except Exception:
+                        pass
+            with self.lock:
+                self.sessions = {s["id"]: s for s in sessions}
+                for s in sessions:
+                    self.created_ms.setdefault(s["id"], (s.get("time") or {}).get("created") or 0)
+                if status is not None:
+                    self.status = status
+                    # idle 이 된 세션의 '응답 대기'는 정리 (이벤트를 놓쳤을 때 대비)
+                    for wid, w in list(self.waits.items()):
+                        if (status.get(w["sid"]) or {}).get("type") in (None, "idle") and time.time() - w["since"] > 5:
+                            self.waits.pop(wid, None)
+                self.ready = True
+                if sessions:
+                    self.last_activity = max(self.last_activity, sessions[0]["time"]["updated"])
+                if not self.connected:
+                    self.connected = True
+                    self.err = ""
+                    was_off = True
+                else:
+                    was_off = False
+                self.offline_since = None
+            if was_off:
+                self.event(GRN, "online")
+        except Exception as e:
+            with self.lock:
+                was_on = self.connected
+                self.connected, self.err = False, f"{type(e).__name__}: {e}"
+                if self.offline_since is None:
+                    self.offline_since = time.time()
+            if was_on:
+                self.event(RED, "offline")
 
     def need_stats(self, sid, ver, busy, now=None):
         """이 세션의 메시지를 다시 받아 토큰을 셀 때인가.

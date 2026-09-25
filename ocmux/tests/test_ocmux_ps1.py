@@ -80,6 +80,13 @@ class OcmuxPs1(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual([x["name"] for x in self.registry()], ["web"])
 
+    def test_no_pet(self):
+        r = self.run_ps("add", self.project("mon"), "-NoPet")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        wt = self.wt_calls(1)[0]
+        self.assertIn("oc_monitor.py usage", wt)
+        self.assertNotIn("oc_monitor.py rpg", wt)  # 채널 탭 · overview 탭 모두 펫 칸 없음
+
     def test_rejects_bad_name_and_headless_percent_folder(self):
         r = self.run_ps("add", self.project("p"), "-Name", 'x"y')
         self.assertNotEqual(r.returncode, 0)

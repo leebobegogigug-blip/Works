@@ -160,7 +160,7 @@ PS> ocmux ls
  03  db-migrate         4098   headless  ○ offline  C:\work\db-migrate
 ```
 
-- 레이아웃: `-RightWidth 0.5` `-BottomHeight 0.42` `-GameWidth 0.58` `-ComposeHeight 0.30` `-Compact`(아래 줄 없음) `-NoLogs` `-NoCompose`
+- 레이아웃: `-RightWidth 0.5` `-BottomHeight 0.42` `-GameWidth 0.58` `-ComposeHeight 0.30` `-Compact`(아래 줄 없음) `-NoPet`(펫 없이 모니터만 · usage 가 아래 줄 전체) `-NoLogs` `-NoCompose`
 - 기타: `-Port` `-BasePort` `-NoOverview` `-Python "py -3"`
 - 비밀번호가 걸린 opencode 서버: 환경 변수 `OPENCODE_SERVER_PASSWORD`를 설정하면 모든 창이 그대로 사용합니다. 모니터 칸에는 명령줄 대신 `%LOCALAPPDATA%\ocmux\server-password` 파일로 넘깁니다(보안 솔루션의 명령줄 로그에 남지 않게). 환경 변수를 지우고 `ocmux add`/`focus` 하면 이 파일도 지워집니다.
 
@@ -269,7 +269,7 @@ ocmux/
 ├─ ocmux_pet_ui.py     TOKEN QUEST 화면 (7개 모드 · 오버레이 · 대화 · 연출)
 ├─ ocmux_pet_run.py    펫 창 실행 루프 · opencode 이벤트 → 게임 신호 · 목장
 ├─ docs/               GUIDE.md (상세 매뉴얼, 영문) · images/
-└─ tests/              unittest 110개 (pwsh 가 있으면 ocmux.ps1 실제 실행 테스트 포함)
+└─ tests/              unittest 115개 (pwsh 가 있으면 ocmux.ps1 실제 실행 테스트 포함)
 ```
 
 ```
@@ -285,12 +285,13 @@ oc_monitor.py ──HTTP──▶ opencode (127.0.0.1:4096)
 ```
 
 데이터는 `%LOCALAPPDATA%\ocmux\`에 저장됩니다: `instances.json`(채널 목록) · `pet-<이름>.json`(펫 · 스토리 진행) ·
-`raid-<이름>.json`(주간 레이드) · `logs\`(headless 서버 로그).
+`raid-<이름>.json`(주간 레이드) · `logs\`(headless 서버 로그) ·
+`poll-*.json`·`poll-*.lock`(같은 서버를 보는 칸들이 조회 결과를 나눠 쓰는 파일 — 한 칸만 opencode 를 조회하고 나머지는 이걸 읽음).
 
 ## 09 개발
 
 ```powershell
-# 테스트 110개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 ocmux.ps1 도 가짜 wt 로 실제 실행)
+# 테스트 115개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 ocmux.ps1 도 가짜 wt 로 실제 실행)
 py -3 -m unittest discover -s tests
 # CI(.github/workflows/ocmux.yml): Windows + Ubuntu × Python 3.8·3.13, Windows PowerShell 5.1 문법 검사 · ocmux.cmd ls
 

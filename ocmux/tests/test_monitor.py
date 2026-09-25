@@ -112,6 +112,65 @@ class ComposeBus(unittest.TestCase):
         self.assertEqual([e["i"] for e in r.poll()], [99])
 
 
+class FakeApi:
+    def __init__(self, down=False):
+        self.calls, self.down = [], down
+
+    def get(self, path, timeout=5):
+        self.calls.append(path)
+        if self.down:
+            raise OSError("connection refused")
+        if path == "/global/health":
+            return {"version": "1.2"}
+        if path == "/session":
+            return [{"id": "s1", "time": {"updated": 100, "created": 50}}]
+        if path == "/session/status":
+            return {"s1": {"type": "busy"}}
+        return [{"info": {"role": "assistant", "tokens": {"input": 10, "output": 5}, "cost": 0.1, "modelID": "m"}}]
+
+
+class SharedPolling(unittest.TestCase):
+    """같은 서버를 보는 칸은 리더 하나만 opencode 를 조회하고, 나머지는 스냅샷을 읽는다"""
+
+    def pair(self, url):
+        a, b = M.Instance("a", url), M.Instance("b", url)
+        a.api, b.api = FakeApi(), FakeApi()
+        return a, b
+
+    def test_follower_uses_leader_snapshot(self):
+        a, b = self.pair("http://127.0.0.1:7001")
+        a.poll_once()
+        b.poll_once()
+        self.assertTrue(a.api.calls)
+        self.assertEqual(b.api.calls, [])          # 팔로워는 서버를 부르지 않는다
+        self.assertEqual((b.connected, b.ready, list(b.sessions), b.version), (True, True, ["s1"], "1.2"))
+        self.assertEqual(b.totals(), a.totals())
+        self.assertEqual(b.status["s1"]["type"], "busy")
+        self.assertIn("online", [e[2] for e in b.events])
+
+    def test_takeover_when_leader_goes_quiet_and_offline_propagates(self):
+        a, b = self.pair("http://127.0.0.1:7002")
+        a.poll_once()
+        b.poll_once()
+        self.assertFalse(b.share.leader())
+        future = M.time.time() + 60                 # 리더가 60초 동안 잠금을 갱신하지 않음 → 이어받기
+        self.assertTrue(b.share.leader(now=future))
+        self.assertFalse(a.share.leader(now=future))
+        c, d = self.pair("http://127.0.0.1:7003")
+        c.api.down = True
+        c.poll_once()
+        d.connected = True
+        d.poll_once()
+        self.assertFalse(d.connected)               # 리더가 본 offline 도 그대로 전달
+        self.assertIn("offline", [e[2] for e in d.events])
+
+    def test_different_folder_is_not_shared(self):
+        a = M.Instance("a", "http://127.0.0.1:7004", directory="C:\\x")
+        b = M.Instance("b", "http://127.0.0.1:7004")
+        self.assertNotEqual(a.share.snap_path, b.share.snap_path)
+        self.assertIsNone(M.Instance("c", "http://127.0.0.1:7004", share=False).share)
+
+
 class RegDir(unittest.TestCase):
     def test_status_pane_reads_folder_from_registry(self):
         reg = M.registry_path()

@@ -42,6 +42,7 @@ param(
     [double]$ComposeHeight = 0.30,  # big input pane under the TUI
     [switch]$NoCompose,
     [switch]$Compact,               # no usage/rpg row
+    [switch]$NoPet,                 # no TOKEN QUEST pane (monitor only: usage takes the whole bottom row)
     [switch]$NoLogs,                # no LOGS section inside status
     [switch]$NoOverview
 )
@@ -209,7 +210,9 @@ function Get-BottomRow([string]$dir, [string]$usageArgs) {
     if ($Compact) { return '' }
     $heroArg = if ($PetName) { " --hero $(Q $PetName)" } else { '' }
     $a  = " ; split-pane -H -s $BottomHeight --colorScheme $(Q $Scheme) -d $dir $(Py 'usage' $usageArgs)"
-    $a += " ; split-pane -V -s $GameWidth --colorScheme $(Q $Scheme) -d $dir $(Py 'rpg' ($usageArgs + $heroArg))"
+    if (-not $NoPet) {
+        $a += " ; split-pane -V -s $GameWidth --colorScheme $(Q $Scheme) -d $dir $(Py 'rpg' ($usageArgs + $heroArg))"
+    }
     return $a
 }
 function Get-OverviewTabArgs {
