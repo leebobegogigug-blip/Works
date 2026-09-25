@@ -9,9 +9,25 @@ import sys
 import tempfile
 import time
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-TZ = "Asia/Seoul" if hasattr(time, "tzset") else None  # Windows 는 PC 시간대를 그대로 쓴다
+
+def pick_tz():
+    """시험 일정을 '지금 ±4시간'에 심으므로 현지 시각이 한낮이어야 전부 오늘 안에 들어간다.
+    한국이 낮(08~17시)이면 한국 시간, 아니면 지금이 오전 11시쯤인 고정 오프셋 시간대 (Etc/GMT±N · 부호가 반대).
+    jaba · 가짜 LLM · 브라우저가 모두 같은 시간대를 쓴다. Windows 는 PC 시간대를 그대로 쓴다."""
+    if not hasattr(time, "tzset"):
+        return None
+    now = datetime.now(timezone.utc)
+    if 8 <= (now + timedelta(hours=9)).hour <= 17:
+        return "Asia/Seoul"
+    off = int(round(11 - (now.hour + now.minute / 60))) % 24
+    if off > 14:
+        off -= 24
+    return "Etc/UTC" if off == 0 else (f"Etc/GMT-{off}" if off > 0 else f"Etc/GMT+{-off}")
+
+
+TZ = pick_tz()
 if TZ:
     os.environ["TZ"] = TZ
     time.tzset()
@@ -73,6 +89,7 @@ def start_stack(mode, tmp, theme=None, ongoing=False, alert_soon=False):
     cfg = {"llm": {"base_url": f"http://127.0.0.1:{llm_port}/v1", "model": "사내-LLM", "proxy": ""},
            "calendar": {"backend": "local", "local_db": db}, "open_window": False, "hotkey": "",
            "port": app_port, "user_name": "Bob", "learn_file": os.path.join(tmp, f"rules-{app_port}.json"),
+           "wiki_file": os.path.join(tmp, f"wiki-{app_port}.json"),
            "alerts": {"poll_sec": 1 if alert_soon else 10}}
     if theme:
         cfg["theme"] = theme
@@ -129,14 +146,29 @@ def check_mode(mode, tmp):
         r = api("/api/chat", {"message": "이번 주에 1시간 비는 시간 찾아줘"})
         assert r["reply"].startswith("1시간 비는 시간"), r
         assert "<think>" not in r["reply"]
-        r = api("/api/chat", {"message": "앞으로 스크럼은 항상 15분 기억해"})  # 대화로 학습 (모드별)
-        assert r["learned"] and r["learned"][0]["text"] == "스크럼은 항상 15분", r
+        r = api("/api/chat", {"message": "앞으로 스크럼은 항상 15분 기억해"})  # 대화로 학습 (모드별) → 카드 확정
+        card = r["proposals"][0]
+        assert card["kind"] == "rule" and card["rows"][0][1] == "스크럼은 항상 15분", r
+        assert api(f"/api/proposals/{card['id']}/confirm", {})["rules"] == 1
+        r = api("/api/chat", {"message": "주간회의 준비물은 노트북이랑 지난주 회의록, 안건은 분기 목표 점검이야 정리해줘"})
+        card = r["proposals"][0]
+        assert card["kind"] == "wiki" and ["준비", "노트북 · 지난주 회의록", True] in card["rows"], r
+        assert api(f"/api/proposals/{card['id']}/confirm", {})["proposal"]["status"] == "done"
+        r = api("/api/chat", {"message": "주간회의 준비물 뭐였지?"})
+        assert [a["tool"] for a in r["activity"]] == ["list_events", "wiki_read"] and "노트북" in r["reply"], r
         api("/api/chat", {"message": "내일 일정 알려줘"})
         stats = llm_stats(llm_port)
         assert stats["rules_in_prompt"] and "스크럼은 항상 15분" in stats["last_rules"], stats
         check = subprocess.run([sys.executable, os.path.join(ROOT, "jaba.py"), "--config", cfg_path, "--check"],
                                env=ENV, capture_output=True, text=True, timeout=60)
-        assert "학습 규칙 : 1개" in check.stdout, check.stdout
+        assert "학습 규칙 : 1개" in check.stdout and "일정 위키 : 1개" in check.stdout, check.stdout
+        # 모델 드롭다운: 서버 목록 → 바꾸기 → 다음 요청부터 그 모델 · config.json 에 저장
+        assert api("/api/models")["models"] == ["사내-LLM", "qwen3-32b"]
+        assert api("/api/model", {"model": "qwen3-32b"})["saved"] is True
+        api("/api/chat", {"message": "내일 일정 알려줘"})
+        assert llm_stats(llm_port)["last_model"] == "qwen3-32b"
+        with open(cfg_path, encoding="utf-8") as f:
+            assert json.load(f)["llm"]["model"] == "qwen3-32b"
         print(f"[{mode}] ok · llm 요청 {stats['requests']}회 (tools 포함 {stats['with_tools']}회)")
         print("   --check ▸ " + "\n   --check ▸ ".join(check.stdout.strip().splitlines()[2:]))
     finally:
@@ -145,7 +177,8 @@ def check_mode(mode, tmp):
 
 
 NAVY, LIME, GREY = "rgb(0, 35, 65)", "rgb(106, 186, 35)", "rgb(165, 170, 174)"
-BLACK_PANEL, INK_BLACK, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(11, 11, 11)", "rgb(239, 238, 233)"
+PRIME, PRIME_INK = "rgb(31, 80, 122)", "rgb(242, 242, 238)"  # TE v2: 네이비 주색 · 라임 강조
+BLACK_PANEL, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(239, 238, 233)"
 
 
 def css(page, sel, prop):
@@ -201,10 +234,12 @@ def ui_run(tmp):
             p = new_page(url, "light")
             assert "남은 일정" in p.inner_text(".msg.bot"), p.inner_text(".msg.bot")
             assert css(p, ".device", "backgroundColor") == BLACK_PANEL
-            assert css(p, ".send", "backgroundColor") == LIME
-            assert css(p, ".key.k3", "backgroundColor") == NAVY and css(p, ".key.k1", "backgroundColor") == LIME
+            assert css(p, ".send", "backgroundColor") == PRIME  # 주 버튼은 네이비
+            cap = "(s) => getComputedStyle(document.querySelector(s), '::before').backgroundColor"
+            assert p.evaluate(cap, ".key.k1 .dial") == PRIME and p.evaluate(cap, ".key.k2 .dial") == GREY  # 노브 캡
+            assert css(p, ".lbl b", "backgroundColor") == PRIME and p.locator(".lbl").count() == 4  # 01~04 번호 라벨
             assert p.locator("#next-count svg.seg").count() == 1 and p.locator("#clock-time svg.seg").count() == 1
-            assert p.locator("#mascot svg rect").count() > 80
+            assert p.locator("#mascot svg .ms").count() == 1 and p.locator("#mascot svg .mled").count() == 1  # JB-1
             assert p.locator(".track .ev").count() >= 6 and p.locator(".track .nowline").count() == 1
             assert p.inner_text("#next-title") != "self-test"
             # 도스 픽셀 폰트: 내장 WOFF 가 실제로 로드되고 전체에 쓰인다
@@ -216,13 +251,22 @@ def ui_run(tmp):
             wide_boxes = p.evaluate("""() => [...document.querySelectorAll('.device, .bar, .lcd, .overview, .log, .keys, .input, .foot')]
                 .filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.className)""")
             assert not wide_boxes, wide_boxes  # 글자가 커져도 가로로 넘치지 않는다
-            assert css(p, ".msg.user", "backgroundColor") == GREY
+            assert re.fullmatch(r"\d\d:\d\d", p.get_attribute(".msg.user", "data-ts"))  # 로그 줄: 시각 · 기호 · 내용
+            # 아래 줄: 로컬 저장 · 모델 드롭다운
+            assert p.inner_text("#foot-info") == "로컬 저장"
+            p.wait_for_function("document.querySelectorAll('#model option').length === 2")
+            p.select_option("#model", "qwen3-32b")
+            p.wait_for_function("[...document.querySelectorAll('.sys')].some(e => e.textContent.includes('모델 → qwen3-32b'))")
+            assert llm_stats(llm_port)["requests"] >= 1
+            say(p, "내일 일정 알려줘")
+            assert llm_stats(llm_port)["last_model"] == "qwen3-32b"
             assert css(p, ".card.done .seal", "borderTopColor") == LIME
             p.screenshot(path=os.path.join(OUT, "jaba-compact.png"))
 
             # 오늘 일정 서랍
             p.click("#day-count")
             p.wait_for_selector("#day-drawer:not([hidden])")
+            p.wait_for_selector("#day-drawer .chip")  # 목록은 서랍이 열린 뒤 따로 받아 온다
             assert p.locator("#day-drawer .chip").count() == 1
             assert p.locator("#daylist .row").count() >= 6
             p.wait_for_timeout(500)
@@ -237,8 +281,11 @@ def ui_run(tmp):
             assert "학습했습니다" in p.locator(".msg.bot").last.inner_text()
             assert p.inner_text("#mem-count") == "1"
             say(p, "앞으로 코드리뷰는 30분으로 잡아 기억해")
+            p.wait_for_selector(".card.pending[data-kind='rule']")
+            assert p.inner_text("#mem-count") == "1"  # 대화로 배운 규칙은 확정해야 저장
+            p.click(".card.pending .okb")
             p.wait_for_function("document.querySelector('#mem-count').textContent === '2'")
-            assert p.locator(".act.learn").count() == 2
+            p.wait_for_selector(".plus1")
             st = llm_stats(llm_port)
             assert st["rules_in_prompt"] and "스크럼은 항상 15분" in st["last_rules"], st
             p.keyboard.press("Alt+m")
@@ -255,23 +302,66 @@ def ui_run(tmp):
             assert p.inner_text("#mem-count") == "2"
             p.keyboard.press("Escape")
 
+            # 일정 위키: 대화로 정리 → 확정 → 다음 일정 칸 [위키] · 일정 서랍 W · Alt+W · 질문
+            say(p, "주간회의 준비물은 노트북이랑 지난주 회의록, 안건은 분기 목표 점검이야 정리해줘")
+            p.wait_for_selector(".card.pending[data-kind='wiki']")
+            card = p.inner_text(".card.pending")
+            assert "노트북 · 지난주 회의록" in card and "분기 목표 점검" in card, card
+            p.click(".card.pending .okb")
+            p.wait_for_selector("#next-wiki:not([hidden])")
+            p.click("#next-wiki")
+            p.wait_for_selector("#wiki-body dl")  # 서랍이 열린 뒤 위키를 받아 온다
+            body = p.inner_text("#wiki-body")
+            assert "노트북" in body and "분기 목표 점검" in body and "원문 기록 1개" in body, body
+            p.wait_for_timeout(450)
+            p.screenshot(path=os.path.join(OUT, "jaba-wiki.png"))
+            p.click("#wiki-body summary")  # 원문 기록 펼치기 → 지우기 (정리된 내용은 그대로)
+            p.once("dialog", lambda d: d.accept())
+            p.click("#wiki-body .clr")
+            p.wait_for_function("!document.querySelector('#wiki-body details')")
+            assert "노트북" in p.inner_text("#wiki-body")
+            p.keyboard.press("Escape")
+            p.wait_for_selector("#wiki-drawer", state="hidden")
+            p.keyboard.press("Alt+w")
+            p.wait_for_selector("#wiki-body dl")
+            p.click("#wiki-body .wacts button >> text=직접 고치기")  # 서랍에서 직접 고치기 → Ctrl+Enter 저장
+            p.fill("#wiki-body textarea[name=prep]", "노트북\n회의실 예약")
+            p.press("#wiki-body textarea[name=prep]", "Control+Enter")
+            p.wait_for_function("document.querySelector('#wiki-body dl') && document.querySelector('#wiki-body').textContent.includes('회의실 예약')")
+            assert "지난주 회의록" not in p.inner_text("#wiki-body")
+            p.click("#wiki-back")
+            p.wait_for_selector("#wiki-body .wrow")
+            p.keyboard.press("Escape")
+            p.click("#day-count")
+            p.wait_for_selector("#daylist .row.haswiki .wb")
+            p.click("#daylist .row.haswiki")
+            p.wait_for_selector("#wiki-body dl")
+            p.keyboard.press("Escape")
+            say(p, "주간회의 준비물 뭐였지?")
+            assert "노트북" in p.locator(".msg.bot").last.inner_text()
+
             # 제안 → Esc 취소(구기기) → Ctrl+Enter 확정 → 'ㅇㅇ' 확정
             say(p, "월요일 오전 기획 회의 잡아줘")
             p.wait_for_selector(".card.pending")
-            assert css(p, ".card.pending .okb", "color") == INK_BLACK
+            assert css(p, ".card.pending .okb", "color") == PRIME_INK and css(p, ".card.pending .okb", "backgroundColor") == PRIME
             p.wait_for_timeout(750)
             p.screenshot(path=os.path.join(OUT, "jaba-pending.png"))
             p.keyboard.press("Escape")
             p.wait_for_selector(".card.cancelled")
+            done0 = p.locator(".card.done").count()  # 앞에서 확정한 카드 (일정 · 학습 · 위키)
             say(p, "월요일 오전 기획 회의 잡아줘")
             p.wait_for_selector(".card.pending")
             p.keyboard.press("Control+Enter")
-            p.wait_for_function("document.querySelectorAll('.card.done').length === 2")
+            p.wait_for_function(f"document.querySelectorAll('.card.done').length === {done0 + 1}")
             say(p, "내일 오전 회의 잡아줘")
             p.wait_for_selector(".card.pending")
             say(p, "ㅇㅇ")
             p.wait_for_function("document.querySelectorAll('.card.pending').length === 0")
-            assert p.locator(".card.done").count() == 3
+            assert p.locator(".card.done").count() == done0 + 2
+            p.wait_for_selector(".card.done .undo")  # 방금 확정한 것 되돌리기 (Ctrl+Z)
+            p.keyboard.press("Control+z")
+            p.wait_for_selector(".card.undone")
+            assert p.locator(".card.done").count() == done0 + 1
 
             # Alt+1 빠른 키, /알림 → 앱 안 알림
             n = bots(p)
@@ -295,7 +385,7 @@ def ui_run(tmp):
             s.wait_for_selector(".track .ev.now")
             assert css(s, ".track .ev.now", "backgroundColor") == LIME
             assert css(s, ".track .ev.past", "opacity") == "1"
-            assert s.inner_text("#next-k") == "now", s.inner_text("#next-k")
+            assert s.inner_text("#next-k").lower() == "now", s.inner_text("#next-k")  # 화면엔 대문자로
             s.wait_for_timeout(400)
             s.screenshot(path=os.path.join(OUT, "jaba-now.png"))
 

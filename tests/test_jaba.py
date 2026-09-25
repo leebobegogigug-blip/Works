@@ -16,6 +16,7 @@ import time
 import types
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 import zlib
 from datetime import datetime, timedelta, timezone
@@ -33,6 +34,7 @@ def cfg_for(db_path, **over):
     cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"calendar": {"backend": "local", "local_db": db_path},
                                                 "llm": {"base_url": "http://x/v1", "model": "m"},
                                                 "learn_file": os.path.join(os.path.dirname(db_path), "rules.json"),
+                                                "wiki_file": os.path.join(os.path.dirname(db_path), "wiki.json"),
                                                 "alerts": {"windows_toast": False}})  # 테스트 중 진짜 윈도우 알림 금지
     cfg = jaba.deep_merge(cfg, over)
     jaba.validate_config(cfg)
@@ -122,6 +124,11 @@ class TestDates(unittest.TestCase):
 
 
 class TestConfig(unittest.TestCase):
+    def test_models_list_validated(self):
+        cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {"models": ["a", ""]}})
+        with self.assertRaises(jaba.ConfigError):
+            jaba.validate_config(cfg)
+
     def test_create_and_merge(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "config.json")
@@ -434,6 +441,76 @@ class TestAgentNative(AgentBase):
         self.assertIn("[도구 사용법]", jaba.build_system_prompt(self.cfg, "json", now))
         self.assertIn("propose_update(event_id, title?, start?, end?, location?)", jaba.tools_as_text())
 
+    def test_confirm_not_blocked_by_llm_wait(self):
+        """LLM 을 기다리는 동안에도 확정 버튼 · /api/state 가 바로 응답하고, 그 사이 확정한 알림은 다음 턴에 전달된다."""
+        entered, release = threading.Event(), threading.Event()
+
+        def slow(messages, llm):
+            entered.set()
+            release.wait(5)
+            return say("다른 답")
+
+        ag = self.agent([tc("propose_create", title="A", start=self.iso(10)), say("확정해 주세요"),
+                         slow, say("네")])
+        ag.chat("A 잡아")
+        th = threading.Thread(target=ag.chat, args=("딴 얘기",))
+        th.start()
+        try:
+            self.assertTrue(entered.wait(5))
+            t0 = time.time()
+            self.assertEqual([p["id"] for p in ag.pending()], ["p1"])
+            self.assertEqual(ag.confirm("p1")["status"], "done")
+            self.assertLess(time.time() - t0, 1.0)
+        finally:
+            release.set()
+            th.join(5)
+        self.assertEqual(len(ag.notices), 1)  # 기다리던 턴이 끝나도 지워지지 않음
+        ag.chat("고마워")
+        self.assertTrue(self.llm.calls[-1][-1]["content"].startswith("[알림] p1 확정 → 등록됨"))
+        self.assertEqual(ag.notices, [])
+
+    def test_quick_reply_only_targets_previous_turn(self):
+        """제안 뒤에 다른 얘기를 했으면 '네'·'아니'는 그 대화의 답이다 (예전 카드를 확정/취소하지 않음)."""
+        ag = self.agent([tc("propose_create", title="A", start=self.iso(10)), say("확정해 주세요"),
+                         say("3시로 옮길까요?"), say("알겠습니다"), say("네")])
+        ag.chat("A 잡아")
+        ag.chat("그런데 다른 회의는 어때?")
+        r = ag.chat("아니")
+        self.assertEqual(r["updated"], [])
+        r = ag.chat("네")
+        self.assertEqual(r["updated"], [])
+        self.assertEqual([p["id"] for p in ag.pending()], ["p1"])  # 카드는 그대로, 버튼으로 확정 가능
+        self.assertEqual(len(self.llm.calls), 5)
+
+    def test_confirm_refuses_if_event_changed_meanwhile(self):
+        ev = self.cal.create_event(title="원래", start=self.day.replace(hour=10), end=self.day.replace(hour=11))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_update", event_id="e1", start=self.iso(14)), say("확정해 주세요")])
+        ag.chat("원래 일정 2시로")
+        self.cal.update_event(ev.id, {"title": "누가 바꿈"})  # Outlook 에서 직접 바꾼 상황
+        r = ag.confirm("p1")
+        self.assertEqual(r["status"], "failed")
+        self.assertIn("바뀌었습니다", r["error"])
+        self.assertEqual(self.cal.get_event(ev.id).start, self.day.replace(hour=10))
+
+    def test_update_all_day_end(self):
+        ev = self.cal.create_event(title="출장", start=self.day, end=self.day + timedelta(days=1), all_day=True)
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_update", event_id="e1", end=(self.day + timedelta(days=2)).date().isoformat()),
+                         say("확정해 주세요")])
+        ag.chat("출장 이틀 더")
+        self.assertEqual(ag.confirm("p1")["status"], "done")
+        self.assertEqual(self.cal.get_event(ev.id).end, self.day + timedelta(days=3))
+
+    def test_finished_proposals_are_pruned(self):
+        ag = self.agent([])
+        for i in range(250):
+            p = ag._new_proposal("rule", {"text": f"r{i}"})
+            p.status = "cancelled"
+        ag._prune_proposals()
+        self.assertEqual(len(ag.proposals), 200)
+        self.assertIn("p250", ag.proposals)
+
 
 class TestAgentJsonMode(AgentBase):
     def test_json_flow(self):
@@ -600,8 +677,9 @@ class TestLLMClient(unittest.TestCase):
             with self.assertRaises(jaba.LLMError) as cm:
                 bad.complete([], use_tools=False)
             self.assertEqual(cm.exception.status, 401)
+            # Windows 는 닫힌 포트도 SYN 을 재시도해서 '거절'이 2초쯤 뒤에 온다 → 시간 초과보다 먼저 오게 넉넉히
             down = jaba.LLMClient(jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {
-                "base_url": "http://127.0.0.1:1/v1", "model": "m", "proxy": "", "timeout_sec": 2}}))
+                "base_url": "http://127.0.0.1:1/v1", "model": "m", "proxy": "", "timeout_sec": 10}}))
             with self.assertRaises(jaba.LLMError) as cm:
                 down.complete([], use_tools=False)
             self.assertIn("연결할 수 없습니다", str(cm.exception))
@@ -873,6 +951,12 @@ class TestServer(unittest.TestCase):
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read().decode() or "{}")
 
+    def test_negative_content_length(self):
+        with socket.create_connection(("127.0.0.1", self.app.port), timeout=5) as c:
+            c.sendall((f"POST /api/chat HTTP/1.1\r\nHost: 127.0.0.1:{self.app.port}\r\nX-Jaba-Token: {self.app.token}\r\n"
+                       "Content-Type: application/json\r\nContent-Length: -1\r\nConnection: close\r\n\r\n").encode())
+            self.assertIn(b" 400 ", c.recv(200))
+
     def test_flow_and_security(self):
         code, html = self.req("/", token=False)
         self.assertEqual(code, 200)
@@ -1051,6 +1135,21 @@ class TestRuleBook(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_failed_write_changes_nothing(self):
+        rb = jaba.RuleBook(self.path)
+        real = os.replace
+
+        def boom(a, b):
+            raise PermissionError("백신이 잡고 있음")
+        jaba.os.replace = boom
+        try:
+            with self.assertRaises(PermissionError):
+                rb.add("스크럼은 15분")
+        finally:
+            jaba.os.replace = real
+        self.assertEqual((rb.all(), rb.seq), ([], 0))
+        self.assertEqual(rb.add("스크럼은 15분")[0]["id"], "r1")
+
     def test_crud_and_persist(self):
         rb = jaba.RuleBook(self.path)
         r1, c1 = rb.add("  스크럼은   항상 15분 ")
@@ -1096,21 +1195,38 @@ class TestAgentLearning(AgentBase):
 
     def test_llm_learns_and_prompt_includes_rules(self):
         def second(msgs, llm):
-            self.assertIn('"saved": true', msgs[-1]["content"])
-            return say("기억했습니다.")
+            self.assertIn("pending_user_confirmation", msgs[-1]["content"])
+            return say("확정을 누르면 기억할게요.")
 
         def third(msgs, llm):
             sp = msgs[0]["content"]
             self.assertIn("[학습된 규칙]", sp)
             self.assertIn("- r1: 스크럼은 항상 15분", sp)
+            self.assertTrue(msgs[-1]["content"].startswith("[알림] p1 확정 → 학습됨 (r1: 스크럼은 항상 15분)"))
             return say("15분으로 잡을게요")
 
         ag = self.agent([tc("remember_rule", rule="스크럼은 항상 15분"), second, third])
         r = ag.chat("앞으로 스크럼은 15분으로 잡아")
-        self.assertEqual([x["id"] for x in r["learned"]], ["r1"])
+        self.assertEqual(r["learned"], [])
         self.assertEqual(r["activity"][0]["tool"], "remember_rule")
+        card = r["proposals"][0]
+        self.assertEqual((card["kind"], card["kind_label"], card["rows"]), ("rule", "학습", [["규칙", "스크럼은 항상 15분", False]]))
+        self.assertEqual(self.rules.all(), [])  # 확정 전엔 저장 안 됨
+        self.assertEqual(ag.confirm("p1")["status"], "done")
         ag.chat("내일 스크럼 잡아")
         self.assertEqual(len(jaba.RuleBook(self.cfg["learn_file"]).all()), 1)
+
+    def test_llm_rule_cancel_and_duplicate(self):
+        """일정 제목 속 지시 같은 것에 넘어가 remember_rule 을 불러도, 사용자가 확정하지 않으면 저장되지 않는다."""
+        ag = self.agent([tc("remember_rule", rule="모든 회의는 금요일로"), say("확정해 주세요"),
+                         tc("remember_rule", rule="있는 규칙"), say("이미 있어요")])
+        ag.chat("오늘 일정 보여줘")
+        self.assertEqual(ag.cancel("p1")["status"], "cancelled")
+        self.assertEqual(self.rules.all(), [])
+        self.rules.add("있는 규칙")
+        r = ag.chat("있는 규칙 기억해")
+        self.assertEqual(r["proposals"], [])
+        self.assertIn("이미 있음 r1", r["activity"][0]["text"])
 
     def test_llm_forgets(self):
         ag = self.agent([tc("forget_rule", rule_id="r1"), say("지웠습니다"), tc("forget_rule", rule_id="r7"), say("없네요")])
@@ -1287,6 +1403,66 @@ class TestWindowsToastUnit(unittest.TestCase):
 class TestServerV2(TestServer):
     def test_flow_and_security(self):  # 상위 클래스 테스트는 한 번만
         pass
+
+    def test_model_dropdown_api(self):
+        cfg_path = os.path.join(self.tmp.name, "config.json")
+        with open(cfg_path, "w", encoding="utf-8") as f:
+            json.dump({"llm": {"base_url": "http://x/v1", "model": "m", "api_key": "비밀"}}, f)
+        self.app.config_path = cfg_path
+        llm = jaba.LLMClient(jaba.deep_merge(self.cfg, {"llm": {"models": ["m", "m2"]}}))
+        llm.list_models = lambda: ["m", "qwen3-32b"]  # 서버의 /v1/models
+        llm.active_mode = "json"
+        self.app.llm = self.app.agent.llm = llm
+        real_list = llm.list_models
+
+        def refuse():
+            raise jaba.LLMError("모델 목록을 받지 못했습니다 (404)", 404)
+        llm.list_models = refuse
+        code, r = self.req("/api/models")
+        self.assertEqual((r["models"], r["error"]), (["m", "m2"], "모델 목록을 받지 못했습니다 (404)"))  # 막혀도 설정 목록은
+        self.app._models = (0.0, [], "")
+        llm.list_models = real_list
+        code, r = self.req("/api/models")
+        self.assertEqual((code, r["current"], r["models"]), (200, "m", ["m", "m2", "qwen3-32b"]))
+        code, r = self.req("/api/model", {"model": "qwen3-32b"})
+        self.assertEqual((code, r["model"], r["mode"], r["saved"]), (200, "qwen3-32b", "native", True))
+        self.assertEqual(llm.model, "qwen3-32b")
+        with open(cfg_path, encoding="utf-8") as f:
+            saved = json.load(f)
+        self.assertEqual((saved["llm"]["model"], saved["llm"]["api_key"]), ("qwen3-32b", "비밀"))  # 다른 값은 그대로
+        self.assertEqual(self.req("/api/model", {"model": "없는모델"})[0], 400)
+        self.assertEqual(self.req("/api/models", token=False)[0], 401)
+        self.app.agent.turn_lock.acquire()  # 대화 처리 중엔 바꾸지 않는다
+        try:
+            code, r = self.req("/api/model", {"model": "m"})
+        finally:
+            self.app.agent.turn_lock.release()
+        self.assertEqual(code, 400)
+        self.assertIn("대화를 처리하는 중", r["error"])
+
+    def test_wiki_endpoints(self):
+        ev = self.app.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
+        self.assertEqual(self.req("/api/wiki")[1]["pages"], [])
+        self.assertEqual(self.req("/api/wiki", token=False)[0], 401)
+        w = self.app.wiki.save(jaba.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서"]}))
+        code, r = self.req("/api/events?date=" + self.day.strftime("%Y-%m-%d"))
+        self.assertEqual([e["wiki"] for e in r["events"]], [w["id"]])
+        self.assertEqual(self.req(f"/api/wiki?id={w['id']}")[1]["page"]["prep"], ["견적서"])
+        q = urllib.parse.urlencode({"event_id": ev.id, "title": ev.title})
+        self.assertEqual(self.req("/api/wiki?" + q)[1]["page"]["id"], w["id"])
+        self.assertEqual(self.req("/api/wiki?id=w99")[0], 404)
+        code, r = self.req(f"/api/wiki/{w['id']}/edit", {"changes": {"prep": ["견적서", "샘플"]}})
+        self.assertEqual((code, r["page"]["prep"]), (200, ["견적서", "샘플"]))
+        self.assertEqual(self.req(f"/api/wiki/{w['id']}/edit", {"changes": {"title": ""}})[0], 400)
+        self.app.wiki.edit(w["id"], {"prep": ["견적서"]})
+        self.app.wiki.save(dict(self.app.wiki.get(w["id"])), "원문: 하한가 92원")
+        code, r = self.req(f"/api/wiki/{w['id']}/clear-sources", {})
+        self.assertEqual((code, r["page"]["sources"], r["page"]["prep"]), (200, [], ["견적서"]))  # 원문만 지움
+        self.assertEqual(self.app.wiki.get(w["id"])["sources"], [])
+        self.assertEqual(self.req("/api/wiki/w99/clear-sources", {})[0], 404)
+        code, r = self.req(f"/api/wiki/{w['id']}/delete", {})
+        self.assertEqual((code, r["pages"]), (200, []))
+        self.assertEqual(self.req(f"/api/wiki/{w['id']}/delete", {})[0], 404)
 
     def test_llm_error_is_reported(self):
         pass
@@ -1516,6 +1692,7 @@ class TestSetup(unittest.TestCase):
         team = os.path.join(self.home, ".config", "opencode", "team.txt")
         self.assertEqual(f["extra_headers"], {"X-Team": "{file:" + os.path.normpath(team) + "}"})
         self.assertEqual(jaba.find_opencode_llm(model="coder", dirs=[self.proj])["model"], "qwen3-coder-30b")  # models.id
+        self.assertEqual(f["models"], ["qwen3", "qwen3-coder-30b"])  # 드롭다운 후보
 
     def test_project_overrides_and_auth_json(self):
         self.write(self.global_cfg(), json.dumps({"provider": {"corp": {
@@ -1725,6 +1902,280 @@ class TestMisc(unittest.TestCase):
         for x in ("네 근데 4시로", "확정하지 마", "아니 3시 말고 4시"):
             self.assertFalse(jaba.YES_RE.match(x) or jaba.NO_RE.match(x), x)
 
+
+
+# ───────────────────────────────────────────── 일정 위키
+
+class TestWikiBook(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.tmp.name, "wiki.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_series_and_event_lookup_and_reload(self):
+        wb = jaba.WikiBook(self.path)
+        s = wb.save(jaba.WikiBook._fill({"title": "주간 스크럼", "scope": "series", "prep": ["지난주 번다운"]}), "원문1")
+        e = wb.save(jaba.WikiBook._fill({"title": "김과장 미팅", "scope": "event", "event_id": "L7", "goal": "단가"}))
+        self.assertEqual((s["id"], e["id"]), ("w1", "w2"))
+        self.assertEqual(wb.find_for("L99", "주간스크럼 ")["id"], "w1")   # 띄어쓰기 달라도 같은 회의
+        self.assertEqual(wb.find_for("L7", "김과장미팅")["id"], "w2")
+        self.assertIsNone(wb.find_for("L7", "치과 예약"))                  # id 가 재사용된 다른 일정엔 안 붙음
+        self.assertIsNone(wb.find_for("L8", "김과장 미팅"))                # 전용 위키는 그 일정에만
+        self.assertEqual([p["id"] for p in wb.search("번다운")], ["w1"])
+        self.assertEqual(wb.get("w1")["sources"][0]["text"], "원문1")
+        again = jaba.WikiBook(self.path)
+        self.assertEqual([p["id"] for p in again.all()], ["w2", "w1"])
+        self.assertEqual(again.save(jaba.WikiBook._fill({"title": "새", "notes": "x"}))["id"], "w3")
+        self.assertEqual(again.remove("w1")["title"], "주간 스크럼")
+        with self.assertRaises(KeyError):
+            again.get("w1")
+
+    def test_event_page_matches_start_after_rename_and_search_plain_text(self):
+        wb = jaba.WikiBook(self.path)
+        wb.save(jaba.WikiBook._fill({"title": "미팅", "scope": "event", "event_id": "L7", "match": "김과장 미팅",
+                                     "event_start": "2026-09-28T15:00", "links": ["\\\\fs01\\영업\\견적서.xlsx"]}))
+        self.assertEqual(wb.find_id("L7", "김과장 미팅 (변경)", "2026-09-28T15:00"), "w1")  # 제목이 바뀌어도 같은 시각이면
+        self.assertEqual(wb.find_id("L7", "치과", "2026-10-01T09:00"), "")
+        self.assertEqual([p["id"] for p in wb.search("\\\\fs01\\영업")], ["w1"])  # 경로도 그대로 검색
+        self.assertEqual(wb.search('"'), [])
+
+    def test_direct_edit(self):
+        wb = jaba.WikiBook(self.path)
+        w = wb.save(jaba.WikiBook._fill({"title": "주간 스크럼", "scope": "series", "prep": ["번다운"], "goal": "공유"}), "원문")
+        e = wb.edit(w["id"], {"title": "스크럼", "prep": "번다운\n\n  블로커 목록 \n번다운", "goal": ""})
+        self.assertEqual((e["title"], e["prep"], e["goal"], e["match"]), ("스크럼", ["번다운", "블로커 목록"], "", "주간 스크럼"))
+        self.assertEqual(len(e["sources"]), 1)  # 손으로 고친 건 원문 기록을 늘리지 않음
+        self.assertEqual(wb.find_id("L1", "주간스크럼"), w["id"])  # 이름을 바꿔도 연결은 그대로
+        with self.assertRaises(ValueError):
+            wb.edit(w["id"], {"prep": [], "goal": ""})  # 전부 비우기는 '지우기'로
+        with self.assertRaises(ValueError):
+            wb.edit(w["id"], {"title": "  "})
+        with self.assertRaises(KeyError):
+            wb.edit("w99", {"goal": "x"})
+
+    def test_failed_write_changes_nothing_and_error_clears(self):
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write("{깨짐")
+        wb = jaba.WikiBook(self.path)
+        self.assertTrue(wb.error)
+        real = os.replace
+
+        def boom(a, b):
+            raise PermissionError("백신이 잡고 있음")
+        jaba.os.replace = boom
+        try:
+            with self.assertRaises(PermissionError):
+                wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))
+        finally:
+            jaba.os.replace = real
+        self.assertEqual((wb.count(), wb.seq), (0, 0))  # 메모리에도 반영 안 됨
+        self.assertEqual(wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))["id"], "w1")
+        self.assertEqual(wb.error, "")  # 한 번 저장되면 시작 때 오류는 지운다
+
+    def test_sources_capped_and_broken_file(self):
+        wb = jaba.WikiBook(self.path)
+        p = wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))
+        for i in range(40):
+            p = wb.save(p, f"말{i}")
+        self.assertEqual(len(p["sources"]), jaba.WikiBook.MAX_SOURCES)
+        self.assertEqual(p["sources"][-1]["text"], "말39")
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write("{깨짐")
+        broken = jaba.WikiBook(self.path)
+        self.assertEqual(broken.all(), [])
+        self.assertIn("새로 시작", broken.error)
+        self.assertTrue(os.path.exists(self.path + ".broken"))
+
+
+class TestAgentWiki(AgentBase):
+    def agent(self, steps, mode="native"):
+        self.llm = ScriptLLM(steps, mode)
+        self.wiki = jaba.WikiBook(os.path.join(self.tmp.name, "wiki.json"))
+        return jaba.Agent(self.cfg, self.cal, self.llm, jaba.RuleBook(self.cfg["learn_file"]), self.wiki)
+
+    def test_propose_confirm_read_and_merge(self):
+        ev = self.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
+        said = "김과장 미팅 준비물은 견적서랑 노트북, 안건은 단가 협상이야"
+
+        def check_list(msgs, llm):
+            self.assertIn('"wiki": "w1"', msgs[-1]["content"])  # 확정 뒤엔 일정 목록에 위키 표시
+            return tc("wiki_read", event_id="e1")
+
+        def check_read(msgs, llm):
+            self.assertIn("견적서", msgs[-1]["content"])
+            return say("견적서랑 노트북이요")
+
+        ag = self.agent([
+            tc("list_events", start=self.iso(0), end=self.iso(23)),
+            tc("propose_wiki", event_id="e1", prep=["견적서", "노트북"], agenda=["단가 협상"]),
+            say("확정해 주세요"),
+            tc("list_events", start=self.iso(0), end=self.iso(23)), check_list, check_read,
+            tc("list_events", start=self.iso(0), end=self.iso(23)),
+            tc("propose_wiki", event_id="e1", prep=["샘플"], remove=["노트북"], goal="단가 5% 인하"),
+            say("확정해 주세요"),
+        ])
+        r = ag.chat(said)
+        card = r["proposals"][0]
+        self.assertEqual((card["kind"], card["kind_label"]), ("wiki", "위키"))
+        self.assertIn(["준비", "견적서 · 노트북", True], card["rows"])
+        self.assertIn("이 일정만", card["rows"][1][1])  # 반복이 아닌 일정 → 그 일정 전용
+        self.assertEqual(self.wiki.all(), [])            # 확정 전엔 저장 안 됨
+        self.assertEqual(ag.confirm("p1")["status"], "done")
+        page = self.wiki.find_for(ev.id, ev.title)
+        self.assertEqual((page["scope"], page["event_id"], page["prep"]), ("event", ev.id, ["견적서", "노트북"]))
+        self.assertEqual(page["sources"][0]["text"], said)
+        self.assertEqual(ag.chat("이따 미팅 준비물 뭐였지?")["reply"], "견적서랑 노트북이요")
+        r = ag.chat("노트북은 빼고 샘플 추가, 목적은 단가 5% 인하")
+        rows = r["proposals"][0]["rows"]
+        self.assertIn(["준비", "견적서 · 샘플  (지움: 노트북)", True], rows)
+        self.assertIn(["목적", "단가 5% 인하", True], rows)
+        ag.confirm("p2")
+        page = self.wiki.get("w1")
+        self.assertEqual((page["prep"], page["goal"], len(page["sources"])), (["견적서", "샘플"], "단가 5% 인하", 2))
+
+    def test_series_scope_and_topic_page(self):
+        ag = self.agent([tc("propose_wiki", title="주간 스크럼", scope="series", agenda=["블로커"]), say("확정해 주세요"),
+                         tc("propose_wiki", title="주간 스크럼", agenda=["블로커"]), say("이미 있어요"),
+                         tc("propose_wiki", title="빈 위키"), say("?")])
+        ag.chat("주간 스크럼 안건은 블로커 공유야")
+        ag.chat("ㅇㅇ")
+        other_week = self.cal.create_event(title="주간스크럼", start=self.day.replace(hour=9) + timedelta(days=7),
+                                           end=self.day.replace(hour=9, minute=15) + timedelta(days=7))
+        self.assertEqual(self.wiki.find_for(other_week.id, other_week.title)["id"], "w1")
+        r = ag.chat("스크럼 안건 블로커")
+        self.assertIn("바뀌는 내용이 없습니다", r["activity"][0]["text"])
+        r = ag.chat("빈 위키 만들어")
+        self.assertIn("넣을 내용이 없습니다", r["activity"][0]["text"])
+
+    def test_pending_cards_are_applied_on_top_of_current_page(self):
+        """같은 위키를 고치는 카드가 여러 장이어도 서로 덮어쓰지 않고, 새 위키가 둘로 갈라지지도 않는다."""
+        ev = self.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_wiki", event_id="e1", prep=["견적서"]), say("확정해 주세요"),
+                         tc("propose_wiki", event_id="e1", agenda=["단가 협상"]), say("확정해 주세요"),
+                         tc("propose_wiki", event_id="e1", notes="메모"), say("확정해 주세요")])
+        ag.chat("김과장 미팅 준비물은 견적서")
+        ag.chat("안건은 단가 협상")
+        self.assertEqual(ag.confirm("p1")["status"], "done")
+        self.assertEqual(ag.confirm("p2")["status"], "done")
+        pages = self.wiki.all()
+        self.assertEqual(len(pages), 1)
+        self.assertEqual((pages[0]["prep"], pages[0]["agenda"]), (["견적서"], ["단가 협상"]))
+        ag.chat("메모 추가")
+        self.wiki.remove("w1")  # 서랍에서 지운 뒤에 예전 카드를 확정해도 되살아나지 않는다
+        r = ag.confirm("p3")
+        self.assertEqual(r["status"], "failed")
+        self.assertIn("지워졌습니다", r["error"])
+        self.assertEqual(self.wiki.all(), [])
+        self.assertIsNone(self.wiki.find_for(ev.id, ev.title))
+
+    def test_series_attaches_by_event_title_and_edit_by_wiki_id(self):
+        long = "3분기 사업부 전략 점검 주간회의 " + "가" * 70  # 80자가 넘는 Outlook 제목
+        ev = self.cal.create_event(title=long, start=self.day.replace(hour=9), end=self.day.replace(hour=10))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_wiki", event_id="e1", title="전략회의 준비", scope="series", prep=["실적표"]),
+                         say("확정해 주세요"),
+                         tc("propose_wiki", wiki_id="w1", title="전략회의", prep=["샘플"]), say("확정해 주세요")])
+        r = ag.chat("전략회의 준비물은 실적표")
+        self.assertIn(["연결", f"'{long}' 제목 일정 모두", False], r["proposals"][0]["rows"])
+        ag.confirm("p1")
+        self.assertEqual(self.wiki.find_id(ev.id, ev.title), "w1")  # 위키 이름이 달라도 일정 제목으로 붙는다
+        r = ag.chat("'전략회의 준비' 위키(w1)에 샘플도 추가")
+        self.assertIn(["위키", "전략회의 준비 → 전략회의", True], r["proposals"][0]["rows"])
+        ag.confirm("p2")
+        self.assertEqual(len(self.wiki.all()), 1)
+        page = self.wiki.find_for(ev.id, ev.title)  # 이름을 바꿔도 연결은 그대로
+        self.assertEqual((page["title"], page["prep"]), ("전략회의", ["실적표", "샘플"]))
+
+    def test_weekly_local_meeting_defaults_to_series_and_card_shows_source(self):
+        for w in (0, 7):
+            self.cal.create_event(title="주간회의", start=self.day.replace(hour=10) + timedelta(days=w),
+                                  end=self.day.replace(hour=11) + timedelta(days=w))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_wiki", event_id="e1", prep=["회의록"]), say("확정해 주세요")])
+        said = "주간회의 준비물은 회의록. 참고로 하한가는 92원"
+        r = ag.chat(said)
+        rows = r["proposals"][0]["rows"]
+        self.assertIn(["연결", "'주간회의' 제목 일정 모두", False], rows)  # 로컬 캘린더의 매주 일정 → 공용
+        self.assertEqual(rows[-1], ["원문 기록", said, False])           # 저장될 원문을 카드에서 미리 보여 준다
+
+    def test_undo_each_kind(self):
+        """확정 뒤 20초 안에는 되돌릴 수 있다: 새 일정 · 변경 · 삭제 · 학습 · 위키"""
+        ev = self.cal.create_event(title="원래", start=self.day.replace(hour=10), end=self.day.replace(hour=11), location="3A")
+        ag = self.agent([
+            tc("propose_create", title="새 회의", start=self.iso(15)), say("확정해 주세요"),
+            tc("list_events", start=self.iso(0), end=self.iso(23)),
+            tc("propose_update", event_id="e2", start=self.iso(14)), say("확정해 주세요"),
+            tc("propose_delete", event_id="e2"), say("확정해 주세요"),
+            tc("remember_rule", rule="스크럼은 15분"), say("확정해 주세요"),
+            tc("propose_wiki", event_id="e3", prep=["노트북"]), say("확정해 주세요"),  # 되살린 일정은 새 id(e3)
+        ])
+        day = lambda: sorted((e.title, e.start.hour) for e in self.cal.list_events(self.day, self.day + timedelta(days=1)))
+        ag.chat("3시 새 회의")
+        self.assertEqual(ag.confirm("p1")["undo_left"], 20)
+        self.assertEqual(ag.undo("p1")["status"], "undone")
+        self.assertEqual(day(), [("원래", 10)])
+        ag.chat("원래 일정 2시로")
+        ag.confirm("p2")
+        ag.undo("p2")
+        self.assertEqual(day(), [("원래", 10)])
+        ag.chat("원래 일정 지워")
+        ag.confirm("p3")
+        self.assertEqual(day(), [])
+        ag.undo("p3")
+        restored = self.cal.list_events(self.day, self.day + timedelta(days=1))
+        self.assertEqual([(e.title, e.start.hour, e.location) for e in restored], [("원래", 10, "3A")])
+        ag.chat("앞으로 스크럼은 15분")
+        ag.confirm("p4")
+        ag.undo("p4")
+        self.assertEqual(ag.rules.all(), [])
+        ag.chat("원래 일정 준비물 노트북")
+        ag.confirm("p5")
+        self.assertEqual(len(self.wiki.all()), 1)
+        ag.undo("p5")
+        self.assertEqual(self.wiki.all(), [])
+        self.assertTrue(any("p5 되돌림" in n for n in ag.notices))
+
+    def test_undo_window_and_changed_meanwhile(self):
+        ag = self.agent([tc("propose_create", title="A", start=self.iso(15)), say("확정해 주세요"),
+                         tc("propose_create", title="B", start=self.iso(16)), say("확정해 주세요")])
+        ag.chat("A")
+        ag.confirm("p1")
+        ag.proposals["p1"].done_at -= 21  # 20초가 지남
+        with self.assertRaises(ValueError):
+            ag.undo("p1")
+        ag.chat("B")
+        ag.confirm("p2")
+        b = ag.proposals["p2"].undo["created"]
+        self.cal.update_event(b.id, {"title": "누가 바꿈"})  # 그 사이 Outlook 에서 바뀜 → 지우지 않는다
+        with self.assertRaises(RuntimeError):
+            ag.undo("p2")
+        self.assertIn("누가 바꿈", [e.title for e in self.cal.list_events(self.day, self.day + timedelta(days=1))])
+        with self.assertRaises(KeyError):
+            ag.undo("p99")
+
+    def test_wiki_command(self):
+        ag = self.agent([])
+        self.assertEqual(ag.chat("/위키")["open_wiki"], "list")
+        self.wiki.save(jaba.WikiBook._fill({"title": "주간 스크럼", "agenda": ["블로커"]}))
+        r = ag.chat("/위키 스크럼")
+        self.assertEqual(r["open_wiki"], "w1")
+        self.assertEqual(ag.chat("/위키 W1")["open_wiki"], "w1")
+        self.assertIn("'없는거' 위키가 없습니다", ag.chat("/위키 없는거")["reply"])
+        self.assertEqual(self.llm.calls, [])
+
+    def test_alert_body_shows_prep(self):
+        start = datetime(2026, 9, 28, 15, 0)
+        ev = Event(id="A", title="김과장 미팅", start=start, end=start + timedelta(hours=1), location="3A")
+        self.agent([])
+        self.wiki.save(jaba.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서", "노트북"]}))
+        n = FakeNotifier()
+        sch = jaba.AlertScheduler(self.cfg, FakeCal([ev]), n, Clock(start - timedelta(minutes=15)), wiki=self.wiki)
+        item = sch.tick()[0]
+        self.assertEqual(item["wiki"], "w1")
+        self.assertTrue(n.shown[0][1].endswith("· 준비: 견적서, 노트북"))
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

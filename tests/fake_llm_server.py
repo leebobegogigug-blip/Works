@@ -57,8 +57,21 @@ def plan(messages):
             if data.get("conflicts"):
                 return ("text", "겹치는 일정이 있습니다 → " + ", ".join(data["conflicts"]) + "\n그래도 괜찮으면 확정을 눌러주세요.")
             return ("text", "제안했습니다. 확정을 눌러주세요.")
+        if "wiki" in data or "wikis" in data:  # wiki_read 결과
+            w = data.get("wiki") or (data.get("wikis") or [{}])[0]
+            return ("text", ("준비: " + ", ".join(w["prep"])) if w.get("prep") else "위키가 없습니다.")
         if "events" in data:
             evs = data["events"]
+            target = next((e for e in evs if e["title"] in utext), None)
+            if target and "준비물은" in utext:  # 디테일 → 위키 정리
+                prep = re.search(r"준비물은\s*([^,]+)", utext).group(1).strip()
+                agenda = re.search(r"안건은\s*(.+?)(?:이야|야)?\s*정리해", utext)
+                args = {"event_id": target["id"], "prep": [x.strip() for x in re.split(r"이랑|랑|,", prep) if x.strip()]}
+                if agenda:
+                    args["agenda"] = [agenda.group(1).strip()]
+                return ("tool", "propose_wiki", args)
+            if target and "뭐였지" in utext:
+                return ("tool", "wiki_read", {"event_id": target["id"]})
             if "옮겨" in utext and evs:
                 target = next((e for e in evs if e["title"][:2] in utext), evs[0])
                 s = datetime.strptime(target["start"], "%Y-%m-%dT%H:%M") + timedelta(hours=1)
@@ -71,6 +84,8 @@ def plan(messages):
         if "saved" in data:
             return ("text", f"기억했습니다 · {data['id']}" if data["saved"] else "이미 있는 규칙입니다.")
         return ("text", "처리했습니다.")
+    if "준비물" in utext:  # 위키: 먼저 일정 id 를 찾는다
+        return ("tool", "list_events", {"start": iso(today), "end": iso(today + timedelta(days=2))})
     if "앞으로" in utext or "기억해" in utext:
         rule = re.sub(r"\s*(기억해|학습해)[.!]*\s*$", "", utext.replace("앞으로", "")).strip()
         return ("tool", "remember_rule", {"rule": rule})
@@ -105,12 +120,15 @@ class H(http.server.BaseHTTPRequestHandler):
         self.wfile.write(out)
 
     def do_GET(self):
+        if self.path.rstrip("/").endswith("/models"):  # 모델 드롭다운
+            return self.send_json(200, {"object": "list", "data": [{"id": "사내-LLM"}, {"id": "qwen3-32b"}]})
         self.send_json(200, STATS)
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         payload = json.loads(self.rfile.read(n).decode("utf-8"))
         STATS["requests"] += 1
+        STATS["last_model"] = payload.get("model")
         if payload.get("tools"):
             STATS["with_tools"] += 1
         system = payload["messages"][0]["content"] if payload["messages"][0]["role"] == "system" else ""

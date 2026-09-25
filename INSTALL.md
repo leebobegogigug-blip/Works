@@ -212,7 +212,7 @@ python "D:\OPENCODE\jaba\jaba.py" --status
 ```
 
 zip 으로 받았다면 `git pull` 대신 새 `jaba-repo.zip` 을 `D:\OPENCODE` 에 두고 2단계 B 의 압축 해제 명령을 실행한다.
-`config.json` · `jaba.db`(일정) · `jaba_rules.json`(학습 규칙)은 저장소에도 zip 에도 없어서 그대로 남는다.
+`config.json` · `jaba.db`(일정) · `jaba_rules.json`(학습 규칙) · `jaba_wiki.json`(일정 위키)은 저장소에도 zip 에도 없어서 그대로 남는다.
 
 ## 제거
 
@@ -221,7 +221,7 @@ python "D:\OPENCODE\jaba\jaba.py" --stop
 python "D:\OPENCODE\jaba\jaba.py" --autostart off
 ```
 
-그다음 **[질문]** "`jaba.db`(일정)와 `jaba_rules.json`(학습 규칙)을 백업할까요?" → 사용자 확인 후에만 `D:\OPENCODE\jaba` 폴더를 지운다.
+그다음 **[질문]** "`jaba.db`(일정) · `jaba_rules.json`(학습 규칙) · `jaba_wiki.json`(일정 위키)을 백업할까요?" → 사용자 확인 후에만 `D:\OPENCODE\jaba` 폴더를 지운다.
 
 ## 참고: 명령 모음
 
