@@ -103,6 +103,27 @@ $p = [Environment]::GetEnvironmentVariable('Path', 'User')
 처음 `ocmux add`를 한 뒤(또는 업데이트한 뒤)에는 Windows Terminal 창을 **모두** 한 번 닫았다가 여세요.
 그래야 `ocmux Black` 색 테마가 로드됩니다.
 
+**추천 글꼴 (선택): 갈무리모노 GalmuriMono11**
+
+도트 느낌의 한글 픽셀 글꼴입니다. TOKEN QUEST와 레트로 계측기 화면에 잘 어울립니다. 무료이며 SIL OFL 1.1 라이선스입니다.
+
+1. [Galmuri 릴리스 페이지](https://github.com/quiple/galmuri/releases)에서 최신 zip을 받아 `GalmuriMono11.ttf`를 설치합니다 (우클릭 → **모든 사용자용으로 설치**).
+2. Windows Terminal을 모두 닫았다가 다시 엽니다.
+3. 설정 → 프로필 **기본값** → 모양 → 글꼴에서 `GalmuriMono11`을 고릅니다. `settings.json`에 직접 쓸 때는 아래처럼 넣습니다.
+
+```jsonc
+"profiles": {
+  "defaults": {
+    "font": { "face": "GalmuriMono11", "size": 9 },
+    "antialiasingMode": "aliased"   // 픽셀 가장자리를 흐리지 않게
+  }
+}
+```
+
+- 갈무리는 12px에 맞춰 그린 비트맵 스타일 글꼴입니다. 화면 배율 100%에서는 `9`(12px)가 가장 선명합니다. 배율 150·200%라면 선명한 크기를 직접 골라 보세요.
+- 이 글꼴에 없는 기호(선 문자 `┌─┐`, 블록 `▁▅█`, 점자 스피너 등)는 Windows Terminal이 다른 글꼴로 대신 그립니다. 칸이 어긋나 보이면 한글 칸 너비가 정확한 [D2Coding](https://github.com/naver/d2codingfont)을 쓰세요.
+- 스크린샷은 DejaVu Sans Mono + Noto Sans CJK로 찍었습니다. 갈무리로 바꾸면 실제 화면 느낌이 달라집니다.
+
 > PowerShell 실행 정책 때문에 `ocmux`가 막히면 `ocmux.cmd add`처럼 `.cmd`로 실행하세요. 내부에서 `-ExecutionPolicy Bypass`로 스크립트를 실행합니다
 > (그룹 정책으로 강제된 실행 정책은 우회하지 않습니다).
 
@@ -285,7 +306,7 @@ opencode 이벤트 연동(세션 · 서브에이전트 · todo · 허락 대기)
 - 개발과 자동 검증은 Linux(Python 3.11, PowerShell 7)에서 했습니다. Windows PowerShell 5.1 + Windows Terminal에서 이상한 점이 있으면 이슈로 알려 주세요.
 - 새로 설치한 Windows Terminal은 `Ctrl+V`를 자체 붙여넣기로 처리해 일부 특수문자(… — “ ” •)가 빠질 수 있습니다.
   compose는 이를 감지해 클립보드를 직접 넣고, `Insert`는 항상 직접 붙여넣습니다.
-- 터미널 글꼴에 따라 일부 기호(`▮` `◔`)는 대체 글꼴로 그려집니다.
+- 터미널 글꼴에 따라 일부 기호(`▮` `◔`)는 대체 글꼴로 그려집니다. 추천 글꼴과 설정은 [04 설치](#04-설치)에 있습니다.
 - 스토리 챕터 공개일은 PC 날짜 기준입니다. 한 번 열린 챕터는 날짜를 되돌려도 닫히지 않습니다.
 
 ## 11 문서
