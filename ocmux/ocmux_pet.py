@@ -3688,7 +3688,8 @@ class PetGame:
         if agent:
             self.stance = agent
 
-    def _on_compose(self, chars=0, text="", submitted=True):
+    def _on_compose(self, chars=0, text="", submitted=True, ctx=None):
+        """ctx: compose 창이 미리 고른 반응 종류 (글 원문은 넘겨받지 않음). text 는 예전 버스 줄 호환용"""
         self.last_activity = self.now()
         self.inc("compose")
         self.quest("compose")
@@ -3698,7 +3699,7 @@ class PetGame:
             self.unlock("longprompt")
         if not self.is_egg():
             self.p["mood"] = clamp(self.p["mood"] + 3, 0, 100)
-            self.say(reaction_context(text, chars))
+            self.say(ctx if ctx in D.LINES else reaction_context(text, chars))
         self.note(f"주인님의 지시 수신 ({chars}자) → 영감 버프 (경험치 +10%, 10분)")
 
     # --- opencode 할 일(todo) = 메인 퀘스트

@@ -66,5 +66,16 @@ class ServerPassword(unittest.TestCase):
             del os.environ["OPENCODE_SERVER_PASSWORD"]
 
 
+class ComposeBus(unittest.TestCase):
+    def test_sent_text_is_not_written_to_disk(self):
+        import ocmux_pet as P
+        inst = M.Instance("bus-t", "http://127.0.0.1:1")
+        M.compose_after_send(inst, "버그 고쳐줘 password=hunter2", True, "")
+        with open(P.bus_path("bus-t"), encoding="utf-8") as f:
+            raw = f.read()
+        self.assertNotIn("hunter2", raw)
+        self.assertEqual(M.json.loads(raw.splitlines()[-1])["ctx"], "compose_bug")
+
+
 if __name__ == "__main__":
     unittest.main()

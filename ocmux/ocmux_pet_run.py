@@ -291,7 +291,7 @@ def run(a, M):
                     for ev in bus.poll():
                         if ev.get("type") == "compose":
                             game.signal("compose", chars=ev.get("chars", 0), text=ev.get("text", ""),
-                                        submitted=ev.get("submitted", True))
+                                        submitted=ev.get("submitted", True), ctx=ev.get("ctx"))
                 game.tick()
                 if game.outbox:
                     if game.s["settings"].get("toast"):

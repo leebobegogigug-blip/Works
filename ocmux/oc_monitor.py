@@ -1679,8 +1679,9 @@ def compose_after_send(inst, text, submitted, status):
     """전송 후 펫 연동: 이벤트 버스 기록 + 펫 반응 한 줄 (펫 모듈이 없으면 그대로)"""
     try:
         import ocmux_pet
+        # 보낸 글 원문은 디스크(버스 파일)에 남기지 않는다 — 펫 반응에 필요한 분류 결과만
         ocmux_pet.bus_write(inst.name, {"type": "compose", "chars": len(text), "submitted": submitted,
-                                        "text": text[:400]})
+                                        "ctx": ocmux_pet.reaction_context(text)})
         line = ocmux_pet.compose_reaction(inst.name, text)
         if line:
             return status + "  " + line

@@ -252,6 +252,11 @@ switch ($Cmd) {
     $firstEver = ($reg.Count -eq 0)
 
     $base = if ($Name) { $Name } else { Split-Path $dir -Leaf }
+    # the name ends up inside wt/cmd command lines: " breaks the quoting, % ^ & | < > are cmd metacharacters
+    if ($base -match '["%^&|<>]') {
+        if ($Name) { throw "name must not contain any of: `" % ^ & | < >  (got '$Name')" }
+        $base = $base -replace '["%^&|<>]', '_'
+    }
     $n = $base; $k = 2
     while (Find-Inst $reg $n) { $n = "$base-$k"; $k++ }
 
