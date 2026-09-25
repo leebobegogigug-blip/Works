@@ -677,8 +677,9 @@ class TestLLMClient(unittest.TestCase):
             with self.assertRaises(jaba.LLMError) as cm:
                 bad.complete([], use_tools=False)
             self.assertEqual(cm.exception.status, 401)
+            # Windows 는 닫힌 포트도 SYN 을 재시도해서 '거절'이 2초쯤 뒤에 온다 → 시간 초과보다 먼저 오게 넉넉히
             down = jaba.LLMClient(jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {
-                "base_url": "http://127.0.0.1:1/v1", "model": "m", "proxy": "", "timeout_sec": 2}}))
+                "base_url": "http://127.0.0.1:1/v1", "model": "m", "proxy": "", "timeout_sec": 10}}))
             with self.assertRaises(jaba.LLMError) as cm:
                 down.complete([], use_tools=False)
             self.assertIn("연결할 수 없습니다", str(cm.exception))
