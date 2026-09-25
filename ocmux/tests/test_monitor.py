@@ -90,6 +90,28 @@ class ComposeBus(unittest.TestCase):
         self.assertFalse(P.scrub_bus("bus-old"))  # 두 번째부터는 다시 쓰지 않음
 
 
+    def test_bus_survives_coarse_clock(self):
+        """Windows(Python 3.8 등)는 time.time() 이 ~15ms 단위라 연달아 쓴 이벤트의 ts 가 같다 → 전부 받아야 한다"""
+        import ocmux_pet as P
+        real = P.time.time
+        P.time.time = lambda: round(real(), 1)  # 100ms 단위 시계로 흉내
+        try:
+            r = P.BusReader("bus-coarse")
+            for i in range(20):
+                P.bus_write("bus-coarse", {"type": "compose", "i": i})
+            got = r.poll()
+        finally:
+            P.time.time = real
+        self.assertEqual([e["i"] for e in got], list(range(20)))
+        self.assertEqual(r.poll(), [])
+        again = P.BusReader("bus-coarse")        # 새로 뜬 펫 창은 예전 이벤트를 다시 받지 않는다
+        self.assertEqual(again.poll(), [])
+        with open(P.bus_path("bus-coarse"), "w", encoding="utf-8") as f:  # 잘려서 처음부터 읽혀도 재생 안 됨
+            f.write("")
+        P.bus_write("bus-coarse", {"type": "compose", "i": 99})
+        self.assertEqual([e["i"] for e in r.poll()], [99])
+
+
 class RegDir(unittest.TestCase):
     def test_status_pane_reads_folder_from_registry(self):
         reg = M.registry_path()
