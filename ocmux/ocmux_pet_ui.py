@@ -1533,7 +1533,7 @@ class PetUI:
                     f"{G1}KO{RST} {G4}{c['kills']}{RST}")
         else:
             stat = f"{G4}{enc_txt}{RST} {G1}·{RST} {G4}{P.fmt_num(c['gold'])}G◆{loot_n}{RST} {G1}·{RST} {G4}KO{c['kills']}{RST}"
-        head = f"{chip('B' + str(e['floor']) + 'F', 'black', 'lime')} {rgb(z['color'])}{B}{z['name']}{RST}"
+        head = f"{chip('B' + str(e['floor']) + 'F', 'white', 'navy2')} {rgb(z['color'])}{B}{z['name']}{RST}"
         steps = " " + self._floor_steps(e["floor"], now)
         right = stat + ("  " + " ".join(chips) if chips else "")
         if vlen(head) + vlen(steps) + vlen(right) + 2 <= W:

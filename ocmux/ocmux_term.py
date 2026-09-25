@@ -82,7 +82,7 @@ P3 = {
 THEME = {"GRN": P3["lime"], "YEL": P3["lime3"], "RED": P3["white"], "BLU": P3["navy4"], "MAG": P3["navy3"], "CYN": P3["navy5"]}
 RED, GRN, YEL, BLU, MAG, CYN = (_tc(THEME[k]) for k in ("RED", "GRN", "YEL", "BLU", "MAG", "CYN"))
 # 인스턴스(탭) 태그 색: 3색 계열 안에서 서로 구분되게
-PALETTE = ["#6ABA23", "#3F77A6", "#A5AAAE", "#95D85A", "#75A1C7", "#45741B", "#B8CEE0", "#81888D"]
+PALETTE = ["#3F77A6", "#A5AAAE", "#75A1C7", "#6ABA23", "#B8CEE0", "#81888D", "#95D85A", "#45741B"]  # 네이비가 주색 · 라임은 강조라 1번 자리에서 뺌
 # 예전(파랑/분홍) 탭 색 → 새 팔레트 (instances.json 에 남아 있는 옛 색을 읽을 때 바꿔 준다)
 LEGACY_COLORS = dict(zip(["#3B82F6", "#EC4899", "#6366F1", "#F472B6", "#0EA5E9", "#DB2777", "#818CF8", "#D946EF"], PALETTE))
 
@@ -127,7 +127,7 @@ def module(num, title, on=True, led=None):
     """번호가 붙은 모듈 제목: 01 SESSIONS (●)
     led: None=표시 없음, True=활동 중(라임), False=조용함(어두운 점)"""
     n = f"{num:02d}" if isinstance(num, int) else str(num)
-    s = (f"{bg(P3['lime'] if on else P3['navy2'])}{rgb(P3['black'] if on else P3['gray4'])}{B}{n}{RST}"
+    s = (f"{bg(P3['navy2'] if on else P3['navy'])}{rgb(P3['white'] if on else P3['gray1'])}{B}{n}{RST}"
          f" {rgb(P3['gray4'])}{B}{title}{RST}")
     if led is not None:
         s += f" {rgb(P3['lime'] if led else P3['gray0'])}●{RST}"

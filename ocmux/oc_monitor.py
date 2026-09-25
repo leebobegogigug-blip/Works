@@ -828,7 +828,7 @@ def render_status(inst, show_idle_sub, W, H, logf=None, anchors=None):
 def render_overview(insts, sink, W, H, logf=None, anchors=None):
     L = []
     online = sum(1 for i in insts if i.connected)
-    left = (f" {chip('OCMUX', 'black', 'lime')} {G4}{B}OVERVIEW{RST}  {G1}INST{RST} {G4}{len(insts)}{RST}  "
+    left = (f" {chip('OCMUX', 'white', 'navy2')} {G4}{B}OVERVIEW{RST}  {G1}INST{RST} {G4}{len(insts)}{RST}  "
             f"{G1}ONLINE{RST} {LIME}{B}{online}{RST}")
     sse = sum(1 for i in insts if i.sse_ok)
     rtt = [i.rtt_ms for i in insts if i.connected and i.rtt_ms]
@@ -1088,7 +1088,7 @@ def make_follower(a, level=None):
 def run_logs(a):
     lf = make_follower(a) or LogFollower(a.log_dir, a.file, a.since, a.all, a.level, a.grep)
     tag = rgb(a.color) + (a.tag or "logs") + RST
-    print(f"{chip('LOGS', 'black', 'lime')} {tag}  {G1}{lf.describe()}  ({' | '.join(lf.dirs)}){RST}")
+    print(f"{chip('LOGS', 'white', 'navy2')} {tag}  {G1}{lf.describe()}  ({' | '.join(lf.dirs)}){RST}")
     while True:
         new = lf.poll()
         for ln in new:
@@ -1167,7 +1167,7 @@ def render_usage(tr, insts, scope, W, H, anchors=None):
     now = time.time()
     reels = (f"{LIME}({spinner(now, 6)}){NV3}━━{RST}{LIME}({spinner(now + 0.2, 6)}){RST}" if flowing
              else f"{G0}(○)━━(○){RST}")
-    left = f" {chip('USAGE', 'black', 'lime')} {G4}{B}{scope}{RST} {G1}tokens/{tr.bucket}s{RST}"
+    left = f" {chip('USAGE', 'white', 'navy2')} {G4}{B}{scope}{RST} {G1}tokens/{tr.bucket}s{RST}"
     legend = f"{enc_dot(0)} {G1}IN{RST} {enc_dot(1)} {G1}OUT{RST}"
     L.append(navbar(left, f"{reels} {legend} {keycap('?')} ", W))
     _anc(anchors, min(W - 2, vlen(left) + 1), 0, "usage")
@@ -1586,7 +1586,7 @@ def render_compose(ed, inst, status, W, H, flash=None, anchors=None, sent=0):
     port = inst.url.rsplit(":", 1)[-1]
     dirty = bool(ed.text) and ed.text != getattr(ed, "last_sent", None)
     rec = (f"{LIME if int(now * 2) % 2 else G0}●{RST} {G4}REC{RST}" if dirty else f"{G0}○ REC{RST}")
-    left = f" {chip('COMPOSE', 'black', 'lime')} {ch_chip(inst)} {G4}{B}{inst.name}{RST} {G1}:{port}{RST}"
+    left = f" {chip('COMPOSE', 'white', 'navy2')} {ch_chip(inst)} {G4}{B}{inst.name}{RST} {G1}:{port}{RST}"
     right = (f"{rec}  {G1}CHR{RST} {ghost_num(len(ed.text), 5)} {G1}LN{RST} {ghost_num(len(ed.lines), 3)} "
              f"{G1}SENT{RST} {ghost_num(sent, 2)} {keycap('F1')} ")
     L.append(navbar(left, right, W))

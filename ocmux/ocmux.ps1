@@ -58,7 +58,7 @@ $DataDir  = Join-Path $env:LOCALAPPDATA 'ocmux'
 $RegFile  = Join-Path $DataDir 'instances.json'
 $LogDir   = Join-Path $DataDir 'logs'
 $PwFile   = Join-Path $DataDir 'server-password'   # read by the Python panes (never put on a command line)
-$Palette  = @('#6ABA23', '#3F77A6', '#A5AAAE', '#95D85A', '#75A1C7', '#45741B', '#B8CEE0', '#81888D')  # lime / navy / gray
+$Palette  = @('#3F77A6', '#A5AAAE', '#75A1C7', '#6ABA23', '#B8CEE0', '#81888D', '#95D85A', '#45741B')  # navy first, lime is accent
 $Scheme   = 'ocmux Black'
 New-Item -ItemType Directory -Force -Path $DataDir, $LogDir | Out-Null
 
