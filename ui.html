@@ -396,7 +396,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
     <button class="send" id="send" type="submit" aria-label="보내기">↵</button>
   </form>
   <footer class="foot">
-    <span id="foot-info" title="127.0.0.1 에서만 동작 · 대화는 저장하지 않습니다">대화 비저장</span><span id="mode"></span>
+    <span id="foot-info" title="127.0.0.1 에서만 동작 · 대화는 저장하지 않습니다 (확정한 위키 카드의 원문 기록만 jaba_wiki.json 에)">대화 비저장</span><span id="mode"></span>
     <span class="spacer"></span>
     <button class="ghost" id="reset" type="button">clear</button>
     <button class="power" id="power" type="button" aria-label="jaba 종료"><span id="power-label">on</span><span class="switch"></span></button>
@@ -736,7 +736,7 @@ function renderWikiPage(p){
   }
   const acts = el('div', 'wacts');
   const edit = el('button', null, '대화로 고치기'); edit.type = 'button';
-  edit.addEventListener('click', () => { closeDrawers(); msgEl.value = "'" + p.title + "' 위키에 "; autosize(); msgEl.focus(); });
+  edit.addEventListener('click', () => { closeDrawers(); msgEl.value = "'" + p.title + "' 위키(" + p.id + ")에 "; autosize(); msgEl.focus(); });
   const del = el('button', null, '지우기'); del.type = 'button';
   del.addEventListener('click', async () => {
     if (!confirm(p.title + ' 위키를 지울까요?')) return;
@@ -751,7 +751,8 @@ function renderWikiList(pages, error){
   const body = $('#wiki-body'); body.textContent = '';
   $('#wiki-title').textContent = '일정 위키';
   $('#wiki-back').hidden = true;
-  if (error){ body.append(el('div', 'empty', 'ERR · ' + error)); return; }
+  if (error) body.append(el('div', 'empty', 'ERR · ' + error));
+  if (!pages) return;
   if (!pages.length){ body.append(el('div', 'empty', '아직 없음 · 대화로 "내일 김과장 미팅 준비물은 견적서, 안건은 단가 협상이야 정리해줘"')); return; }
   pages.forEach((p, i) => {
     const row = el('div', 'wrow'); row.style.animationDelay = (i * 30) + 'ms';
@@ -916,7 +917,8 @@ async function refreshNext(){
 function paintNext(){
   const r = nextState;
   if (!r || booting) return;
-  const wk = $('#next-wiki'), wid = (r.current && r.current.wiki) || (!r.current && r.next && r.next.wiki) || '';
+  // 지금 일정에 위키가 없으면 다음 일정 위키 (회의 직전에 준비물 보기)
+  const wk = $('#next-wiki'), wid = (r.current && r.current.wiki) || (r.next && r.next.wiki) || '';
   wk.hidden = !wid; wk.dataset.id = wid;
   const now = new Date(), box = $('#next-box');
   box.classList.remove('soon');

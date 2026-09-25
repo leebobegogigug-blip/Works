@@ -34,6 +34,7 @@ def cfg_for(db_path, **over):
     cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"calendar": {"backend": "local", "local_db": db_path},
                                                 "llm": {"base_url": "http://x/v1", "model": "m"},
                                                 "learn_file": os.path.join(os.path.dirname(db_path), "rules.json"),
+                                                "wiki_file": os.path.join(os.path.dirname(db_path), "wiki.json"),
                                                 "alerts": {"windows_toast": False}})  # 테스트 중 진짜 윈도우 알림 금지
     cfg = jaba.deep_merge(cfg, over)
     jaba.validate_config(cfg)
@@ -1382,6 +1383,21 @@ class TestServerV2(TestServer):
     def test_flow_and_security(self):  # 상위 클래스 테스트는 한 번만
         pass
 
+    def test_wiki_endpoints(self):
+        ev = self.app.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
+        self.assertEqual(self.req("/api/wiki")[1]["pages"], [])
+        self.assertEqual(self.req("/api/wiki", token=False)[0], 401)
+        w = self.app.wiki.save(jaba.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서"]}))
+        code, r = self.req("/api/events?date=" + self.day.strftime("%Y-%m-%d"))
+        self.assertEqual([e["wiki"] for e in r["events"]], [w["id"]])
+        self.assertEqual(self.req(f"/api/wiki?id={w['id']}")[1]["page"]["prep"], ["견적서"])
+        q = urllib.parse.urlencode({"event_id": ev.id, "title": ev.title})
+        self.assertEqual(self.req("/api/wiki?" + q)[1]["page"]["id"], w["id"])
+        self.assertEqual(self.req("/api/wiki?id=w99")[0], 404)
+        code, r = self.req(f"/api/wiki/{w['id']}/delete", {})
+        self.assertEqual((code, r["pages"]), (200, []))
+        self.assertEqual(self.req(f"/api/wiki/{w['id']}/delete", {})[0], 404)
+
     def test_llm_error_is_reported(self):
         pass
 
@@ -1837,7 +1853,8 @@ class TestWikiBook(unittest.TestCase):
         e = wb.save(jaba.WikiBook._fill({"title": "김과장 미팅", "scope": "event", "event_id": "L7", "goal": "단가"}))
         self.assertEqual((s["id"], e["id"]), ("w1", "w2"))
         self.assertEqual(wb.find_for("L99", "주간스크럼 ")["id"], "w1")   # 띄어쓰기 달라도 같은 회의
-        self.assertEqual(wb.find_for("L7", "아무 제목")["id"], "w2")
+        self.assertEqual(wb.find_for("L7", "김과장미팅")["id"], "w2")
+        self.assertIsNone(wb.find_for("L7", "치과 예약"))                  # id 가 재사용된 다른 일정엔 안 붙음
         self.assertIsNone(wb.find_for("L8", "김과장 미팅"))                # 전용 위키는 그 일정에만
         self.assertEqual([p["id"] for p in wb.search("번다운")], ["w1"])
         self.assertEqual(wb.get("w1")["sources"][0]["text"], "원문1")
@@ -1847,6 +1864,34 @@ class TestWikiBook(unittest.TestCase):
         self.assertEqual(again.remove("w1")["title"], "주간 스크럼")
         with self.assertRaises(KeyError):
             again.get("w1")
+
+    def test_event_page_matches_start_after_rename_and_search_plain_text(self):
+        wb = jaba.WikiBook(self.path)
+        wb.save(jaba.WikiBook._fill({"title": "미팅", "scope": "event", "event_id": "L7", "match": "김과장 미팅",
+                                     "event_start": "2026-09-28T15:00", "links": ["\\\\fs01\\영업\\견적서.xlsx"]}))
+        self.assertEqual(wb.find_id("L7", "김과장 미팅 (변경)", "2026-09-28T15:00"), "w1")  # 제목이 바뀌어도 같은 시각이면
+        self.assertEqual(wb.find_id("L7", "치과", "2026-10-01T09:00"), "")
+        self.assertEqual([p["id"] for p in wb.search("\\\\fs01\\영업")], ["w1"])  # 경로도 그대로 검색
+        self.assertEqual(wb.search('"'), [])
+
+    def test_failed_write_changes_nothing_and_error_clears(self):
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write("{깨짐")
+        wb = jaba.WikiBook(self.path)
+        self.assertTrue(wb.error)
+        real = os.replace
+
+        def boom(a, b):
+            raise PermissionError("백신이 잡고 있음")
+        jaba.os.replace = boom
+        try:
+            with self.assertRaises(PermissionError):
+                wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))
+        finally:
+            jaba.os.replace = real
+        self.assertEqual((wb.count(), wb.seq), (0, 0))  # 메모리에도 반영 안 됨
+        self.assertEqual(wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))["id"], "w1")
+        self.assertEqual(wb.error, "")  # 한 번 저장되면 시작 때 오류는 지운다
 
     def test_sources_capped_and_broken_file(self):
         wb = jaba.WikiBook(self.path)
@@ -1923,12 +1968,65 @@ class TestAgentWiki(AgentBase):
         r = ag.chat("빈 위키 만들어")
         self.assertIn("넣을 내용이 없습니다", r["activity"][0]["text"])
 
+    def test_pending_cards_are_applied_on_top_of_current_page(self):
+        """같은 위키를 고치는 카드가 여러 장이어도 서로 덮어쓰지 않고, 새 위키가 둘로 갈라지지도 않는다."""
+        ev = self.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_wiki", event_id="e1", prep=["견적서"]), say("확정해 주세요"),
+                         tc("propose_wiki", event_id="e1", agenda=["단가 협상"]), say("확정해 주세요"),
+                         tc("propose_wiki", event_id="e1", notes="메모"), say("확정해 주세요")])
+        ag.chat("김과장 미팅 준비물은 견적서")
+        ag.chat("안건은 단가 협상")
+        self.assertEqual(ag.confirm("p1")["status"], "done")
+        self.assertEqual(ag.confirm("p2")["status"], "done")
+        pages = self.wiki.all()
+        self.assertEqual(len(pages), 1)
+        self.assertEqual((pages[0]["prep"], pages[0]["agenda"]), (["견적서"], ["단가 협상"]))
+        ag.chat("메모 추가")
+        self.wiki.remove("w1")  # 서랍에서 지운 뒤에 예전 카드를 확정해도 되살아나지 않는다
+        r = ag.confirm("p3")
+        self.assertEqual(r["status"], "failed")
+        self.assertIn("지워졌습니다", r["error"])
+        self.assertEqual(self.wiki.all(), [])
+        self.assertIsNone(self.wiki.find_for(ev.id, ev.title))
+
+    def test_series_attaches_by_event_title_and_edit_by_wiki_id(self):
+        long = "3분기 사업부 전략 점검 주간회의 " + "가" * 70  # 80자가 넘는 Outlook 제목
+        ev = self.cal.create_event(title=long, start=self.day.replace(hour=9), end=self.day.replace(hour=10))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_wiki", event_id="e1", title="전략회의 준비", scope="series", prep=["실적표"]),
+                         say("확정해 주세요"),
+                         tc("propose_wiki", wiki_id="w1", title="전략회의", prep=["샘플"]), say("확정해 주세요")])
+        r = ag.chat("전략회의 준비물은 실적표")
+        self.assertIn(["연결", f"'{long}' 제목 일정 모두", False], r["proposals"][0]["rows"])
+        ag.confirm("p1")
+        self.assertEqual(self.wiki.find_id(ev.id, ev.title), "w1")  # 위키 이름이 달라도 일정 제목으로 붙는다
+        r = ag.chat("'전략회의 준비' 위키(w1)에 샘플도 추가")
+        self.assertIn(["위키", "전략회의 준비 → 전략회의", True], r["proposals"][0]["rows"])
+        ag.confirm("p2")
+        self.assertEqual(len(self.wiki.all()), 1)
+        page = self.wiki.find_for(ev.id, ev.title)  # 이름을 바꿔도 연결은 그대로
+        self.assertEqual((page["title"], page["prep"]), ("전략회의", ["실적표", "샘플"]))
+
+    def test_weekly_local_meeting_defaults_to_series_and_card_shows_source(self):
+        for w in (0, 7):
+            self.cal.create_event(title="주간회의", start=self.day.replace(hour=10) + timedelta(days=w),
+                                  end=self.day.replace(hour=11) + timedelta(days=w))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_wiki", event_id="e1", prep=["회의록"]), say("확정해 주세요")])
+        said = "주간회의 준비물은 회의록. 참고로 하한가는 92원"
+        r = ag.chat(said)
+        rows = r["proposals"][0]["rows"]
+        self.assertIn(["연결", "'주간회의' 제목 일정 모두", False], rows)  # 로컬 캘린더의 매주 일정 → 공용
+        self.assertEqual(rows[-1], ["원문 기록", said, False])           # 저장될 원문을 카드에서 미리 보여 준다
+
     def test_wiki_command(self):
         ag = self.agent([])
         self.assertEqual(ag.chat("/위키")["open_wiki"], "list")
         self.wiki.save(jaba.WikiBook._fill({"title": "주간 스크럼", "agenda": ["블로커"]}))
         r = ag.chat("/위키 스크럼")
         self.assertEqual(r["open_wiki"], "w1")
+        self.assertEqual(ag.chat("/위키 W1")["open_wiki"], "w1")
         self.assertIn("'없는거' 위키가 없습니다", ag.chat("/위키 없는거")["reply"])
         self.assertEqual(self.llm.calls, [])
 
@@ -1942,30 +2040,6 @@ class TestAgentWiki(AgentBase):
         item = sch.tick()[0]
         self.assertEqual(item["wiki"], "w1")
         self.assertTrue(n.shown[0][1].endswith("· 준비: 견적서, 노트북"))
-
-
-class TestServerWiki(TestServer):
-    def test_flow_and_security(self):  # 상위 클래스 테스트는 한 번만
-        pass
-
-    def test_negative_content_length(self):
-        pass
-
-    def test_wiki_endpoints(self):
-        ev = self.app.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
-        self.assertEqual(self.req("/api/wiki")[1]["pages"], [])
-        self.assertEqual(self.req("/api/wiki", token=False)[0], 401)
-        w = self.app.wiki.save(jaba.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서"]}))
-        code, r = self.req("/api/events?date=" + self.day.strftime("%Y-%m-%d"))
-        self.assertEqual([e["wiki"] for e in r["events"]], [w["id"]])
-        self.assertEqual(self.req(f"/api/wiki?id={w['id']}")[1]["page"]["prep"], ["견적서"])
-        q = urllib.parse.urlencode({"event_id": ev.id, "title": ev.title})
-        self.assertEqual(self.req("/api/wiki?" + q)[1]["page"]["id"], w["id"])
-        self.assertEqual(self.req("/api/wiki?id=w99")[0], 404)
-        code, r = self.req(f"/api/wiki/{w['id']}/delete", {})
-        self.assertEqual((code, r["pages"]), (200, []))
-        self.assertEqual(self.req(f"/api/wiki/{w['id']}/delete", {})[0], 404)
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
