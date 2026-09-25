@@ -232,6 +232,10 @@ def calc_stats(msgs):
 class Instance:
     """opencode 서버 1개 = 폴링 스레드 + SSE 스레드"""
 
+    # 일하는 세션의 전체 메시지(/session/{id}/message)는 이 간격(초)으로만 다시 받는다.
+    # 칸마다 이 폴링이 따로 돌아서, 2초마다 받으면 긴 세션일수록 opencode 서버가 무거워진다.
+    BUSY_REFETCH = 10.0
+
     def __init__(self, name, url, color=None, directory=None, password=None, interval=2.0,
                  max_sessions=15, event_sink=None, headless=False):
         self.name, self.url = name, url
@@ -240,6 +244,7 @@ class Instance:
         self.interval, self.max_sessions = interval, max_sessions
         self.lock = threading.Lock()
         self.sessions, self.status, self.stats, self.stats_ver, self.running_tool = {}, {}, {}, {}, {}
+        self.stats_at = {}   # sid -> 마지막으로 메시지를 받은 시각
         self.events = collections.deque(maxlen=200)
         self.event_sink = event_sink  # overview 통합 이벤트
         self.connected, self.sse_ok, self.version, self.err = False, False, "?", ""
@@ -299,11 +304,13 @@ class Instance:
                 cur_status = status if status is not None else self.status
                 for s in sessions:
                     sid, ver = s["id"], s["time"]["updated"]
-                    if self.stats_ver.get(sid) != ver or cur_status.get(sid, {}).get("type") == "busy":
+                    busy = cur_status.get(sid, {}).get("type") == "busy"
+                    if self.need_stats(sid, ver, busy):
                         try:
                             st = calc_stats(self.api.get(f"/session/{sid}/message"))
                             with self.lock:
                                 self.stats[sid], self.stats_ver[sid] = st, ver
+                                self.stats_at[sid] = time.time()
                         except Exception:
                             pass
                 with self.lock:
@@ -337,6 +344,16 @@ class Instance:
                 if was_on:
                     self.event(RED, "offline")
             time.sleep(self.interval)
+
+    def need_stats(self, sid, ver, busy, now=None):
+        """이 세션의 메시지를 다시 받아 토큰을 셀 때인가.
+        쉬는 세션은 바뀌었을 때만(끝난 뒤 값은 정확), 일하는 세션은 BUSY_REFETCH 간격으로만."""
+        if sid not in self.stats_ver:
+            return True
+        if busy:
+            now = time.time() if now is None else now
+            return now - self.stats_at.get(sid, 0) >= self.BUSY_REFETCH
+        return self.stats_ver.get(sid) != ver
 
     # --- SSE
     def _sse(self):
@@ -1206,7 +1223,8 @@ def loop(a, frame, tick=0.5, word="OCMUX", on_key=None, table=None):
                     on_key(k)
 
 
-def single_instance(a):
+def single_instance(a, start=True):
+    """start=False: 폴링/SSE 스레드 없이 주소·색·채널만 (compose 처럼 보내기만 하는 칸)"""
     name, url, color, directory, headless = a.name or "opencode", a.url, a.color, a.dir, False
     if a.name and not a.url:
         for r in load_registry():
@@ -1214,7 +1232,8 @@ def single_instance(a):
                 url, color, directory = r.get("url"), color or r.get("color"), directory or r.get("dir")
                 headless = bool(r.get("headless"))
     url = url or "http://127.0.0.1:4096"
-    return Instance(name, url, color, directory, a.password, a.interval, a.max_sessions, headless=headless).start()
+    inst = Instance(name, url, color, directory, a.password, a.interval, a.max_sessions, headless=headless)
+    return inst.start() if start else inst
 
 
 class RegistryWatcher:
@@ -1583,7 +1602,7 @@ def drain_burst(toks):
 
 
 def run_compose(a):
-    inst = single_instance(a)
+    inst = single_instance(a, start=False)   # 보내기만 한다 → 서버를 폴링하지 않음
     ed = Editor()
     status, status_until = "", 0.0
     flash = None          # (색, 끝나는 시각, 키) — 누른 조작 키의 색으로 테두리가 잠깐 켜진다
