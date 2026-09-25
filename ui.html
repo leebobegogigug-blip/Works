@@ -596,7 +596,9 @@ async function act(id, action){
   const r = await api('/api/proposals/' + id + '/' + action, {});
   if (r.error){ addSys(r.error); setMood('error', 3500); c.querySelectorAll('button').forEach((b) => { b.disabled = false; }); return; }
   renderCard(r.proposal);
-  if (r.proposal.status === 'done') refreshAll();
+  if (typeof r.rules === 'number') setRuleCount(r.rules);
+  if (r.proposal.status === 'done' && r.proposal.kind === 'rule'){ learnedFx(1); if (!$('#mem-drawer').hidden) refreshRules(); }
+  else if (r.proposal.status === 'done') refreshAll();
   else tickMood();
   msgEl.focus();
 }

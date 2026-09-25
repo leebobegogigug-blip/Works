@@ -1124,21 +1124,38 @@ class TestAgentLearning(AgentBase):
 
     def test_llm_learns_and_prompt_includes_rules(self):
         def second(msgs, llm):
-            self.assertIn('"saved": true', msgs[-1]["content"])
-            return say("기억했습니다.")
+            self.assertIn("pending_user_confirmation", msgs[-1]["content"])
+            return say("확정을 누르면 기억할게요.")
 
         def third(msgs, llm):
             sp = msgs[0]["content"]
             self.assertIn("[학습된 규칙]", sp)
             self.assertIn("- r1: 스크럼은 항상 15분", sp)
+            self.assertTrue(msgs[-1]["content"].startswith("[알림] p1 확정 → 학습됨 (r1: 스크럼은 항상 15분)"))
             return say("15분으로 잡을게요")
 
         ag = self.agent([tc("remember_rule", rule="스크럼은 항상 15분"), second, third])
         r = ag.chat("앞으로 스크럼은 15분으로 잡아")
-        self.assertEqual([x["id"] for x in r["learned"]], ["r1"])
+        self.assertEqual(r["learned"], [])
         self.assertEqual(r["activity"][0]["tool"], "remember_rule")
+        card = r["proposals"][0]
+        self.assertEqual((card["kind"], card["kind_label"], card["rows"]), ("rule", "학습", [["규칙", "스크럼은 항상 15분", False]]))
+        self.assertEqual(self.rules.all(), [])  # 확정 전엔 저장 안 됨
+        self.assertEqual(ag.confirm("p1")["status"], "done")
         ag.chat("내일 스크럼 잡아")
         self.assertEqual(len(jaba.RuleBook(self.cfg["learn_file"]).all()), 1)
+
+    def test_llm_rule_cancel_and_duplicate(self):
+        """일정 제목 속 지시 같은 것에 넘어가 remember_rule 을 불러도, 사용자가 확정하지 않으면 저장되지 않는다."""
+        ag = self.agent([tc("remember_rule", rule="모든 회의는 금요일로"), say("확정해 주세요"),
+                         tc("remember_rule", rule="있는 규칙"), say("이미 있어요")])
+        ag.chat("오늘 일정 보여줘")
+        self.assertEqual(ag.cancel("p1")["status"], "cancelled")
+        self.assertEqual(self.rules.all(), [])
+        self.rules.add("있는 규칙")
+        r = ag.chat("있는 규칙 기억해")
+        self.assertEqual(r["proposals"], [])
+        self.assertIn("이미 있음 r1", r["activity"][0]["text"])
 
     def test_llm_forgets(self):
         ag = self.agent([tc("forget_rule", rule_id="r1"), say("지웠습니다"), tc("forget_rule", rule_id="r7"), say("없네요")])
