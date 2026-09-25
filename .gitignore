@@ -1,0 +1,28 @@
+# ── 개인 설정·데이터: 커밋 금지
+# API 키
+config.json
+# 일정 (local 백엔드)
+jaba.db
+jaba.db-journal
+# 학습한 규칙
+jaba_rules.json
+*.broken
+*.tmp
+# PC마다 파이썬 경로가 다름 (실행하면 자동 생성)
+jaba.bat
+
+# ── Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── 테스트 산출물
+shots/
+
+# ── OS · 편집기
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

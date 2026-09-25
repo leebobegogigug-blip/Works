@@ -1,0 +1,52 @@
+{
+  "llm": {
+    "base_url": "",
+    "api_key": "",
+    "model": "",
+    "tool_mode": "auto",
+    "temperature": 0.2,
+    "max_tokens": 2048,
+    "timeout_sec": 90,
+    "extra_headers": {},
+    "proxy": null,
+    "ca_file": ""
+  },
+  "calendar": {
+    "backend": "local",
+    "local_db": "jaba.db"
+  },
+  "work_hours": {
+    "start": "09:00",
+    "end": "18:00",
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "default_event_minutes": 60,
+  "alerts": {
+    "enabled": true,
+    "with_location": [
+      15,
+      5,
+      1
+    ],
+    "without_location": [
+      5,
+      1
+    ],
+    "windows_toast": true,
+    "include_all_day": false,
+    "poll_sec": 10
+  },
+  "reminder_minutes": 10,
+  "learn_file": "jaba_rules.json",
+  "theme": "dark",
+  "port": 8765,
+  "hotkey": "ctrl+alt+j",
+  "open_window": true,
+  "user_name": ""
+}
