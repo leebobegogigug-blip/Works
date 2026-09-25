@@ -290,7 +290,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .ghost{border:1px solid var(--line-2);background:none;padding:0 6px;color:var(--ink-2);cursor:pointer}
 .ghost:hover{color:var(--ink)}
 #foot-info{flex:none}
-#mode{color:var(--ink-3);min-width:0}
+#mode{color:var(--ink-3);flex:none}
+#model{flex:0 1 auto;min-width:0;max-width:190px;border:1px solid var(--line-2);border-radius:4px;background:transparent;color:var(--ink-2);font:inherit;line-height:16px;padding:0 2px;cursor:pointer;text-overflow:ellipsis}
+#model:hover,#model:focus{color:var(--ink);border-color:var(--ink-2);outline:none}
+#model:disabled{cursor:default;opacity:.6}
+#model option{background:var(--panel);color:var(--ink)}
 .power{display:flex;align-items:center;gap:6px;border:0;background:none;cursor:pointer;color:var(--ink-2);padding:2px 0}
 .switch{width:28px;height:15px;border-radius:9px;background:var(--switch);position:relative}
 .switch::after{content:"";position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:var(--accent);transition:all .2s}
@@ -396,7 +400,8 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
     <button class="send" id="send" type="submit" aria-label="보내기">↵</button>
   </form>
   <footer class="foot">
-    <span id="foot-info" title="127.0.0.1 에서만 동작 · 대화는 저장하지 않습니다 (확정한 위키 카드의 원문 기록만 jaba_wiki.json 에)">대화 비저장</span><span id="mode"></span>
+    <span id="foot-info" title="일정(jaba.db) · 학습 규칙 · 일정 위키는 이 PC 의 파일에만 저장 · 대화 내용은 끄면 사라짐 · 127.0.0.1 에서만 동작">로컬 저장</span>
+    <select id="model" aria-label="LLM 모델" title="LLM 모델 (바꾸면 config.json 에 저장)" disabled><option>LLM 미설정</option></select><span id="mode"></span>
     <span class="spacer"></span>
     <button class="ghost" id="reset" type="button">clear</button>
     <button class="power" id="power" type="button" aria-label="jaba 종료"><span id="power-label">on</span><span class="switch"></span></button>
@@ -802,7 +807,34 @@ async function send(text){
   busy = false; sendBtn.disabled = false; scrollLog(); msgEl.focus();
 }
 let modelName = '';
-function setMode(mode){ $('#mode').textContent = modelName ? '· ' + modelName + (mode === 'json' ? ' (json)' : '') : ''; }
+function setMode(mode){ $('#mode').textContent = modelName && mode === 'json' ? 'json' : ''; $('#mode').title = mode === 'json' ? '도구 호출을 JSON 글로 주고받는 중' : ''; }
+
+/* ── 모델 선택 (서버의 /v1/models + config 의 llm.models) */
+function fillModels(list, current, ready){
+  const sel = $('#model'); sel.textContent = '';
+  if (!ready){ sel.append(el('option', null, 'LLM 미설정')); sel.disabled = true; return; }
+  (list.length ? list : [current]).forEach((m) => { const o = el('option', null, m); o.value = m; sel.append(o); });
+  sel.value = current; sel.disabled = list.length < 2;
+  sel.title = list.length < 2 ? 'LLM 모델 (고를 수 있는 다른 모델이 없음)' : 'LLM 모델 (바꾸면 config.json 에 저장)';
+}
+async function loadModels(refresh){
+  const r = await api('/api/models' + (refresh ? '?refresh=1' : ''));
+  if (r.error && !r.models){ return; }
+  fillModels(r.models || [], r.current || modelName, !!r.ready);
+}
+$('#model').addEventListener('focus', () => { if ($('#model').options.length < 2) loadModels(true); });
+$('#model').addEventListener('change', async () => {
+  const sel = $('#model'), name = sel.value;
+  sel.disabled = true;
+  const r = await api('/api/model', {model: name});
+  sel.disabled = false;
+  if (r.error){ addSys(r.error); sel.value = modelName; setMood('error', 3500); return; }
+  modelName = r.model;
+  setLed('llm', '', modelName);
+  setMode(r.mode);
+  addSys('모델 → ' + modelName + (r.saved ? ' (다음 실행에도 유지)' : ''));
+  msgEl.focus();
+});
 
 /* ── 오늘 한 줄 (미니 타임라인) */
 function lanes(items){
@@ -989,6 +1021,8 @@ async function loadState(){
   setLed('cal', s.cal_ok ? 'ok' : 'err', s.cal_ok ? s.backend : s.cal_error);
   setLed('llm', !s.llm_ready ? '' : (s.llm_ok === false ? 'err' : (s.llm_ok ? 'ok' : '')), s.llm_ready ? s.model : 'LLM 미설정');
   setMode(s.mode);
+  fillModels(s.llm_ready ? [s.model] : [], s.model, s.llm_ready);
+  if (s.llm_ready) loadModels(false);
   setRuleCount(s.rules || 0);
   lastAlert = s.alerts_last || 0;
   (s.pending || []).forEach((p) => renderCard(p));

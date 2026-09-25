@@ -14,7 +14,8 @@ jaba - 사내 일정 비서 (텍스트 채팅 · 내 PC에서만 동작 · Pytho
 
 [config.json]
   llm.base_url       사내 LLM 주소 (OpenAI 호환, 보통 .../v1). OpenCode 설정의 baseURL 과 같은 값
-  llm.model          모델 이름 (OpenCode 설정의 models 에 적힌 이름)
+  llm.model          모델 이름 (OpenCode 설정의 models 에 적힌 이름). 화면 아래 드롭다운으로도 바꾼다
+  llm.models         드롭다운에 늘 보일 모델 목록 (선택). 서버의 /v1/models 목록과 합쳐서 보여 준다
   llm.api_key        키. 파일에 두기 싫으면 "{env:환경변수이름}" · "{file:경로}" (OpenCode 와 같은 문법) 또는 JABA_API_KEY
   llm.tool_mode      "auto"(기본) | "native" | "json"  -- 도구 호출이 잘 안 되면 "json"
   llm.extra_headers  추가 인증 헤더 {"헤더이름": "값"}
@@ -109,6 +110,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "base_url": "",
         "api_key": "",
         "model": "",
+        "models": [],
         "tool_mode": "auto",
         "temperature": 0.2,
         "max_tokens": 2048,
@@ -215,6 +217,9 @@ def validate_config(cfg: Dict[str, Any]) -> None:
         cfg["reminder_minutes"] = max(0, int(cfg.get("reminder_minutes") or 0))
     except (TypeError, ValueError):
         raise ConfigError("default_event_minutes / reminder_minutes 는 숫자여야 합니다")
+    ms = (cfg.get("llm") or {}).get("models", [])
+    if not isinstance(ms, list) or not all(isinstance(m, str) and m.strip() for m in ms):
+        raise ConfigError('llm.models 는 모델 이름 목록이어야 합니다. 예: ["qwen3-32b", "gpt-oss-120b"]')
     backend = str((cfg.get("calendar") or {}).get("backend", "local")).lower()
     if backend not in ("local", "outlook"):
         raise ConfigError('calendar.backend 는 "local" 또는 "outlook" 이어야 합니다')
@@ -810,6 +815,47 @@ def free_slots(events: List[Event], start: datetime, end: datetime, minutes: int
     return out
 
 
+# ─────────────────────────────────────────────────────────────── 로컬 JSON 저장 (학습 규칙 · 일정 위키)
+
+class JsonList:
+    """내 PC 의 JSON 파일 하나에 {"version": 1, key: [항목, …]} 로 저장한다.
+    읽다가 깨져 있으면 .broken 으로 백업하고 빈 목록으로 시작, 쓰기는 .tmp 에 쓴 뒤 바꿔치기(원자적)."""
+
+    def __init__(self, path: str, key: str, what: str, id_prefix: str):
+        self.path, self.key, self.what, self.id_prefix = path, key, what, id_prefix
+        self.error = ""
+
+    def load(self) -> List[Dict[str, Any]]:
+        """id 가 '<접두어><숫자>' 인 항목만 (각 클래스가 내용 검사를 더 한다)"""
+        if not os.path.exists(self.path):
+            return []
+        try:
+            with open(self.path, "r", encoding="utf-8-sig") as f:
+                data = json.load(f)
+            items = data.get(self.key, []) if isinstance(data, dict) else []
+            return [dict(x) for x in items if isinstance(x, dict)
+                    and re.fullmatch(re.escape(self.id_prefix) + r"\d+", str(x.get("id", "")))]
+        except Exception as e:
+            self.error = f"{self.what} 파일을 읽지 못해 새로 시작합니다 ({e})"
+            log(self.error)
+            try:
+                shutil.copyfile(self.path, self.path + ".broken")
+            except OSError:
+                pass
+            return []
+
+    def write(self, items: List[Dict[str, Any]]) -> None:
+        """실패하면 예외 — 부르는 쪽은 성공한 뒤에만 메모리를 바꾼다. 한 번 저장되면 읽기 오류 표시는 지운다."""
+        tmp = self.path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"version": 1, self.key: items}, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, self.path)
+        self.error = ""
+
+    def max_seq(self, items: List[Dict[str, Any]]) -> int:
+        return max([int(str(x["id"])[len(self.id_prefix):]) for x in items] + [0])
+
+
 # ─────────────────────────────────────────────────────────────── 학습 (로컬 규칙)
 
 class RuleBook:
@@ -821,36 +867,18 @@ class RuleBook:
     def __init__(self, path: str):
         self.path = path
         self.lock = threading.Lock()
-        self.rules: List[Dict[str, Any]] = []
-        self.seq = 0
-        self.error = ""
-        self._load()
+        self.store = JsonList(path, "rules", "학습", "r")
+        self.rules = [r for r in self.store.load() if str(r.get("text", "")).strip()]
+        self.seq = self.store.max_seq(self.rules)
 
-    def _load(self) -> None:
-        if not os.path.exists(self.path):
-            return
-        try:
-            with open(self.path, "r", encoding="utf-8-sig") as f:
-                data = json.load(f)
-            rules = data.get("rules", []) if isinstance(data, dict) else []
-            self.rules = [dict(r) for r in rules
-                          if isinstance(r, dict) and re.fullmatch(r"r\d+", str(r.get("id", ""))) and str(r.get("text", "")).strip()]
-            self.seq = max([int(r["id"][1:]) for r in self.rules] + [0])
-        except Exception as e:
-            self.error = f"학습 파일을 읽지 못해 새로 시작합니다 ({e})"
-            log(self.error)
-            try:
-                shutil.copyfile(self.path, self.path + ".broken")
-            except OSError:
-                pass
+    @property
+    def error(self) -> str:
+        return self.store.error
 
     def _save(self, rules: List[Dict[str, Any]]) -> None:
         """파일에 먼저 쓰고 성공했을 때만 메모리에 반영한다 (쓰기 실패가 반쯤 적용되지 않게)"""
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"version": 1, "rules": rules}, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, self.path)
-        self.rules, self.error = rules, ""
+        self.store.write(rules)
+        self.rules = rules
 
     @staticmethod
     def _norm_id(rid: Any) -> str:
@@ -942,28 +970,13 @@ class WikiBook:
     def __init__(self, path: str):
         self.path = path
         self.lock = threading.Lock()
-        self.pages: List[Dict[str, Any]] = []
-        self.seq = 0
-        self.error = ""
-        self._load()
+        self.store = JsonList(path, "pages", "위키", "w")
+        self.pages = [self._fill(p) for p in self.store.load() if str(p.get("title", "")).strip()]
+        self.seq = self.store.max_seq(self.pages)
 
-    def _load(self) -> None:
-        if not os.path.exists(self.path):
-            return
-        try:
-            with open(self.path, "r", encoding="utf-8-sig") as f:
-                data = json.load(f)
-            pages = data.get("pages", []) if isinstance(data, dict) else []
-            self.pages = [self._fill(dict(p)) for p in pages if isinstance(p, dict)
-                          and re.fullmatch(r"w\d+", str(p.get("id", ""))) and str(p.get("title", "")).strip()]
-            self.seq = max([int(p["id"][1:]) for p in self.pages] + [0])
-        except Exception as e:
-            self.error = f"위키 파일을 읽지 못해 새로 시작합니다 ({e})"
-            log(self.error)
-            try:
-                shutil.copyfile(self.path, self.path + ".broken")
-            except OSError:
-                pass
+    @property
+    def error(self) -> str:
+        return self.store.error
 
     @staticmethod
     def _fill(p: Dict[str, Any]) -> Dict[str, Any]:
@@ -983,12 +996,6 @@ class WikiBook:
         if not isinstance(p.get("sources"), list):
             p["sources"] = []
         return p
-
-    def _write(self, pages: List[Dict[str, Any]]) -> None:
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"version": 1, "pages": pages}, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, self.path)
 
     @staticmethod
     def blank(title: str, scope: str) -> Dict[str, Any]:
@@ -1093,8 +1100,8 @@ class WikiBook:
                 page["sources"] = (page["sources"] + [{"at": now, "text": self.clean_item(source, self.MAX_TEXT)}]
                                    )[-self.MAX_SOURCES:]
             page["updated"] = now
-            self._write(pages)
-            self.pages, self.seq, self.error = pages, seq, ""
+            self.store.write(pages)
+            self.pages, self.seq = pages, seq
             return _copy(page)
 
     def remove(self, wid: Any) -> Dict[str, Any]:
@@ -1104,8 +1111,8 @@ class WikiBook:
             if hit is None:
                 raise KeyError(f"위키 {key} 가 없습니다")
             pages = [p for p in self.pages if p is not hit]
-            self._write(pages)
-            self.pages, self.error = pages, ""
+            self.store.write(pages)
+            self.pages = pages
             return _copy(hit)
 
     @staticmethod
@@ -1539,6 +1546,7 @@ class LLMClient:
         self.base_url = resolve_refs(c.get("base_url")).strip()
         self.api_key = resolve_refs(c.get("api_key")).strip()  # "{env:이름}" · "{file:경로}" 도 된다 (OpenCode 와 같은 문법)
         self.model = str(c.get("model") or "").strip()
+        self.models = [str(m).strip() for m in (c.get("models") or []) if str(m).strip()]
         mode = str(c.get("tool_mode") or "auto").lower()
         self.mode = mode if mode in ("auto", "native", "json") else "auto"
         self.active_mode = "json" if self.mode == "json" else "native"
@@ -1572,15 +1580,47 @@ class LLMClient:
         u = self.base_url.rstrip("/")
         return u if u.endswith("/chat/completions") else u + "/chat/completions"
 
-    def _post(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        req = urllib.request.Request(self.endpoint(), data=data, method="POST")
-        req.add_header("Content-Type", "application/json")
+    def _headers(self, req: urllib.request.Request) -> None:
         req.add_header("Accept", "application/json")
         if self.api_key:
             req.add_header("Authorization", "Bearer " + self.api_key)
         for k, v in self.extra_headers.items():
             req.add_header(k, v)
+
+    def list_models(self) -> List[str]:
+        """서버가 가진 모델 이름 (OpenAI 호환 GET …/v1/models). 실패하면 LLMError"""
+        u = self.base_url.rstrip("/")
+        if u.endswith("/chat/completions"):
+            u = u[: -len("/chat/completions")]
+        req = urllib.request.Request(u + "/models", method="GET")
+        self._headers(req)
+        try:
+            with self.opener.open(req, timeout=min(10.0, self.timeout)) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        except urllib.error.HTTPError as e:
+            e.close()
+            raise LLMError(f"모델 목록을 받지 못했습니다 ({e.code})", e.code)
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            raise LLMError(f"모델 목록을 받지 못했습니다: {getattr(e, 'reason', e)}")
+        items = data.get("data") if isinstance(data, dict) else data
+        out = []
+        for m in items if isinstance(items, list) else []:
+            name = m.get("id") if isinstance(m, dict) else m
+            if isinstance(name, str) and name.strip() and name.strip() not in out:
+                out.append(name.strip())
+        return out
+
+    def set_model(self, name: str) -> None:
+        """다른 모델로 바꾼다. 도구 호출 방식은 모델마다 다를 수 있어 처음 설정으로 되돌린다"""
+        self.model = name
+        self.active_mode = "json" if self.mode == "json" else "native"
+        self.last_ok, self.last_error = None, ""
+
+    def _post(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(self.endpoint(), data=data, method="POST")
+        req.add_header("Content-Type", "application/json")
+        self._headers(req)
         try:
             with self.opener.open(req, timeout=self.timeout) as resp:
                 raw = resp.read().decode("utf-8", errors="replace")
@@ -2471,8 +2511,12 @@ def resolve_path(p: str) -> str:
 
 
 class App:
-    def __init__(self, cfg: Dict[str, Any]):
+    MODELS_CACHE_SEC = 300
+
+    def __init__(self, cfg: Dict[str, Any], config_path: Optional[str] = None):
         self.cfg = cfg
+        self.config_path = config_path  # 화면에서 고른 모델을 저장할 곳 (None 이면 저장 안 함)
+        self._models: Tuple[float, List[str], str] = (0.0, [], "")
         self.token = secrets.token_urlsafe(24)
         self.cal = CalendarService(cfg)
         self.llm = LLMClient(cfg)
@@ -2577,6 +2621,46 @@ class App:
         res["mode"] = self.llm.active_mode
         res["rules"] = len(self.rules.all())
         return res
+
+    def models(self, refresh: bool = False) -> Dict[str, Any]:
+        """드롭다운 목록: 지금 모델 + config 의 llm.models + 서버의 /v1/models (5분 캐시)"""
+        at, fetched, err = self._models
+        if self.llm.ready and (refresh or time.time() - at > self.MODELS_CACHE_SEC):
+            try:
+                fetched, err = self.llm.list_models(), ""
+            except LLMError as e:
+                fetched, err = [], str(e)
+            self._models = (time.time(), fetched, err)
+        names: List[str] = []
+        for m in [self.llm.model] + list(getattr(self.llm, "models", [])) + fetched:
+            if m and m not in names:
+                names.append(m)
+        return {"current": self.llm.model, "models": names, "ready": self.llm.ready, "error": err}
+
+    def set_model(self, name: Any) -> Dict[str, Any]:
+        name = str(name or "").strip()
+        if not self.llm.ready:
+            raise ValueError("config.json 의 llm.base_url 을 먼저 채우세요")
+        if name not in self.models()["models"] and name not in self.models(refresh=True)["models"]:
+            raise ValueError(f"목록에 없는 모델입니다: {name}")
+        if not self.agent.turn_lock.acquire(timeout=1.0):  # 대화 도중엔 바꾸지 않는다
+            raise ValueError("대화를 처리하는 중입니다. 답이 온 뒤에 바꿔 주세요")
+        try:
+            self.llm.set_model(name)
+        finally:
+            self.agent.turn_lock.release()
+        saved = False
+        if self.config_path:
+            try:
+                user = _read_user_config(self.config_path)
+                user["llm"] = dict(user.get("llm") or {}, model=name)
+                _write_json(self.config_path, user)
+                self.cfg["llm"]["model"] = name
+                saved = True
+            except (OSError, ValueError, ConfigError) as e:
+                log(f"모델 설정 저장 실패 (이번 실행에만 적용): {e}")
+        log(f"모델 변경 → {name}" + ("" if saved else " (저장 안 됨)"))
+        return {"model": name, "mode": self.llm.active_mode, "saved": saved}
 
     def wiki_remove(self, wid: str) -> Dict[str, Any]:
         return {"removed": WikiBook.summary(self.wiki.remove(wid)),
@@ -2731,6 +2815,8 @@ def make_handler(app: App) -> Any:
                     return self._json(200, app.alerts_since(q))
                 if u.path == "/api/wiki":
                     return self._json(200, app.wiki_view(q))
+                if u.path == "/api/models":
+                    return self._json(200, app.models(refresh=q.get("refresh") == "1"))
             except KeyError as e:
                 return self._json(404, {"error": str(e).strip("'\"")})
             except Exception as e:
@@ -2757,6 +2843,8 @@ def make_handler(app: App) -> Any:
                 m = re.match(r"^/api/rules/(r\d+)(/delete)?$", u.path)
                 if m:
                     return self._json(200, app.rule_action(m.group(1), "delete" if m.group(2) else "update", body))
+                if u.path == "/api/model":
+                    return self._json(200, app.set_model(body.get("model")))
                 m = re.match(r"^/api/wiki/(w\d+)/delete$", u.path)
                 if m:
                     return self._json(200, app.wiki_remove(m.group(1)))
@@ -3139,8 +3227,9 @@ def find_opencode_llm(provider: str = "", model: str = "", dirs: Optional[List[s
     for h in (opts.get("headers"), minfo.get("headers")):
         if isinstance(h, dict):
             headers.update({str(k): _portable_ref(v, base) for k, v in h.items()})
+    names = [str(v.get("id") or k) if isinstance(v, dict) else str(k) for k, v in models.items()]
     return {"provider": pid, "base_url": _portable_ref(opts.get("baseURL") or opts.get("baseUrl"), base),
-            "model": str(minfo.get("id") or mkey), "api_key": key, "key_from": key_from,
+            "model": str(minfo.get("id") or mkey), "models": names, "api_key": key, "key_from": key_from,
             "extra_headers": headers, "source": origin[pid], "warnings": warnings}
 
 
@@ -3242,6 +3331,8 @@ def run_setup(config_path: str = CONFIG_PATH, provider: str = "", model: str = "
         for w in found["warnings"]:
             print(f"  ! {w}")
         llm.update(base_url=found["base_url"], model=found["model"])
+        if len(found.get("models") or []) > 1:  # 화면 아래 드롭다운에서 고를 수 있게
+            llm["models"] = found["models"]
         if found["api_key"]:
             llm["api_key"] = found["api_key"]
         if found["extra_headers"]:
@@ -3477,7 +3568,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             log(f"이미 실행 중입니다 → 창만 엽니다: {running}")
             open_app_window(running)
         return 0
-    app = App(cfg)
+    app = App(cfg, args.config)
     app.serve(port, open_window=bool(cfg.get("open_window", True)) and not args.no_window)
     return 0
 
@@ -3774,7 +3865,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .ghost{border:1px solid var(--line-2);background:none;padding:0 6px;color:var(--ink-2);cursor:pointer}
 .ghost:hover{color:var(--ink)}
 #foot-info{flex:none}
-#mode{color:var(--ink-3);min-width:0}
+#mode{color:var(--ink-3);flex:none}
+#model{flex:0 1 auto;min-width:0;max-width:190px;border:1px solid var(--line-2);border-radius:4px;background:transparent;color:var(--ink-2);font:inherit;line-height:16px;padding:0 2px;cursor:pointer;text-overflow:ellipsis}
+#model:hover,#model:focus{color:var(--ink);border-color:var(--ink-2);outline:none}
+#model:disabled{cursor:default;opacity:.6}
+#model option{background:var(--panel);color:var(--ink)}
 .power{display:flex;align-items:center;gap:6px;border:0;background:none;cursor:pointer;color:var(--ink-2);padding:2px 0}
 .switch{width:28px;height:15px;border-radius:9px;background:var(--switch);position:relative}
 .switch::after{content:"";position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:var(--accent);transition:all .2s}
@@ -3880,7 +3975,8 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
     <button class="send" id="send" type="submit" aria-label="보내기">↵</button>
   </form>
   <footer class="foot">
-    <span id="foot-info" title="127.0.0.1 에서만 동작 · 대화는 저장하지 않습니다 (확정한 위키 카드의 원문 기록만 jaba_wiki.json 에)">대화 비저장</span><span id="mode"></span>
+    <span id="foot-info" title="일정(jaba.db) · 학습 규칙 · 일정 위키는 이 PC 의 파일에만 저장 · 대화 내용은 끄면 사라짐 · 127.0.0.1 에서만 동작">로컬 저장</span>
+    <select id="model" aria-label="LLM 모델" title="LLM 모델 (바꾸면 config.json 에 저장)" disabled><option>LLM 미설정</option></select><span id="mode"></span>
     <span class="spacer"></span>
     <button class="ghost" id="reset" type="button">clear</button>
     <button class="power" id="power" type="button" aria-label="jaba 종료"><span id="power-label">on</span><span class="switch"></span></button>
@@ -4286,7 +4382,34 @@ async function send(text){
   busy = false; sendBtn.disabled = false; scrollLog(); msgEl.focus();
 }
 let modelName = '';
-function setMode(mode){ $('#mode').textContent = modelName ? '· ' + modelName + (mode === 'json' ? ' (json)' : '') : ''; }
+function setMode(mode){ $('#mode').textContent = modelName && mode === 'json' ? 'json' : ''; $('#mode').title = mode === 'json' ? '도구 호출을 JSON 글로 주고받는 중' : ''; }
+
+/* ── 모델 선택 (서버의 /v1/models + config 의 llm.models) */
+function fillModels(list, current, ready){
+  const sel = $('#model'); sel.textContent = '';
+  if (!ready){ sel.append(el('option', null, 'LLM 미설정')); sel.disabled = true; return; }
+  (list.length ? list : [current]).forEach((m) => { const o = el('option', null, m); o.value = m; sel.append(o); });
+  sel.value = current; sel.disabled = list.length < 2;
+  sel.title = list.length < 2 ? 'LLM 모델 (고를 수 있는 다른 모델이 없음)' : 'LLM 모델 (바꾸면 config.json 에 저장)';
+}
+async function loadModels(refresh){
+  const r = await api('/api/models' + (refresh ? '?refresh=1' : ''));
+  if (r.error && !r.models){ return; }
+  fillModels(r.models || [], r.current || modelName, !!r.ready);
+}
+$('#model').addEventListener('focus', () => { if ($('#model').options.length < 2) loadModels(true); });
+$('#model').addEventListener('change', async () => {
+  const sel = $('#model'), name = sel.value;
+  sel.disabled = true;
+  const r = await api('/api/model', {model: name});
+  sel.disabled = false;
+  if (r.error){ addSys(r.error); sel.value = modelName; setMood('error', 3500); return; }
+  modelName = r.model;
+  setLed('llm', '', modelName);
+  setMode(r.mode);
+  addSys('모델 → ' + modelName + (r.saved ? ' (다음 실행에도 유지)' : ''));
+  msgEl.focus();
+});
 
 /* ── 오늘 한 줄 (미니 타임라인) */
 function lanes(items){
@@ -4473,6 +4596,8 @@ async function loadState(){
   setLed('cal', s.cal_ok ? 'ok' : 'err', s.cal_ok ? s.backend : s.cal_error);
   setLed('llm', !s.llm_ready ? '' : (s.llm_ok === false ? 'err' : (s.llm_ok ? 'ok' : '')), s.llm_ready ? s.model : 'LLM 미설정');
   setMode(s.mode);
+  fillModels(s.llm_ready ? [s.model] : [], s.model, s.llm_ready);
+  if (s.llm_ready) loadModels(false);
   setRuleCount(s.rules || 0);
   lastAlert = s.alerts_last || 0;
   (s.pending || []).forEach((p) => renderCard(p));

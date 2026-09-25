@@ -45,6 +45,7 @@ python jaba.py --autostart on    :: (선택) 로그인할 때 자동 실행
 |---|---|
 | `llm.base_url` | 사내 LLM 주소 (OpenAI 호환, 보통 `…/v1`) |
 | `llm.model` · `llm.api_key` | 모델 이름 · 키. 키는 `"{env:환경변수이름}"` · `"{file:경로}"` 참조도 됩니다 (OpenCode 와 같은 문법) |
+| `llm.models` | 화면 아래 **모델 드롭다운**에 늘 보일 모델 목록 (선택). 서버의 `/v1/models` 목록과 합쳐 보여 주고, 고르면 `llm.model` 에 저장. `--setup` 이 OpenCode 설정의 모델들을 넣어 둠 |
 | `llm.tool_mode` | `auto`(기본) · `native` · `json` — 도구 호출이 불안정하면 `json` |
 | `llm.proxy` · `llm.ca_file` | 프록시 (`""` = 안 씀) · 사내 인증서 PEM (SSL 오류 날 때만) |
 | `calendar.backend` | `local`(기본, `jaba.db`) · `outlook`(클래식 Outlook + `pip install pywin32`) |
@@ -57,6 +58,8 @@ python jaba.py --autostart on    :: (선택) 로그인할 때 자동 실행
 전체 기본값은 [`config.example.json`](config.example.json), 설명은 `jaba.py` 맨 위에 있습니다.
 
 ## 쓰는 법
+
+- 화면 맨 아래: `로컬 저장`(일정·학습 규칙·위키는 이 PC 파일에만, 대화는 끄면 사라짐) · **모델 드롭다운** (바꾸면 다음 실행에도 유지)
 
 - "내일 3시 김과장 미팅 잡아줘" → 제안 카드 → **확정** (Ctrl+Enter · `ㅇㅇ`) / 취소 (Esc · `ㄴㄴ`)
 - 빠른 키 **Alt+1~4** · 오늘 일정 펼치기 **Alt+D** · 학습 서랍 **Alt+M** · 일정 위키 **Alt+W**

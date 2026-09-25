@@ -124,6 +124,11 @@ class TestDates(unittest.TestCase):
 
 
 class TestConfig(unittest.TestCase):
+    def test_models_list_validated(self):
+        cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {"models": ["a", ""]}})
+        with self.assertRaises(jaba.ConfigError):
+            jaba.validate_config(cfg)
+
     def test_create_and_merge(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "config.json")
@@ -1129,6 +1134,21 @@ class TestRuleBook(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_failed_write_changes_nothing(self):
+        rb = jaba.RuleBook(self.path)
+        real = os.replace
+
+        def boom(a, b):
+            raise PermissionError("백신이 잡고 있음")
+        jaba.os.replace = boom
+        try:
+            with self.assertRaises(PermissionError):
+                rb.add("스크럼은 15분")
+        finally:
+            jaba.os.replace = real
+        self.assertEqual((rb.all(), rb.seq), ([], 0))
+        self.assertEqual(rb.add("스크럼은 15분")[0]["id"], "r1")
+
     def test_crud_and_persist(self):
         rb = jaba.RuleBook(self.path)
         r1, c1 = rb.add("  스크럼은   항상 15분 ")
@@ -1383,6 +1403,33 @@ class TestServerV2(TestServer):
     def test_flow_and_security(self):  # 상위 클래스 테스트는 한 번만
         pass
 
+    def test_model_dropdown_api(self):
+        cfg_path = os.path.join(self.tmp.name, "config.json")
+        with open(cfg_path, "w", encoding="utf-8") as f:
+            json.dump({"llm": {"base_url": "http://x/v1", "model": "m", "api_key": "비밀"}}, f)
+        self.app.config_path = cfg_path
+        llm = jaba.LLMClient(jaba.deep_merge(self.cfg, {"llm": {"models": ["m", "m2"]}}))
+        llm.list_models = lambda: ["m", "qwen3-32b"]  # 서버의 /v1/models
+        llm.active_mode = "json"
+        self.app.llm = self.app.agent.llm = llm
+        code, r = self.req("/api/models")
+        self.assertEqual((code, r["current"], r["models"]), (200, "m", ["m", "m2", "qwen3-32b"]))
+        code, r = self.req("/api/model", {"model": "qwen3-32b"})
+        self.assertEqual((code, r["model"], r["mode"], r["saved"]), (200, "qwen3-32b", "native", True))
+        self.assertEqual(llm.model, "qwen3-32b")
+        with open(cfg_path, encoding="utf-8") as f:
+            saved = json.load(f)
+        self.assertEqual((saved["llm"]["model"], saved["llm"]["api_key"]), ("qwen3-32b", "비밀"))  # 다른 값은 그대로
+        self.assertEqual(self.req("/api/model", {"model": "없는모델"})[0], 400)
+        self.assertEqual(self.req("/api/models", token=False)[0], 401)
+        self.app.agent.turn_lock.acquire()  # 대화 처리 중엔 바꾸지 않는다
+        try:
+            code, r = self.req("/api/model", {"model": "m"})
+        finally:
+            self.app.agent.turn_lock.release()
+        self.assertEqual(code, 400)
+        self.assertIn("대화를 처리하는 중", r["error"])
+
     def test_wiki_endpoints(self):
         ev = self.app.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
         self.assertEqual(self.req("/api/wiki")[1]["pages"], [])
@@ -1626,6 +1673,7 @@ class TestSetup(unittest.TestCase):
         team = os.path.join(self.home, ".config", "opencode", "team.txt")
         self.assertEqual(f["extra_headers"], {"X-Team": "{file:" + os.path.normpath(team) + "}"})
         self.assertEqual(jaba.find_opencode_llm(model="coder", dirs=[self.proj])["model"], "qwen3-coder-30b")  # models.id
+        self.assertEqual(f["models"], ["qwen3", "qwen3-coder-30b"])  # 드롭다운 후보
 
     def test_project_overrides_and_auth_json(self):
         self.write(self.global_cfg(), json.dumps({"provider": {"corp": {

@@ -120,12 +120,15 @@ class H(http.server.BaseHTTPRequestHandler):
         self.wfile.write(out)
 
     def do_GET(self):
+        if self.path.rstrip("/").endswith("/models"):  # 모델 드롭다운
+            return self.send_json(200, {"object": "list", "data": [{"id": "사내-LLM"}, {"id": "qwen3-32b"}]})
         self.send_json(200, STATS)
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         payload = json.loads(self.rfile.read(n).decode("utf-8"))
         STATS["requests"] += 1
+        STATS["last_model"] = payload.get("model")
         if payload.get("tools"):
             STATS["with_tools"] += 1
         system = payload["messages"][0]["content"] if payload["messages"][0]["role"] == "system" else ""

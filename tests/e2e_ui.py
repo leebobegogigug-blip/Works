@@ -146,6 +146,13 @@ def check_mode(mode, tmp):
         check = subprocess.run([sys.executable, os.path.join(ROOT, "jaba.py"), "--config", cfg_path, "--check"],
                                env=ENV, capture_output=True, text=True, timeout=60)
         assert "학습 규칙 : 1개" in check.stdout and "일정 위키 : 1개" in check.stdout, check.stdout
+        # 모델 드롭다운: 서버 목록 → 바꾸기 → 다음 요청부터 그 모델 · config.json 에 저장
+        assert api("/api/models")["models"] == ["사내-LLM", "qwen3-32b"]
+        assert api("/api/model", {"model": "qwen3-32b"})["saved"] is True
+        api("/api/chat", {"message": "내일 일정 알려줘"})
+        assert llm_stats(llm_port)["last_model"] == "qwen3-32b"
+        with open(cfg_path, encoding="utf-8") as f:
+            assert json.load(f)["llm"]["model"] == "qwen3-32b"
         print(f"[{mode}] ok · llm 요청 {stats['requests']}회 (tools 포함 {stats['with_tools']}회)")
         print("   --check ▸ " + "\n   --check ▸ ".join(check.stdout.strip().splitlines()[2:]))
     finally:
@@ -226,6 +233,14 @@ def ui_run(tmp):
                 .filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.className)""")
             assert not wide_boxes, wide_boxes  # 글자가 커져도 가로로 넘치지 않는다
             assert css(p, ".msg.user", "backgroundColor") == GREY
+            # 아래 줄: 로컬 저장 · 모델 드롭다운
+            assert p.inner_text("#foot-info") == "로컬 저장"
+            p.wait_for_function("document.querySelectorAll('#model option').length === 2")
+            p.select_option("#model", "qwen3-32b")
+            p.wait_for_function("[...document.querySelectorAll('.sys')].some(e => e.textContent.includes('모델 → qwen3-32b'))")
+            assert llm_stats(llm_port)["requests"] >= 1
+            say(p, "내일 일정 알려줘")
+            assert llm_stats(llm_port)["last_model"] == "qwen3-32b"
             assert css(p, ".card.done .seal", "borderTopColor") == LIME
             p.screenshot(path=os.path.join(OUT, "jaba-compact.png"))
 
