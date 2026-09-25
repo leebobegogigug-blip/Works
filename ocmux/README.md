@@ -96,11 +96,11 @@ ocmux는 tmux처럼 여러 인스턴스를 한 창에 묶고, opencode 서버의
 **설치**
 
 ```powershell
-git clone <저장소 주소> C:\tools\ocmux
+git clone https://github.com/leebobegogigug-blip/Works.git D:\OPENCODE
 
 # 사용자 PATH에 추가 (새로 연 터미널부터 적용)
 $p = [Environment]::GetEnvironmentVariable('Path', 'User')
-[Environment]::SetEnvironmentVariable('Path', "$p;C:\tools\ocmux", 'User')
+[Environment]::SetEnvironmentVariable('Path', "$p;D:\OPENCODE\ocmux", 'User')
 ```
 
 처음 `ocmux add`를 한 뒤(또는 업데이트한 뒤)에는 Windows Terminal 창을 **모두** 한 번 닫았다가 여세요.
@@ -177,7 +177,7 @@ PS> ocmux ls
 **opencode 없이 먼저 보기**
 
 ```powershell
-cd C:\tools\ocmux
+cd D:\OPENCODE\ocmux
 
 # 펫만 띄워 보기 (알에서 시작)
 py -3 oc_monitor.py rpg --name demo

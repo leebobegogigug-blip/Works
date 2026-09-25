@@ -17,10 +17,10 @@ Screenshots: [channel tab](images/channel-tab.png) · [overview tab](images/over
 
 ## 01 install
 
-1. clone the repository (or copy the folder), e.g. to `C:\tools\ocmux` — the program is these 8 files
+1. clone the repository (or copy the folder), e.g. to `D:\OPENCODE` (the program folder is then `D:\OPENCODE\ocmux`) — the program is these 8 files
    (`docs/` and `tests/` are optional):
    `ocmux.ps1` `ocmux.cmd` `oc_monitor.py` `ocmux_term.py` `ocmux_pet.py` `ocmux_pet_data.py` `ocmux_pet_ui.py` `ocmux_pet_run.py`
-2. add the folder to `PATH`
+2. add the program folder to `PATH`
 3. needs: Windows Terminal (`wt`), Python 3.8+ (standard library only), opencode.
    ocmux uses `py -3` if it exists, otherwise `python` (override: `-Python`).
 4. after the first `ocmux add` (or after updating), close **all** Windows Terminal windows once so the `ocmux Black` colors load.

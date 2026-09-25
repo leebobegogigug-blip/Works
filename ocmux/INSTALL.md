@@ -29,8 +29,8 @@
 설치 위치 기본값은 아래와 같다. 사용자가 다른 경로를 말하면 그 경로를 쓴다.
 
 ```powershell
-$Root  = 'C:\tools\Works'          # 저장소 전체
-$Ocmux = 'C:\tools\Works\ocmux'    # 프로그램 폴더 (PATH에 넣을 곳)
+$Root  = 'D:\OPENCODE'             # 저장소 전체
+$Ocmux = 'D:\OPENCODE\ocmux'       # 프로그램 폴더 (PATH에 넣을 곳)
 ```
 
 `$Root`, `$Ocmux` 변수는 명령마다 다시 정의해서 쓴다. 셸 호출 사이에 변수가 남지 않을 수 있다.
@@ -66,30 +66,33 @@ if (Get-Command py -ErrorAction SilentlyContinue) { py -3 --version } else { pyt
 먼저 설치 위치가 이미 있는지 본다.
 
 ```powershell
-$Root = 'C:\tools\Works'
+$Root = 'D:\OPENCODE'
 Test-Path $Root
 ```
 
-- **`False`** (처음 설치)
+- **`False`** (처음 설치). D 드라이브 자체가 없으면(`Test-Path D:\`가 `False`) 멈추고 묻는다.
   - git이 있으면 아래처럼 받는다.
 
     ```powershell
-    $Root = 'C:\tools\Works'
-    New-Item -ItemType Directory -Force -Path (Split-Path $Root) | Out-Null
+    $Root = 'D:\OPENCODE'
+    New-Item -ItemType Directory -Force -Path $Root | Out-Null
     git clone https://github.com/leebobegogigug-blip/Works.git $Root
     ```
 
   - git이 없거나 clone이 실패하면(회사 네트워크 차단 등) 멈추고, 사용자에게 요청한다.
-    "저장소 zip(`Works-repo.zip` 또는 GitHub의 *Code → Download ZIP*)을 받아 `C:\tools\Works`에 풀어 주세요."
-- **`True`** (이미 있음)
+    "저장소 zip(`Works-repo.zip` 또는 GitHub의 *Code → Download ZIP*)을 받아 `D:\OPENCODE`에 풀어 주세요."
+- **`True`인데 비어 있음** (`(Get-ChildItem $Root -Force | Measure-Object).Count`가 `0`)
+  - `False`일 때와 똑같이 clone한다. git은 빈 폴더에 clone할 수 있다.
+- **`True`이고 안에 다른 것이 있음** (D 드라이브의 `OPENCODE` 폴더는 이미 다른 용도로 쓰고 있을 수 있다)
+  - `$Root\.git`이 없으면 **멈추고 묻는다.** 안에 있는 항목 목록을 보여 주고, 이 폴더에 이어서 설치할지 다른 경로를 쓸지 확인한다. 기존 파일은 절대 옮기거나 지우지 않는다.
   - `$Root\.git`이 있으면 `git -C $Root status --short`로 수정된 파일이 없는지 본다.
   - 수정된 파일이 없으면 `git -C $Root pull --ff-only`로 업데이트한다.
-  - 수정된 파일이 있거나 git 저장소가 아니면 멈추고 묻는다.
+  - 수정된 파일이 있으면 멈추고 묻는다.
 
 **확인**
 
 ```powershell
-$Ocmux = 'C:\tools\Works\ocmux'
+$Ocmux = 'D:\OPENCODE\ocmux'
 'ocmux.ps1','ocmux.cmd','oc_monitor.py','ocmux_term.py','ocmux_pet.py','ocmux_pet_data.py','ocmux_pet_ui.py','ocmux_pet_run.py' |
   ForEach-Object { '{0,-20} {1}' -f $_, (Test-Path (Join-Path $Ocmux $_)) }
 ```
@@ -97,8 +100,8 @@ $Ocmux = 'C:\tools\Works\ocmux'
 8개가 모두 `True`여야 한다.
 
 **실패하면**
-- zip을 풀다가 폴더가 한 겹 더 생겼을 수 있다(예: `C:\tools\Works\Works-main\ocmux`).
-- `Get-ChildItem C:\tools\Works -Recurse -Filter ocmux.ps1`로 실제 위치를 찾는다.
+- zip을 풀다가 폴더가 한 겹 더 생겼을 수 있다(예: `D:\OPENCODE\Works-main\ocmux`).
+- `Get-ChildItem D:\OPENCODE -Recurse -Filter ocmux.ps1`로 실제 위치를 찾는다.
 - 찾은 위치로 `$Ocmux`를 바꾸고, 바꾼 사실을 보고에 적는다.
 
 ---
@@ -108,7 +111,7 @@ $Ocmux = 'C:\tools\Works\ocmux'
 zip으로 받았으면 Windows가 파일을 "인터넷에서 받음"으로 표시해 스크립트 실행을 막을 수 있다. git으로 받았어도 해도 무해하다.
 
 ```powershell
-$Ocmux = 'C:\tools\Works\ocmux'
+$Ocmux = 'D:\OPENCODE\ocmux'
 Get-ChildItem $Ocmux -Recurse -File | Unblock-File
 ```
 
@@ -117,7 +120,7 @@ Get-ChildItem $Ocmux -Recurse -File | Unblock-File
 ## 4. 동작 점검 (설치 전 자체 테스트)
 
 ```powershell
-$Ocmux = 'C:\tools\Works\ocmux'
+$Ocmux = 'D:\OPENCODE\ocmux'
 Set-Location $Ocmux
 if (Get-Command py -ErrorAction SilentlyContinue) { $py = 'py'; $pa = @('-3') } else { $py = 'python'; $pa = @() }
 & $py @pa -m unittest discover -s tests 2>&1 | Select-Object -Last 3
@@ -135,7 +138,7 @@ if (Get-Command py -ErrorAction SilentlyContinue) { $py = 'py'; $pa = @('-3') } 
 ## 5. PATH에 추가 (사용자 PATH)
 
 ```powershell
-$Ocmux = 'C:\tools\Works\ocmux'
+$Ocmux = 'D:\OPENCODE\ocmux'
 $p = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (-not $p) { $p = '' }
 $parts = $p.Split(';') | Where-Object { $_ -ne '' }
@@ -155,7 +158,7 @@ $env:Path = "$env:Path;$Ocmux"   # 지금 셸에서도 바로 쓰도록
 ## 6. 색 테마 설치
 
 ```powershell
-$Ocmux = 'C:\tools\Works\ocmux'
+$Ocmux = 'D:\OPENCODE\ocmux'
 & (Join-Path $Ocmux 'ocmux.cmd') setup
 ```
 
@@ -172,7 +175,7 @@ $Ocmux = 'C:\tools\Works\ocmux'
 opencode 없이 펫 화면을 한 장 그려 본다. 점검용 펫 저장 파일이 생기므로 끝나면 지운다.
 
 ```powershell
-$Ocmux = 'C:\tools\Works\ocmux'
+$Ocmux = 'D:\OPENCODE\ocmux'
 Set-Location $Ocmux
 if (Get-Command py -ErrorAction SilentlyContinue) { $py = 'py'; $pa = @('-3') } else { $py = 'python'; $pa = @() }
 & $py @pa oc_monitor.py rpg --name install-check --once 1 --cols 80 --rows 24 | Out-Null
@@ -294,7 +297,7 @@ Copy-Item "<백업 경로>" $s -Force
 
 ```
 [ocmux 설치 결과]
-위치        : C:\tools\Works\ocmux  (바꿨다면 이유)
+위치        : D:\OPENCODE\ocmux  (바꿨다면 이유)
 Python      : 3.x.x (py -3 | python)
 테스트      : OK 101 / 실패 n개 (이름)
 PATH        : 추가됨 | 이미 있음
