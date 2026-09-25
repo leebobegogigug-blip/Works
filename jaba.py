@@ -995,7 +995,9 @@ class AlertScheduler:
             return []
         now = self.clock()
         horizon = max(self.with_loc + self.without_loc + [0])
-        evs = self.cal.list_events(now - timedelta(minutes=1), now + timedelta(minutes=horizon + 1))
+        # 조회 범위를 분 단위로 맞춰야 같은 분 안의 확인이 캘린더 캐시를 탄다 (Outlook COM 조회를 줄임)
+        base = now.replace(second=0, microsecond=0)
+        evs = self.cal.list_events(base - timedelta(minutes=2), base + timedelta(minutes=horizon + 2))
         fired_now: List[Dict[str, Any]] = []
         for ev in evs:
             if (ev.all_day and not self.include_all_day) or ev.start < now - self.GRACE:
@@ -1544,6 +1546,7 @@ class Agent:
             self.rev: Dict[str, str] = {}
             self.snap: Dict[str, Event] = {}
             self.proposals: Dict[str, Proposal] = {}
+            self.last_pids: List[str] = []  # 바로 앞 턴에서 나온 제안 ('ㅇㅇ'/'ㄴㄴ' 이 가리키는 대상)
             self.notices: List[str] = []
             self._eseq = 0
             self._pseq = 0
@@ -1670,7 +1673,9 @@ class Agent:
             else:
                 f["start"] = ns
                 f["end"] = parse_dt(a["end"]) if a.get("end") else ns + (ev.end - ev.start)
-        elif a.get("end") and not ev.all_day:
+        if a.get("end") and ev.all_day:  # 종일 일정의 end 는 마지막 날짜(포함)
+            f["end"] = max(start_of_day(parse_dt(a["end"])), f["start"]) + timedelta(days=1)
+        elif a.get("end") and not a.get("start"):
             f["end"] = parse_dt(a["end"])
         if f["end"] <= f["start"]:
             raise ValueError("끝 시각이 시작 시각보다 빠릅니다")
@@ -1782,6 +1787,7 @@ class Agent:
                 elif p.kind == "update":
                     b = p.before
                     assert b is not None
+                    self._ensure_unchanged(b)
                     changes: Dict[str, Any] = {}
                     if f["title"] != b.title:
                         changes["title"] = f["title"]
@@ -1793,6 +1799,8 @@ class Agent:
                     a = self._alias(ev)
                     self.notices.append(f"{p.id} 확정 → 변경됨 ({a}: {fmt_range(ev.start, ev.end, ev.all_day)} {ev.title})")
                 else:
+                    assert p.before is not None
+                    self._ensure_unchanged(p.before)
                     self.cal.delete_event(p.target_id)
                     if p.target_alias:
                         self._forget(p.target_alias)
@@ -1804,6 +1812,12 @@ class Agent:
                 log(f"제안 {p.id} 처리 실패: {e}")
             return p.to_ui()
 
+    def _ensure_unchanged(self, before: Event) -> None:
+        """제안한 뒤 Outlook 등에서 그 일정이 바뀌었으면 멈춘다 (예전 값으로 덮어쓰거나 엉뚱한 것을 지우지 않게)"""
+        now = self.cal.get_event(before.id)
+        if (now.title, now.start, now.end, now.location) != (before.title, before.start, before.end, before.location):
+            raise RuntimeError("제안한 뒤 이 일정이 바뀌었습니다. 다시 조회해서 요청해 주세요")
+
     def cancel(self, pid: str) -> Dict[str, Any]:
         with self.lock:
             p = self.proposals.get(pid)
@@ -1813,6 +1827,12 @@ class Agent:
                 p.status = "cancelled"
                 self.notices.append(f"{p.id} 사용자가 취소함")
             return p.to_ui()
+
+    def _prune_proposals(self, keep: int = 200) -> None:
+        """끝난 제안은 최근 것만 남긴다 (하루 종일 켜 두어도 메모리가 계속 늘지 않게)"""
+        done = [k for k, p in self.proposals.items() if p.status != "pending"]
+        for k in done[:max(0, len(self.proposals) - keep)]:
+            self.proposals.pop(k, None)
 
     def pending(self) -> List[Dict[str, Any]]:
         with self.lock:
@@ -1874,7 +1894,9 @@ class Agent:
         return self._result("모르는 명령어입니다.\n" + self.HELP)
 
     def _quick(self, text: str) -> Optional[Dict[str, Any]]:
-        waiting = [p for p in self.proposals.values() if p.status == "pending"]
+        # 바로 앞 턴의 제안에만 적용한다. 그 뒤로 다른 얘기를 했으면 '네'·'아니'는 그 대화에 대한 답이라 LLM 으로 보낸다.
+        waiting = [self.proposals[i] for i in self.last_pids
+                   if i in self.proposals and self.proposals[i].status == "pending"]
         if not waiting:
             return None
         if YES_RE.match(text) and len(waiting) == 1:
@@ -1975,6 +1997,8 @@ class Agent:
             self.turns.append(turn)
             self.turns = self.turns[-self.KEEP_TURNS:]
             self.notices = self.notices[len(seen):]
+            self.last_pids = [p.id for p in ctx.proposals]
+            self._prune_proposals()
             proposals = [p.to_ui() for p in ctx.proposals]
         return self._result(final, ctx.activity, proposals, learned=ctx.learned, forgot=ctx.forgot)
 
@@ -2187,9 +2211,12 @@ def make_handler(app: App) -> Any:
             return secrets.compare_digest(self.headers.get("X-Jaba-Token", ""), app.token)
 
         def _body(self) -> Dict[str, Any]:
-            n = int(self.headers.get("Content-Length") or 0)
-            if n > 256_000:
-                raise ValueError("요청이 너무 큽니다")
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                raise ValueError("Content-Length 가 숫자가 아닙니다")
+            if n < 0 or n > 256_000:
+                raise ValueError("요청 크기가 올바르지 않습니다")
             raw = self.rfile.read(n) if n else b""
             data = json.loads(raw.decode("utf-8")) if raw.strip() else {}
             if not isinstance(data, dict):

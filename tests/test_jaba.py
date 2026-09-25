@@ -462,6 +462,48 @@ class TestAgentNative(AgentBase):
         self.assertTrue(self.llm.calls[-1][-1]["content"].startswith("[알림] p1 확정 → 등록됨"))
         self.assertEqual(ag.notices, [])
 
+    def test_quick_reply_only_targets_previous_turn(self):
+        """제안 뒤에 다른 얘기를 했으면 '네'·'아니'는 그 대화의 답이다 (예전 카드를 확정/취소하지 않음)."""
+        ag = self.agent([tc("propose_create", title="A", start=self.iso(10)), say("확정해 주세요"),
+                         say("3시로 옮길까요?"), say("알겠습니다"), say("네")])
+        ag.chat("A 잡아")
+        ag.chat("그런데 다른 회의는 어때?")
+        r = ag.chat("아니")
+        self.assertEqual(r["updated"], [])
+        r = ag.chat("네")
+        self.assertEqual(r["updated"], [])
+        self.assertEqual([p["id"] for p in ag.pending()], ["p1"])  # 카드는 그대로, 버튼으로 확정 가능
+        self.assertEqual(len(self.llm.calls), 5)
+
+    def test_confirm_refuses_if_event_changed_meanwhile(self):
+        ev = self.cal.create_event(title="원래", start=self.day.replace(hour=10), end=self.day.replace(hour=11))
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_update", event_id="e1", start=self.iso(14)), say("확정해 주세요")])
+        ag.chat("원래 일정 2시로")
+        self.cal.update_event(ev.id, {"title": "누가 바꿈"})  # Outlook 에서 직접 바꾼 상황
+        r = ag.confirm("p1")
+        self.assertEqual(r["status"], "failed")
+        self.assertIn("바뀌었습니다", r["error"])
+        self.assertEqual(self.cal.get_event(ev.id).start, self.day.replace(hour=10))
+
+    def test_update_all_day_end(self):
+        ev = self.cal.create_event(title="출장", start=self.day, end=self.day + timedelta(days=1), all_day=True)
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23)),
+                         tc("propose_update", event_id="e1", end=(self.day + timedelta(days=2)).date().isoformat()),
+                         say("확정해 주세요")])
+        ag.chat("출장 이틀 더")
+        self.assertEqual(ag.confirm("p1")["status"], "done")
+        self.assertEqual(self.cal.get_event(ev.id).end, self.day + timedelta(days=3))
+
+    def test_finished_proposals_are_pruned(self):
+        ag = self.agent([])
+        for i in range(250):
+            p = ag._new_proposal("rule", {"text": f"r{i}"})
+            p.status = "cancelled"
+        ag._prune_proposals()
+        self.assertEqual(len(ag.proposals), 200)
+        self.assertIn("p250", ag.proposals)
+
 
 class TestAgentJsonMode(AgentBase):
     def test_json_flow(self):
@@ -900,6 +942,12 @@ class TestServer(unittest.TestCase):
                 return resp.status, (json.loads(raw) if raw.startswith("{") else raw)
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read().decode() or "{}")
+
+    def test_negative_content_length(self):
+        with socket.create_connection(("127.0.0.1", self.app.port), timeout=5) as c:
+            c.sendall((f"POST /api/chat HTTP/1.1\r\nHost: 127.0.0.1:{self.app.port}\r\nX-Jaba-Token: {self.app.token}\r\n"
+                       "Content-Type: application/json\r\nContent-Length: -1\r\nConnection: close\r\n\r\n").encode())
+            self.assertIn(b" 400 ", c.recv(200))
 
     def test_flow_and_security(self):
         code, html = self.req("/", token=False)
