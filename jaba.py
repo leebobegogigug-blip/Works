@@ -1526,7 +1526,10 @@ class Agent:
         self.cal = cal
         self.llm = llm
         self.rules = rules
+        # lock: 제안·별칭·알림 같은 공유 상태 (짧게만 잡는다) · turn_lock: 대화 턴을 한 번에 하나씩.
+        # LLM 을 기다리는 동안엔 lock 을 풀어 두어서 확정/취소 버튼과 /api/state 가 멈추지 않게 한다.
         self.lock = threading.RLock()
+        self.turn_lock = threading.Lock()
         self.reset()
 
     def reset(self) -> None:
@@ -1888,7 +1891,8 @@ class Agent:
             ctx.activity.append({"tool": call.name or "?", "text": "없는 도구", "ok": False})
             return {"error": f"알 수 없는 도구: {call.name}"}
         try:
-            res, label = fn(call.args or {}, ctx)
+            with self.lock:
+                res, label = fn(call.args or {}, ctx)
             ctx.activity.append({"tool": call.name, "text": label, "ok": True})
             return res
         except Exception as e:
@@ -1899,13 +1903,14 @@ class Agent:
         text = (text or "").strip()
         if not text:
             return self._result("")
-        with self.lock:
-            cmd = self._command(text)
-            if cmd is not None:
-                return cmd
-            quick = self._quick(text)
-            if quick is not None:
-                return quick
+        with self.turn_lock:
+            with self.lock:
+                cmd = self._command(text)
+                if cmd is not None:
+                    return cmd
+                quick = self._quick(text)
+                if quick is not None:
+                    return quick
             try:
                 return self._turn(text)
             except ModeSwitched:
@@ -1914,8 +1919,10 @@ class Agent:
     def _turn(self, text: str) -> Dict[str, Any]:
         ctx = TurnCtx()
         content = text
-        if self.notices:
-            content = "[알림] " + " / ".join(self.notices) + "\n\n" + text
+        with self.lock:
+            seen = list(self.notices)  # LLM 을 기다리는 사이 확정된 알림은 다음 턴으로 넘긴다
+        if seen:
+            content = "[알림] " + " / ".join(seen) + "\n\n" + text
         turn: List[Dict[str, Any]] = [{"role": "user", "content": content}]
         final = ""
         for step in range(self.MAX_STEPS):
@@ -1953,11 +1960,12 @@ class Agent:
             else:
                 final = "(빈 응답)"
         turn.append({"role": "assistant", "content": final})
-        self.turns.append(turn)
-        self.turns = self.turns[-self.KEEP_TURNS:]
-        self.notices = []
-        return self._result(final, ctx.activity, [p.to_ui() for p in ctx.proposals],
-                            learned=ctx.learned, forgot=ctx.forgot)
+        with self.lock:
+            self.turns.append(turn)
+            self.turns = self.turns[-self.KEEP_TURNS:]
+            self.notices = self.notices[len(seen):]
+            proposals = [p.to_ui() for p in ctx.proposals]
+        return self._result(final, ctx.activity, proposals, learned=ctx.learned, forgot=ctx.forgot)
 
 
 # ─────────────────────────────────────────────────────────────── 앱 · 로컬 서버

@@ -434,6 +434,34 @@ class TestAgentNative(AgentBase):
         self.assertIn("[도구 사용법]", jaba.build_system_prompt(self.cfg, "json", now))
         self.assertIn("propose_update(event_id, title?, start?, end?, location?)", jaba.tools_as_text())
 
+    def test_confirm_not_blocked_by_llm_wait(self):
+        """LLM 을 기다리는 동안에도 확정 버튼 · /api/state 가 바로 응답하고, 그 사이 확정한 알림은 다음 턴에 전달된다."""
+        entered, release = threading.Event(), threading.Event()
+
+        def slow(messages, llm):
+            entered.set()
+            release.wait(5)
+            return say("다른 답")
+
+        ag = self.agent([tc("propose_create", title="A", start=self.iso(10)), say("확정해 주세요"),
+                         slow, say("네")])
+        ag.chat("A 잡아")
+        th = threading.Thread(target=ag.chat, args=("딴 얘기",))
+        th.start()
+        try:
+            self.assertTrue(entered.wait(5))
+            t0 = time.time()
+            self.assertEqual([p["id"] for p in ag.pending()], ["p1"])
+            self.assertEqual(ag.confirm("p1")["status"], "done")
+            self.assertLess(time.time() - t0, 1.0)
+        finally:
+            release.set()
+            th.join(5)
+        self.assertEqual(len(ag.notices), 1)  # 기다리던 턴이 끝나도 지워지지 않음
+        ag.chat("고마워")
+        self.assertTrue(self.llm.calls[-1][-1]["content"].startswith("[알림] p1 확정 → 등록됨"))
+        self.assertEqual(ag.notices, [])
+
 
 class TestAgentJsonMode(AgentBase):
     def test_json_flow(self):
