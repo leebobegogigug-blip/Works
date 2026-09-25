@@ -76,6 +76,34 @@ class ComposeBus(unittest.TestCase):
         self.assertNotIn("hunter2", raw)
         self.assertEqual(M.json.loads(raw.splitlines()[-1])["ctx"], "compose_bug")
 
+    def test_old_text_is_scrubbed_when_pet_starts(self):
+        import ocmux_pet as P
+        path = P.bus_path("bus-old")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(M.json.dumps({"type": "compose", "chars": 9, "text": "비밀번호 hunter2", "ts": 1}, ensure_ascii=False) + "\n")
+            f.write(M.json.dumps({"type": "other", "ts": 2}) + "\n")
+        P.BusReader("bus-old")
+        with open(path, encoding="utf-8") as f:
+            lines = [M.json.loads(x) for x in f]
+        self.assertEqual(lines, [{"type": "compose", "chars": 9, "ts": 1}, {"type": "other", "ts": 2}])
+        self.assertFalse(P.scrub_bus("bus-old"))  # 두 번째부터는 다시 쓰지 않음
+
+
+class RegDir(unittest.TestCase):
+    def test_status_pane_reads_folder_from_registry(self):
+        reg = M.registry_path()
+        os.makedirs(os.path.dirname(reg), exist_ok=True)
+        with open(reg, "w", encoding="utf-8") as f:
+            M.json.dump([{"name": "api", "url": "http://127.0.0.1:4096", "dir": "C:\\work\\100%done", "headless": True}], f)
+        try:
+            with_reg = M.single_instance(args(name="api", url="http://127.0.0.1:1", reg_dir=True), start=False)
+            plain = M.single_instance(args(name="api", url="http://127.0.0.1:1"), start=False)
+        finally:
+            os.remove(reg)
+        self.assertEqual((with_reg.api.dir, with_reg.url), ("C:\\work\\100%done", "http://127.0.0.1:1"))
+        self.assertIsNone(plain.api.dir)  # 다른 칸(usage·펫·compose)은 예전처럼 폴더 없이
+
 
 if __name__ == "__main__":
     unittest.main()

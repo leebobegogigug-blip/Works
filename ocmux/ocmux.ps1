@@ -231,7 +231,8 @@ function Get-InstanceTabArgs($i) {
         $logSrc = "--since $($i.created)"
     }
     $a  = "new-tab --title $title --suppressApplicationTitle --tabColor $(Q $i.color) --colorScheme $(Q $Scheme) -d $d $main"
-    $a += " ; split-pane -V -s $RightWidth --colorScheme $(Q $Scheme) -d $d $(Py 'status' "$who --dir $d $logSrc")"
+    # the folder is read from the registry (--reg-dir), not put on the cmd line where cmd would expand %...%
+    $a += " ; split-pane -V -s $RightWidth --colorScheme $(Q $Scheme) -d $d $(Py 'status' "$who --reg-dir $logSrc")"
     $a += Get-BottomRow $d $who
     $a += ' ; focus-pane -t 0'
     if (-not $NoCompose) {
@@ -248,6 +249,10 @@ switch ($Cmd) {
     if (-not (Test-Path $Monitor)) { throw "oc_monitor.py not found: $Monitor" }
     if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) { throw 'opencode not in PATH' }
     $dir = if ($Target) { (Resolve-Path $Target).ProviderPath } else { (Get-Location).ProviderPath }
+    if ($Headless -and $dir.Contains('%')) {
+        # headless panes run `opencode attach ... --dir <folder>` through cmd, which expands %NAME%
+        throw "-Headless cannot use a folder whose path contains '%' ($dir). Rename the folder or add it without -Headless"
+    }
     $reg = @(Get-Reg)
     $firstEver = ($reg.Count -eq 0)
 

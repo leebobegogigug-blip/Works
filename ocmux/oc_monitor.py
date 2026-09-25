@@ -1238,11 +1238,13 @@ def loop(a, frame, tick=0.5, word="OCMUX", on_key=None, table=None):
 def single_instance(a, start=True):
     """start=False: 폴링/SSE 스레드 없이 주소·색·채널만 (compose 처럼 보내기만 하는 칸)"""
     name, url, color, directory, headless = a.name or "opencode", a.url, a.color, a.dir, False
-    if a.name and not a.url:
+    reg_dir = getattr(a, "reg_dir", False)
+    if a.name and (not a.url or reg_dir):
         for r in load_registry():
             if r.get("name") == a.name:
-                url, color, directory = r.get("url"), color or r.get("color"), directory or r.get("dir")
-                headless = bool(r.get("headless"))
+                if not a.url:
+                    url, color, headless = r.get("url"), color or r.get("color"), bool(r.get("headless"))
+                directory = directory or r.get("dir")
     url = url or "http://127.0.0.1:4096"
     inst = Instance(name, url, color, directory, a.password, a.interval, a.max_sessions, headless=headless)
     return inst.start() if start else inst
@@ -1704,6 +1706,8 @@ def main():
     ap.add_argument("--color", default=None, help="#RRGGBB 태그 색")
     ap.add_argument("--password", default=None, help="(비권장: 명령줄에 남음) 기본은 OPENCODE_SERVER_PASSWORD → ocmux 비밀번호 파일")
     ap.add_argument("--dir", default=None)
+    ap.add_argument("--reg-dir", action="store_true",
+                    help="폴더를 명령줄 대신 레지스트리(--name)에서 읽기 (cmd 가 경로 속 %%…%% 를 풀지 않게)")
     ap.add_argument("--interval", type=float, default=2.0)
     ap.add_argument("--max-sessions", type=int, default=15)
     ap.add_argument("--hide-idle-sub", action="store_true", help="idle subagent 세션 숨김")

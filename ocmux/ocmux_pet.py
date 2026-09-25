@@ -183,10 +183,48 @@ def bus_write(scope, event):
         pass
 
 
+def scrub_bus(scope):
+    """예전 버전이 버스 파일에 남긴 compose 원문(text)을 지운다. 원문이 있을 때만 다시 쓴다 → 지웠으면 True"""
+    path = bus_path(scope)
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+    except OSError:
+        return False
+    out, changed = [], False
+    for ln in lines:
+        try:
+            ev = json.loads(ln)
+        except ValueError:
+            out.append(ln)
+            continue
+        if isinstance(ev, dict) and "text" in ev:
+            ev.pop("text")
+            changed = True
+            out.append(_dumps(ev) + "\n")
+        else:
+            out.append(ln)
+    if not changed:
+        return False
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.writelines(out)
+        os.replace(tmp, path)
+        return True
+    except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return False
+
+
 class BusReader:
     """bus 파일 tail. 파일이 잘려(오래된 줄 정리) 처음부터 다시 읽어도 이미 받은 이벤트는 ts 로 걸러낸다"""
 
     def __init__(self, scope):
+        scrub_bus(scope)  # 예전 compose 원문 정리 (펫 창이 뜰 때 한 번)
         self.path = bus_path(scope)
         self.last_ts = time.time()
         try:

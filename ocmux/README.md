@@ -269,7 +269,7 @@ ocmux/
 ├─ ocmux_pet_ui.py     TOKEN QUEST 화면 (7개 모드 · 오버레이 · 대화 · 연출)
 ├─ ocmux_pet_run.py    펫 창 실행 루프 · opencode 이벤트 → 게임 신호 · 목장
 ├─ docs/               GUIDE.md (상세 매뉴얼, 영문) · images/
-└─ tests/              unittest 101개
+└─ tests/              unittest 110개 (pwsh 가 있으면 ocmux.ps1 실제 실행 테스트 포함)
 ```
 
 ```
@@ -290,8 +290,9 @@ oc_monitor.py ──HTTP──▶ opencode (127.0.0.1:4096)
 ## 09 개발
 
 ```powershell
-# 테스트 101개 (표준 라이브러리 unittest)
+# 테스트 110개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 ocmux.ps1 도 가짜 wt 로 실제 실행)
 py -3 -m unittest discover -s tests
+# CI(.github/workflows/ocmux.yml): Windows + Ubuntu × Python 3.8·3.13, Windows PowerShell 5.1 문법 검사 · ocmux.cmd ls
 
 # 한 프레임만 찍고 종료 — 스크린샷·점검용 (--guide 를 붙이면 가이드를 켠 화면)
 py -3 oc_monitor.py rpg --name demo --once 1 --cols 80 --rows 24
