@@ -130,7 +130,7 @@ def write(root, rel, text):
 def make_repo(root, app="demo-1", rows=None, waivers="", **files):
     """규칙을 모두 지키는 앱 하나짜리 저장소. files 로 파일을 바꾸거나 더한다 (None = 지우기)"""
     base = {
-        "RULES.md": RULES, "AGENTS.md": AGENTS, "docs/DESIGN.md": DESIGN,
+        "README.md": "# works\n", "RULES.md": RULES, "AGENTS.md": AGENTS, "docs/DESIGN.md": DESIGN,
         "docs/REGISTRY.md": REGISTRY.format(
             rows=rows or f"| `{app}` | 데모–1 | 운영 | 8775–8784 | Ctrl+Alt+K |", waivers=waivers),
         f"{app}/README.md": README, f"{app}/INSTALL.md": INSTALL, f"{app}/docs/MANUAL.md": MANUAL,
@@ -200,6 +200,22 @@ class Violations(Base):
         self.assertTrue(any(f.rule == "W-10" and "'팔레트'" in f.msg for f in findings))
         self.assertTrue(any(f.rule == "W-02" and "requests" in f.msg for f in findings))
         self.assertFalse(any("win32com" in f.msg for f in findings), "함수 안 import 는 선택 기능")
+
+    def test_secret_command_line_options(self):
+        repo = make_repo(self.root, **{
+            "demo-1/demo-1.py": APP_PY + 'import argparse\nap = argparse.ArgumentParser()\n'
+                                         'ap.add_argument("--api-key")\nap.add_argument("--password-file")\n',
+            "demo-1/demo-1.ps1": "param(\n    [string]$ServerToken,\n    [string]$PwFile\n)\n"})
+        found = [(f.path, f.line) for f in wc.check_secrets(repo)]
+        self.assertEqual(found, [("demo-1/demo-1.ps1", 2), ("demo-1/demo-1.py", 17)])   # --api-key 줄 · 파일 경로 옵션(--password-file)은 괜찮다
+
+    def test_broken_relative_links(self):
+        repo = make_repo(self.root, **{
+            "demo-1/README.md": README + '<img src="docs/page/none.png">\n[ok](INSTALL.md#0) [web](https://example.com) [top](#x)\n'
+                                         '<source srcset="../docs/page/gone-dark.png">\n',
+            "docs/templates/app/README.md": '<img src="docs/page/hero.png">\n'})
+        msgs = sorted(f.msg for f in wc.check_docs(repo) if "없는 파일" in f.msg)
+        self.assertEqual(msgs, ["없는 파일을 가리킵니다: ../docs/page/gone-dark.png", "없는 파일을 가리킵니다: docs/page/none.png"])
 
     def test_missing_min_python_in_ci(self):
         repo = make_repo(self.root, **{".github/workflows/demo-1.yml": WORKFLOW.replace('"3.8", ', "")})

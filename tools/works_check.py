@@ -11,13 +11,13 @@ works_check.py - works 규칙 검사기 (정본은 RULES.md · 표준 라이브�
   W-01 필수 파일 · 앱 워크플로 · 다른 앱 코드 참조
   W-02 실행 코드가 불러오자마자 import 하는 표준 라이브러리 밖 모듈 (Python 3.10+ 에서만)
   W-03 0.0.0.0 바인딩 · 웹 UI 의 외부 리소스(CDN · 웹 폰트)
-  W-04 키 · 토큰처럼 보이는 문자열
+  W-04 키 · 토큰처럼 보이는 문자열 · 비밀 값을 받는 명령줄 옵션(--password · [string]$Token 등)
   W-08 INSTALL.md 필수 절 · [질문] 표시
   W-10 네이비 · 라임 밖의 유채색 · 빨강 계열 콘솔 색 · 옮겨 적은 디자인 원칙 · 팔레트 표
   W-11 워크플로의 OS · 경로 필터 · 약속한 최소 Python · 문서의 테스트 수 · 없는 워크플로 언급
   W-12 영감 고지문 · 내장 폰트 라이선스 · 사설 IP 주소
   S-02 VERSION 상수   S-06 대장 등록 · 포트 대역 · 전역 단축키 겹침
-  S-07 형제 앱 직접 링크 · 다른 앱과 같은 이미지 · 문서 이미지 3 MB · 남은 {{자리표시자}}
+  S-07 형제 앱 직접 링크 · 다른 앱과 같은 이미지 · 문서 이미지 3 MB · 남은 {{자리표시자}} · 깨진 상대 링크
   RULES AGENTS.md 요약 · 예외 대장이 RULES.md 와 맞는지
 
 [예외 대장] docs/REGISTRY.md 에 적힌 위반은 '예외' 로만 보이고 세지 않는다.
@@ -290,8 +290,22 @@ def check_network(repo: Repo) -> List[Finding]:
     return out
 
 
+SECRET_OPTION_RES = (
+    (".py", re.compile(r"add_argument\(\s*[\"']--(?:\w+[-_])*(?:password|passwd|api[-_]?key|apikey|secret|token)[\"']", re.I)),
+    (".ps1", re.compile(r"\[(?:string|securestring)\]\s*\$\w*(?:password|passwd|apikey|secret|token)\b", re.I)),
+)
+
+
 def check_secrets(repo: Repo) -> List[Finding]:
     out = []
+    for app in repo.apps:     # 비밀 값을 명령줄로 받는 옵션 — 보안 솔루션 로그 · 작업 관리자에 남는다
+        for rel in repo.app_files(app, (".py", ".ps1"), dev=False):
+            text = repo.text(rel)
+            for ext, rx in SECRET_OPTION_RES:
+                m = rx.search(text) if rel.endswith(ext) else None
+                if m:
+                    out.append(Finding("W-04", app, rel, "비밀 값을 명령줄 옵션으로 받습니다 → 환경 변수 · 파일로 받으세요",
+                                       line_of(text, m.start())))
     for rel in repo.files:
         if not rel.lower().endswith(TEXT_EXT) and "." in os.path.basename(rel):
             continue
@@ -496,6 +510,21 @@ def check_public(repo: Repo) -> List[Finding]:
 
 VERSION_RE = re.compile(r"^\s*(?:VERSION|\$Version)\s*=\s*[\"']\d+\.\d+\.\d+[\"']", re.M)
 PLACEHOLDER_RE = re.compile(r"(?<!\$)\{\{[A-Z_]+\}\}")
+LINK_RE = re.compile(r"(?:src|srcset|href)\s*=\s*\"([^\"]+)\"|\]\(([^)\s]+)\)")
+
+
+def broken_links(repo: Repo, rel: str) -> List[Tuple[str, int]]:
+    """문서의 상대 링크 · 이미지 중 없는 파일 → (대상, 줄). 주소 · #앵커만 있는 링크는 보지 않는다"""
+    text, out = repo.text(rel), []
+    for m in LINK_RE.finditer(text):
+        for target in (m.group(1) or m.group(2)).split(","):   # srcset="a.png 1x, b.png 2x"
+            target = target.strip().split(" ")[0].split("#")[0]
+            if not target or re.match(r"^[a-z][a-z0-9+.\-]*:", target, re.I) or target.startswith("//"):
+                continue
+            path = os.path.normpath(os.path.join(os.path.dirname(repo.abs(rel)), target.replace("%20", " ")))
+            if not os.path.exists(path):
+                out.append((target, line_of(text, m.start())))
+    return out
 
 
 def check_version(repo: Repo) -> List[Finding]:
@@ -592,6 +621,10 @@ def check_docs(repo: Repo) -> List[Finding]:
             m = PLACEHOLDER_RE.search(text)
             if m:
                 out.append(Finding("S-07", app, rel, f"뼈대의 자리표시자가 남았습니다: {m.group(0)}", line_of(text, m.start())))
+    for rel in repo.files:      # 뼈대(docs/templates/)의 링크는 앱 폴더에 복사된 뒤를 기준으로 적혀 있어서 뺀다
+        if rel.endswith(".md") and not rel.startswith("docs/templates/"):
+            for target, ln in broken_links(repo, rel):
+                out.append(Finding("S-07", repo.app_of(rel), rel, f"없는 파일을 가리킵니다: {target}", ln))
     return out
 
 
