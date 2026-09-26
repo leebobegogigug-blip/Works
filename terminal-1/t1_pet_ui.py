@@ -25,7 +25,8 @@ TABS = [("home", "홈"), ("adv", "모험"), ("bag", "가방"), ("shop", "상점"
         ("story", "스토리")]
 TAB_KEYS = "".join(str(i + 1) for i in range(len(TABS)))      # "1234567"
 SCENE_CPS = 38.0          # 대화 타자 속도 (글자/초)
-PART_NAMES = {"intro": "PROLOGUE", "boss": "BOSS", "outro": "EPILOGUE", "replay": "REPLAY"}
+PART_NAMES = {"intro": "PROLOGUE", "boss": "BOSS", "outro": "EPILOGUE", "replay": "REPLAY", "side": "SIDE STORY",
+              "debt": "WEEKLY DEBT"}
 SUBTABS = {
     "bag": ["장비", "소모품", "재료", "꾸미기"],
     "shop": ["구매", "판매"],
@@ -657,6 +658,17 @@ class PetUI:
                 self.story_view = None
         elif k == "ENTER":
             self._story_enter(i)
+        elif k == "e":
+            self._side_open()
+        elif k == "p" and st["phase"] == "end":
+            g.debt_pay()
+        elif k == "b" and st["phase"] == "end":
+            ok, why = g.can_debt_boss()
+            if not ok:
+                self._toast(why, 4)
+                return
+            self.scene = dict(ch=len(D.CHAPTERS) - 1, part="debt", lines=g._resolve_lines(D.DEBT["lines"]), idx=0,
+                              t0=time.time(), then="debt")
         elif k == "b":
             if i != st["ch"]:
                 self._toast("지금 챕터에서만 보스에 도전할 수 있어요 (←→ 로 돌아가기)")
@@ -666,6 +678,19 @@ class PetUI:
                 self._toast(why, 4)
                 return
             self._scene_start(st["ch"], "boss", then="boss")
+
+    def _side_open(self):
+        """E: 사이드 에피소드 — 새 이야기면 도입, 목표를 채웠으면 마무리, 진행 중이면 진행 상황"""
+        g = self.g
+        si = g.side_info()
+        if not si:
+            self._toast("지금은 사이드 에피소드가 없어요 · 챕터를 깨면 조연들이 찾아와요", 4)
+            return
+        if si["phase"] == "play":
+            self._toast(f"「{si['ep']['title']}」 {si['text']} · {si['prog']}/{si['target']}", 4)
+            return
+        self.scene = dict(ch=g.story()["ch"], part="side", lines=g.side_scene(), idx=0, t0=time.time(), then=None)
+        self.overlay = None
 
     def _story_enter(self, i):
         """↵: 이 챕터에서 지금 볼 만한 대화 (에필로그 대기 > 안 본 프롤로그 > 다시 보기)"""
@@ -691,10 +716,19 @@ class PetUI:
         self.overlay = None
 
     def _scene_text(self, line):
+        if line[0] == "choice":
+            ch = D.CHOICES.get(line[1]) or {}
+            return ch.get("q", "") + "   " + "   ".join(f"[{k + 1}] {o[1]}" for k, o in enumerate(ch.get("opts", [])))
         return line[1]
 
     def _scene_key(self, k):
         sc = self.scene
+        cur = sc["lines"][min(sc["idx"], len(sc["lines"]) - 1)]
+        if cur[0] == "choice" and k in ("1", "2"):
+            rep = self.g.story_choose(cur[1], int(k) - 1)
+            sc["lines"][sc["idx"]:sc["idx"] + 1] = rep or [("narr", "· · ·", None)]
+            sc["t0"] = time.time()
+            return
         if k == "ESC":
             self._scene_end()
             return
@@ -704,6 +738,8 @@ class PetUI:
             if shown < full:
                 sc["t0"] = time.time() - full / SCENE_CPS - 0.01       # 글자가 다 안 나왔으면 한 번에
                 return
+            if cur[0] == "choice":
+                return                              # 고르기 전엔 넘어가지 않는다 (Esc 는 나중에)
             if sc["idx"] + 1 < len(sc["lines"]):
                 sc["idx"] += 1
                 sc["t0"] = time.time()
@@ -719,8 +755,13 @@ class PetUI:
             g.story_mark_seen(sc["ch"], sc["part"])
         if sc["part"] == "replay":
             g.story_mark_seen(sc["ch"], "outro")
+        if sc["part"] == "side":
+            g.side_seen()
         if sc.get("then") == "boss":
             if not g.start_story_boss():
+                self._toast("지금은 도전할 수 없어요", 3)
+        elif sc.get("then") == "debt":
+            if not g.start_debt_boss():
                 self._toast("지금은 도전할 수 없어요", 3)
 
     # --- 오버레이
@@ -841,8 +882,10 @@ class PetUI:
         st = self.g.story()
         if not st or self.g.is_egg():
             return False
+        si = self.g.side_info()
         return (st.get("pending") is not None or st["phase"] == "boss"
-                or (st["phase"] in ("play", "boss") and not self.g.story_seen(st["ch"], "intro")))
+                or (st["phase"] in ("play", "boss") and not self.g.story_seen(st["ch"], "intro"))
+                or bool(si and si["phase"] != "play"))
 
     def _anchor(self, x, y, key):
         """가이드(`?`)가 번호표를 붙일 자리. 같은 이름은 한 번만"""
@@ -947,6 +990,10 @@ class PetUI:
         if g.readonly:
             return [("O", "이 창에서 돌보기"), ("Tab", "화면")]
         if self.scene:
+            cur = self.scene["lines"][min(self.scene["idx"], len(self.scene["lines"]) - 1)]
+            if cur[0] == "choice":
+                opts = (D.CHOICES.get(cur[1]) or {}).get("opts", [])
+                return [(str(k + 1), o[1].split(" — ")[0], P3["lime"]) for k, o in enumerate(opts)] + [("Esc", "나중에")]
             last = self.scene["idx"] + 1 >= len(self.scene["lines"])
             return [("↵", "닫기" if last and self.scene.get("then") != "boss" else "보스전!" if last else "다음"),
                     ("Esc", "건너뛰기"), ("", f"{self.scene['idx'] + 1}/{len(self.scene['lines'])}")]
@@ -997,6 +1044,13 @@ class PetUI:
             pairs = [("←→", "챕터"), ("↵", "대화")]
             if self._story_idx() == s["ch"] and s["phase"] == "boss":
                 pairs.append(("B", "보스 도전!", P3["lime"]))
+            if s["phase"] == "end":
+                di = g.debt_info()
+                if di and not di["cleared"]:
+                    pairs += [("B", "부채 상환전", P3["lime"]), ("P", "원금 갚기")]
+            si = g.side_info()
+            if si:
+                pairs.append(("E", "사이드" + (" ●" if si["phase"] != "play" else ""), P3["navy4"]))
             return pairs
         if self.sub["dex"] == DEX_PROFILE:
             return [("←→", "분류"), ("R", "은퇴식")]
@@ -1654,6 +1708,8 @@ class PetUI:
         helpers = list(g.allies.values())
         if g.battle and g.battle.get("pair", 0) > 0:
             helpers.append(dict(name="짝꿍", color=P3["gray4"], art=[r" (^^)", r" /||\ "]))
+        if g.battle:
+            helpers = [dict(name=h["name"], color=h["color"], art=h["art"]) for h in g.battle.get("helpers") or []] + helpers
         for a in helpers[:3]:
             if ax + 6 >= x0 + W - 14:
                 break
@@ -2128,9 +2184,25 @@ class PetUI:
         return y
 
     def _next_lines(self, st, W):
+        out = []
+        si = self.g.side_info()
+        if si:
+            state = {"new": f"{LIME}새 이야기 [E]{RST}", "done": f"{LIME}{B}목표 달성! 마무리 [E]{RST}"}.get(
+                si["phase"], f"{G4}{si['text']} {si['prog']}/{si['target']}{RST}")
+            out.append(f"{NV4}◇ SIDE{RST} {G4}{B}{si['ep']['title']}{RST} {G1}· {si['npc']} ·{RST} {state}")
+        return out + self._main_next_lines(st, W)
+
+    def _main_next_lines(self, st, W):
         n = len(D.CHAPTERS)
         if st["phase"] == "end":
-            return [f"{LIME}{B}시즌 {D.STORY['season']} 완결!{RST} {G}모든 빌드가 초록불. 다음 시즌을 기다려 주세요{RST}"]
+            di = self.g.debt_info()
+            head = f"{LIME}{B}시즌 {D.STORY['season']} 완결!{RST} {G}기술 부채는 매주 이자가 붙어요{RST}"
+            if not di:
+                return [head]
+            if di["cleared"]:
+                return [head, f"{G1}$ 이번 주 상환 완료 ({di['weeks']}주째) · 다음 주 월요일에 이자가 붙어요{RST}"]
+            return [head, f"{G1}$ 원금{RST} {G4}{P.fmt_num(di['principal'])}G{RST} {G1}· 미리 갚음{RST} "
+                          f"{LIME}{int(di['paid'] * 100)}%{RST} {G1}· [P] 5% 갚기 {P.fmt_num(di['cost'])}G · [B] 상환전{RST}"]
         j = st["ch"] + 1
         if j >= n:
             return [f"{G}마지막 챕터예요. 보스를 쓰러뜨리면 시즌 {D.STORY['season']} 완결!{RST}"]
@@ -2149,7 +2221,8 @@ class PetUI:
         b = g.battle
         m = b["mon"]
         i = b["story"]
-        head = f"{chip(f'CH{i + 1:02d} BOSS', 'black', 'lime')} {WH}{B}{m['name']}{RST}  {G1}ROUND{RST} {G4}{b['round'] + 1}{RST}"
+        tag = chip("WEEKLY DEBT", "black", "lime") if b.get("debt") else chip(f"CH{i + 1:02d} BOSS", "black", "lime")
+        head = f"{tag} {WH}{B}{m['name']}{RST}  {G1}ROUND{RST} {G4}{b['round'] + 1}{RST}"
         if b.get("phase2"):
             head += "  " + (chip("PHASE 2", "black", "white") if b.get("p2_done") else f"{G1}PHASE 1/2{RST}")
         gi = g.gim_info()
@@ -2222,16 +2295,18 @@ class PetUI:
         npc = D.NPCS.get(spk)
         if npc:
             return npc["name"], npc["color"], list(npc["art"])
+        if spk == "choice":
+            return "선택", P3["lime"], []
         return "", P3["gray"], []
 
     def _scene_other(self, idx):
         """무대 오른쪽에 설 상대: 지금 말하는 NPC/보스, 아니면 가장 최근(없으면 다음)에 말한 NPC/보스"""
         lines = self.scene["lines"]
         spk = lines[idx][0]
-        if spk not in ("pet", "narr"):
+        if spk not in ("pet", "narr", "choice"):
             return spk
         for ln in list(reversed(lines[:idx])) + list(lines[idx + 1:]):
-            if ln[0] not in ("pet", "narr"):
+            if ln[0] not in ("pet", "narr", "choice"):
                 return ln[0]
         return None
 
@@ -2283,7 +2358,13 @@ class PetUI:
         shown = int((now - sc["t0"]) * SCENE_CPS)
         typing = shown < len(text)
         # 머리줄
-        head = f"{chip(f'CH{i + 1:02d}', 'black', 'lime')} {WH}{B}{c['title']}{RST} {G1}· {PART_NAMES.get(part, part.upper())}{RST}"
+        if part == "side":
+            ep = self.g.side_ep()[0]
+            head = f"{chip('SIDE', 'black', 'navy4')} {WH}{B}{ep['title'] if ep else ''}{RST} {G1}· SIDE STORY{RST}"
+        elif part == "debt":
+            head = f"{chip('DEBT', 'black', 'lime')} {WH}{B}주간 부채 상환{RST} {G1}· WEEKLY DEBT{RST}"
+        else:
+            head = f"{chip(f'CH{i + 1:02d}', 'black', 'lime')} {WH}{B}{c['title']}{RST} {G1}· {PART_NAMES.get(part, part.upper())}{RST}"
         cnt = f"{G4}{idx + 1:02d}{RST}{G1}/{len(lines):02d}{RST}"
         strip = segbar(idx + 1, len(lines), min(len(lines), max(4, (W - 30) // 2)), on=P3["lime"]) if W >= 56 else ""
         right = cnt + (" " + strip if strip else "")
@@ -2999,6 +3080,13 @@ class PetUI:
         self._center_box(cv, W, H, f"HELLO  {self.g.p['name']}", [f"{G4}{ln}{RST}" if ln else "" for ln in lines], tone="navy4")
 
     def _summary_box(self, cv, W, H, s):
+        if s.get("debt"):
+            lines = [f"{WH}{B}{s['boss']}{RST} {G1}LV{s['lvl']}{RST}", f"{G4}{s['reason']}{RST}"]
+            ok, n_t = s.get("gim") or (0, 0)
+            if n_t:
+                lines.append(f"{G1}예고 대응{RST} {LIME if ok == n_t else G4}{B}{ok}/{n_t}{RST}")
+            self._center_box(cv, W, H, "WEEKLY DEBT", lines, tone="lime" if s.get("win") else "navy4")
+            return
         if s.get("story"):
             n = len(D.CHAPTERS)
             if s.get("win"):

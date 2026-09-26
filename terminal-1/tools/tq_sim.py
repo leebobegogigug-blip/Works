@@ -7,7 +7,7 @@ tools/tq_sim.py - TOKEN QUEST 시뮬레이터 (개발용, 배포하지 않음)
   python tools/tq_sim.py                          # 세 프로필 × 84일, 표로
   python tools/tq_sim.py --profile normal --days 70 --seed 3
   python tools/tq_sim.py --json > before.json     # 비교용
-  python tools/tq_sim.py --watch never            # 전투를 한 번도 안 보는 사람 (보스 대응 0%)
+  python tools/tq_sim.py --watch never            # 보스 예고에 한 번도 대응하지 않는 사람 (자동 대응만)
 
 프로필 = 하루 토큰 · 응답 수 · 펫을 들여다보는 간격(분). 주말은 창을 끈다 (챕터 공개는 달력대로 흐른다).
 게임 틱은 실제 엔진(t1_pet.PetGame)을 그대로 쓴다 — 가짜 시계만 넣는다.
@@ -79,7 +79,7 @@ class Player:
         if not tl or tl is self._seen_tele:
             return
         self._seen_tele = tl
-        if self.prof["watch"] is None:
+        if self.prof["watch"] is None or not self.prof.get("answer", True):
             return
         look_p = min(0.9, 6.0 / self.prof["watch"])     # 6분마다 보는 사람 90%, 20분마다 보는 사람 30%
         if self.rng.random() < look_p:
@@ -252,6 +252,11 @@ class Player:
                     g.story_mark_seen(st["ch"], part)
         if st.get("pending") is not None:
             g.story_mark_seen(st["pending"], "outro")
+        si = g.side_info()
+        if si and si["phase"] in ("new", "done"):
+            g.side_seen()                           # 사이드 에피소드: 도입 → 목표 → 마무리
+        elif si and si["ep"]["goal"]["s"] == "pats":
+            g.pat()
         if st["phase"] != "boss" or g.expd:
             return
         now = g.now()
@@ -408,7 +413,7 @@ class Work:
 def simulate(profile, days=84, seed=1, start=None, react=None, verbose=False, snap=None):
     prof = dict(PROFILES[profile])
     if react == "never":
-        prof["watch"] = None
+        prof["answer"] = False          # 돌봄 · 보스 도전은 하지만 예고에는 한 번도 대응하지 않는 사람
     rng = random.Random(seed * 7919 + len(profile))
     start = start or datetime.datetime(2026, 9, 7, DAY_START)      # 월요일
     clk = Clock(start.timestamp())
@@ -462,7 +467,8 @@ def simulate(profile, days=84, seed=1, start=None, react=None, verbose=False, sn
             g.battle = None
         st = g.story() or {}
         daily.append(dict(day=d + 1, lvl=g.p["lvl"], gold=g.s["gold"], ch=st.get("ch", 0) + 1, phase=st.get("phase"),
-                          rel=st.get("rel", 0), form=g.p["form"], cleared=len(st.get("cleared", []))))
+                          rel=st.get("rel", 0), form=g.p["form"], cleared=len(st.get("cleared", [])),
+                          side=len(st.get("side_done", []))))
         if verbose:
             x = daily[-1]
             print(f"  D{x['day']:>3} Lv{x['lvl']:>3} CH{x['ch']:02d} {x['phase']:<4} rel{x['rel']:>2} "
@@ -471,7 +477,7 @@ def simulate(profile, days=84, seed=1, start=None, react=None, verbose=False, sn
             break
     return dict(profile=profile, seed=seed, days=len(daily), last_day=daily[-1]["day"] if daily else 0,
                 chapters=_chapters(daily, ch_done, pl.attempts), attempts=pl.attempts, final=daily[-1] if daily else {},
-                secs=round(time.time() - t0, 1))
+                daily=daily, secs=round(time.time() - t0, 1))
 
 
 def duel_one(state, seed, policy="auto", fails=0, acc=0.9):
@@ -482,6 +488,7 @@ def duel_one(state, seed, policy="auto", fails=0, acc=0.9):
     clk = Clock(state.get("last_seen") or time.time())
     g = P.PetGame(f"duel-{seed}", "토큰이", clock=clk, seed=seed, persist=False)
     g.s = copy.deepcopy(state)
+    g._sanitize(quiet=True)         # 예전 엔진이 만든 저장도 지금 엔진 기본값으로
     g.s["call"] = None
     p = g.p
     p.update(sleeping=False, sick=None, energy=100.0, full=90.0)
@@ -556,7 +563,9 @@ def table(res):
         lines.append(f" {c['ch']:02d}  {c['boss_lvl']:>5}  {f(c['began'])}  {f(c['ready'], 8)}  {f(c['cleared'], 6)}"
                      f"  {f(c['clear_lvl'], 8)}  {f(c['first_lvl'], 8)}  {c['tries']:>4}/{c['losses']:<4}  {f(c.get('wait'), 6)}")
     fin = res["final"]
-    lines.append(f" 마지막: Lv{fin.get('lvl')} · {fin.get('form')} · {fin.get('gold')}G · 조각 {fin.get('cleared')}/12")
+    side_days = [next((x["day"] for x in res.get("daily", []) if x.get("side", 0) >= k), None) for k in range(1, 7)]
+    lines.append(f" 마지막: Lv{fin.get('lvl')} · {fin.get('form')} · {fin.get('gold')}G · 조각 {fin.get('cleared')}/12"
+                 f" · 사이드 {fin.get('side', 0)}/6 (끝낸 날 {', '.join(str(x) for x in side_days if x)})")
     return "\n".join(lines)
 
 
@@ -565,7 +574,7 @@ def main(argv=None):
     ap.add_argument("--profile", default="all", choices=["all"] + list(PROFILES))
     ap.add_argument("--days", type=int, default=84)
     ap.add_argument("--seed", type=int, default=1)
-    ap.add_argument("--watch", default=None, choices=[None, "never"], help="never: 펫을 한 번도 안 들여다보는 사람")
+    ap.add_argument("--watch", default=None, choices=[None, "never"], help="never: 보스 예고에 한 번도 대응하지 않는 사람")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true")
     ap.add_argument("--snap", default=None, help="보스 신호가 잡힌 순간의 저장을 이 폴더에 모은다 (duel 용)")
