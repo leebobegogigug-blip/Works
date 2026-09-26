@@ -1,5 +1,5 @@
 """t1_monitor 회귀 테스트 (서버 없이 돌아가는 부분)"""
-import argparse, os, sys, tempfile, threading, unittest
+import argparse, json, os, re, sys, tempfile, threading, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))  # 저장소 루트
 TMP = tempfile.mkdtemp()
 os.environ["LOCALAPPDATA"] = TMP
@@ -64,6 +64,24 @@ class ServerPassword(unittest.TestCase):
             self.assertEqual(M.server_password(), "from-env")
         finally:
             del os.environ["OPENCODE_SERVER_PASSWORD"]
+
+    def test_password_is_not_a_command_line_option(self):
+        # 명령줄 인자는 보안 솔루션 로그 · 작업 관리자에 남는다 (RULES.md › W-04)
+        import subprocess
+        r = subprocess.run([sys.executable, M.__file__, "status", "--password", "x", "--once", "0.1"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--password", r.stderr)
+
+
+class Version(unittest.TestCase):
+    def test_monitor_prints_the_one_version(self):
+        import subprocess
+        import t1_term
+        r = subprocess.run([sys.executable, M.__file__, "--version"], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "Terminal-1 " + t1_term.VERSION)
+        self.assertRegex(t1_term.VERSION, r"^\d+\.\d+\.\d+$")
 
 
 class ComposeBus(unittest.TestCase):
@@ -206,17 +224,44 @@ class RegDir(unittest.TestCase):
 
 
 class DataDir(unittest.TestCase):
-    def test_old_ocmux_folder_until_terminal1_moves_it(self):
+    def test_always_terminal1_folder(self):
         base = tempfile.mkdtemp()
         os.environ["LOCALAPPDATA"] = base
         try:
+            os.makedirs(os.path.join(base, "ocmux"))                         # 예전 이름의 폴더가 남아 있어도 쓰지 않는다
             self.assertEqual(M.data_dir(), os.path.join(base, "terminal-1"))
-            os.makedirs(os.path.join(base, "ocmux"))                         # 옛 ocmux 창이 열려 있어 아직 못 옮김
-            self.assertEqual(M.registry_path(), os.path.join(base, "ocmux", "instances.json"))
-            os.rename(os.path.join(base, "ocmux"), os.path.join(base, "terminal-1"))   # terminal-1.ps1 이 옮긴 뒤
             self.assertEqual(M.registry_path(), os.path.join(base, "terminal-1", "instances.json"))
         finally:
             os.environ["LOCALAPPDATA"] = TMP
+
+    def test_company_name_in_overview_header(self):
+        base = tempfile.mkdtemp()
+        os.environ["LOCALAPPDATA"] = base
+        try:
+            strip = lambda s: re.sub(r"\x1b\[[0-9;]*m", "", s)  # noqa: E731
+            head = lambda: strip(M.render_overview([], [], 100, 20)[0])  # noqa: E731
+            self.assertEqual(M.company(), "")                                   # 설정이 없으면 머리줄 그대로
+            self.assertNotIn("Acme", head())
+            os.makedirs(os.path.join(base, "terminal-1"))
+            path = os.path.join(base, "terminal-1", "settings.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"version": 1, "company": " Acme\x1b[31m Co " + "x" * 30}, f)
+            self.assertEqual(M.company(), ("Acme[31m Co " + "x" * 30)[:24])      # 제어 문자는 지우고 24자까지
+            self.assertIn("TERMINAL–1  Acme[31m Co", head())
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("{broken")
+            os.utime(path, (1, 1))
+            self.assertEqual(M.company(), "")                                   # 깨진 파일이면 없는 것으로
+        finally:
+            os.environ["LOCALAPPDATA"] = TMP
+
+    def test_tab_color_stays_in_palette(self):
+        self.assertEqual(M.fix_color("#3f77a6"), "#3F77A6")                  # 팔레트 안이면 그대로
+        self.assertEqual(M.fix_color(""), "")
+        for c in ("#EC4899", "#123456", "red"):                                # 밖이면 팔레트 안의 한 색으로, 늘 같은 색
+            self.assertIn(M.fix_color(c), M.PALETTE)
+            self.assertEqual(M.fix_color(c), M.fix_color(c.lower()))
+        self.assertEqual(M.fix_color("#EC4899"), M.PALETTE[sum(b"#EC4899") % len(M.PALETTE)])   # terminal-1.ps1 과 같은 규칙
 
 if __name__ == "__main__":
     unittest.main()

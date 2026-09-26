@@ -9,7 +9,6 @@
                                [ compose      | usage chart | TOKEN QUEST pet               ]
     ...
   In every pane: ? (F1 in compose) shows the guide - numbered callouts + legend.
-  Formerly 'ocmux': the first run moves %LOCALAPPDATA%\ocmux (registry, pets, logs) to %LOCALAPPDATA%\terminal-1.
 
 .EXAMPLE
   terminal-1 add                          # current folder, next free port
@@ -21,14 +20,16 @@
   terminal-1 rm api                       # unregister (and stop headless server)
   terminal-1 prune                        # drop offline instances
   terminal-1 setup                        # install 'Terminal-1 Black' color scheme (auto on first run)
+  terminal-1 company "Name"               # company name shown small in the overview header (this PC only; '-' clears)
+  terminal-1 version                      # print the version (VERSION in t1_term.py)
 #>
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('add', 'overview', 'ls', 'focus', 'rm', 'prune', 'setup', 'help')]
+    [ValidateSet('add', 'overview', 'ls', 'focus', 'rm', 'prune', 'setup', 'company', 'version', 'help')]
     [string]$Cmd = 'add',
     [Parameter(Position = 1)]
-    [string]$Target,                 # add: folder / focus,rm: name or port
+    [string]$Target,                 # add: folder / focus,rm: name or port / company: name ('-' clears)
     [string]$Name,
     [int]$Port = 0,
     [int]$BasePort = 4096,
@@ -57,6 +58,11 @@ $Here     = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Monitor  = Join-Path $Here 't1_monitor.py'
 $Palette  = @('#3F77A6', '#A5AAAE', '#75A1C7', '#6ABA23', '#B8CEE0', '#81888D', '#95D85A', '#45741B')  # navy first, lime is accent
 $Scheme   = 'Terminal-1 Black'
+function Get-Version {
+    # one version for the whole app: VERSION in t1_term.py (the Python panes print the same with --version)
+    $m = Select-String -LiteralPath (Join-Path $Here 't1_term.py') -Pattern '^VERSION = "([^"]+)"' | Select-Object -First 1
+    if ($m) { $m.Matches[0].Groups[1].Value } else { '?' }
+}
 
 # ------------------------------------------------------------------ output (same design language as the panes)
 function Chip([string]$t, [string]$bgc = 'Green', [string]$fgc = 'Black') {
@@ -69,47 +75,8 @@ function Say([string]$tag, [string]$msg, [string]$note = '', [string]$bgc = 'Gre
     Write-Host ''
 }
 
-# ------------------------------------------------------------------ data folder (+ the rename from ocmux)
-# This tool used to be called 'ocmux'. The first run after the rename moves %LOCALAPPDATA%\ocmux (registry,
-# pets, logs) here. While an ocmux window is still open its panes use that folder, so keep using it too and
-# try again on the next run - the Python panes follow the same rule (t1_term.data_dir) and never move it.
+# ------------------------------------------------------------------ data folder
 $DataDir  = Join-Path $env:LOCALAPPDATA 'terminal-1'
-$OldData  = Join-Path $env:LOCALAPPDATA 'ocmux'
-function Move-OldData {
-    if ((Test-Path -LiteralPath $DataDir) -or -not (Test-Path -LiteralPath $OldData)) { return }
-    $open = $false
-    if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
-        # old panes that hold no file open would not block the move, but would keep writing to the old folder
-        try { $open = [bool](Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%oc_monitor.py%'" -ErrorAction SilentlyContinue) } catch { }
-    }
-    if (-not $open) {
-        try { Move-Item -LiteralPath $OldData -Destination $DataDir -ErrorAction Stop } catch { $open = $true }
-    }
-    if ($open) {
-        $script:DataDir = $OldData
-        Say 'RENAME' 'an ocmux window is still open' 'close it, then run terminal-1 again to move the data' 'DarkGray'
-    } else {
-        Say 'RENAME' 'ocmux -> terminal-1' "moved $OldData" 'Gray'
-    }
-}
-function Update-OldPath {
-    # the user PATH still points at the old program folder (...\ocmux next to this one) -> point it here
-    $old = Join-Path (Split-Path -Parent $Here) 'ocmux'
-    if (Test-Path -LiteralPath (Join-Path $old 'ocmux.ps1')) { return }   # an old copy still lives there
-    $p = [Environment]::GetEnvironmentVariable('Path', 'User')           # (null outside Windows)
-    if (-not $p) { return }
-    $parts = @($p.Split(';') | Where-Object { $_ -ne '' })
-    if (-not ($parts | Where-Object { $_.TrimEnd('\') -ieq $old })) { return }
-    $new = @()
-    foreach ($x in $parts) {
-        $y = if ($x.TrimEnd('\') -ieq $old) { $Here } else { $x }
-        if ($new -notcontains $y) { $new += $y }
-    }
-    [Environment]::SetEnvironmentVariable('Path', ($new -join ';'), 'User')
-    Say 'PATH' "$old -> $Here" 'open a new terminal, then: terminal-1 add' 'Gray'
-}
-Move-OldData
-Update-OldPath
 $RegFile  = Join-Path $DataDir 'instances.json'
 $LogDir   = Join-Path $DataDir 'logs'
 $PwFile   = Join-Path $DataDir 'server-password'   # read by the Python panes (never put on a command line)
@@ -137,20 +104,18 @@ function Install-Scheme {
         Say 'SCHEME' "installed '$Scheme'" $fragFile
         Say 'NOTE' 'close ALL Windows Terminal windows once so WT loads the new colors' '' 'DarkGray'
     }
-    # 'ocmux Black' (the scheme before the rename): drop it once no ocmux window uses it any more
-    $oldFrag = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows Terminal\Fragments\ocmux'
-    if ($DataDir -ne $OldData -and (Test-Path -LiteralPath (Join-Path $oldFrag 'ocmux.json'))) {
-        try {
-            Remove-Item -LiteralPath (Join-Path $oldFrag 'ocmux.json') -Force
-            if (-not (Get-ChildItem -LiteralPath $oldFrag -Force)) { Remove-Item -LiteralPath $oldFrag -Force }
-            Say 'SCHEME' "removed the old 'ocmux Black'" '' 'DarkGray'
-        } catch { }
-    }
 }
 
 # ------------------------------------------------------------------ registry
-# old blue/pink tab colors -> new palette (same index), so existing instances switch palettes too
-$OldPalette = @('#3B82F6', '#EC4899', '#6366F1', '#F472B6', '#0EA5E9', '#DB2777', '#818CF8', '#D946EF')
+# a tab color outside $Palette (hand-edited registry) -> a palette color, always the same one for the same value
+# (sum of the UTF-8 bytes of the upper-case value, like t1_term.fix_color)
+function Get-PaletteColor([string]$c) {
+    $u = $c.ToUpper()
+    if ($Palette -contains $u) { return $u }
+    $sum = 0
+    foreach ($x in [Text.Encoding]::UTF8.GetBytes($u)) { $sum += $x }
+    return $Palette[$sum % $Palette.Count]
+}
 function Get-Reg {
     if (-not (Test-Path $RegFile)) { return @() }
     $raw = Get-Content $RegFile -Raw -Encoding UTF8
@@ -159,13 +124,8 @@ function Get-Reg {
     $changed = $false
     foreach ($e in $list) {
         if ($e.color) {
-            $k = [array]::IndexOf($OldPalette, ([string]$e.color).ToUpper())
-            if ($k -ge 0) { $e.color = $Palette[$k]; $changed = $true }
-        }
-        $lf = [string]$e.logfile
-        if ($lf -and $DataDir -ne $OldData -and $lf.StartsWith($OldData + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-            $e.logfile = $DataDir + $lf.Substring($OldData.Length)   # headless log moved with the data folder (ocmux -> terminal-1)
-            $changed = $true
+            $c = Get-PaletteColor ([string]$e.color)
+            if ($c -cne [string]$e.color) { $e.color = $c; $changed = $true }
         }
         if (-not ($e.PSObject.Properties.Name -contains 'ch') -or -not $e.ch) {
             # every instance gets a channel number (01, 02, ...) that never changes
@@ -408,6 +368,25 @@ switch ($Cmd) {
 }
 
 'setup' { Install-Scheme; Say 'SCHEME' "'$Scheme' ready" }
+
+'company' {
+    # shown small next to TERMINAL-1 in the overview header (t1_term.company). Kept only in this PC's data folder
+    $file = Join-Path $DataDir 'settings.json'
+    if (-not $Target) {
+        $cur = ''
+        if (Test-Path -LiteralPath $file) { try { $cur = [string](Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json).company } catch { } }
+        Say 'COMPANY' $(if ($cur) { $cur } else { '(none)' }) "terminal-1 company `"Name`" to set, terminal-1 company - to clear" 'Gray'
+        return
+    }
+    $name = if ($Target -eq '-') { '' } else { $Target.Trim() }
+    if ($name.Length -gt 24 -or $name -match '[\x00-\x1f\x7f]') { throw 'company: up to 24 characters, no control characters' }
+    $json = ConvertTo-Json -InputObject ([ordered]@{ version = 1; company = $name })
+    [System.IO.File]::WriteAllText("$file.tmp", $json, (New-Object System.Text.UTF8Encoding($false)))
+    Move-Item -LiteralPath "$file.tmp" -Destination $file -Force   # write whole or not at all
+    Say 'COMPANY' $(if ($name) { $name } else { '(none)' }) 'shown in the overview header' 'Gray'
+}
+
+'version' { "Terminal-1 $(Get-Version)" }
 
 'help' { Get-Help $PSCommandPath -Detailed | Out-String -Width 120 }  # Out-String: with redirected output pwsh 7 printed only blank lines
 }

@@ -9,9 +9,9 @@ Secretary–1 - 사내 일정 비서 (텍스트 채팅 · 내 PC에서만 동작
   python secretary-1.py --check    LLM · 캘린더 연결 점검 (설정 후 처음 한 번은 꼭)
   secretary-1.bat                  더블클릭 실행 (콘솔은 최소화됨, 그 콘솔을 닫으면 종료)
   Ctrl+Alt+J                       어디서든 Secretary–1 창 호출
-  예전 이름(jaba)의 파일 · 실행기 · 자동 실행은 처음 실행할 때 새 이름으로 옮긴다 (migrate_legacy)
   기타: --set 키=값 (설정 바꾸기) · --autostart on|off (로그인 때 자동 실행) · --status · --stop
         --no-window (창 자동 열기 끔) · --port 8765 · --config 경로.  설치 순서는 INSTALL.md
+  공개 명령: --export-events --from YYYY-MM-DD --to YYYY-MM-DD  기간 안의 일정을 JSON 으로 (다른 works 앱이 읽는다 · 읽기만)
 
 [config.json]
   llm.base_url       사내 LLM 주소 (OpenAI 호환, 보통 .../v1). OpenCode 설정의 baseURL 과 같은 값
@@ -63,6 +63,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
+import copy
 import json
 import os
 import re
@@ -91,8 +93,7 @@ from urllib.parse import parse_qs, urlparse
 
 APP = "secretary-1"          # 명령 · 파일 이름
 NAME = "Secretary–1"         # 화면에 보이는 이름
-LEGACY_APP = "jaba"          # 이름을 바꾸기 전 (migrate_legacy 가 한 번 옮긴다)
-VERSION = "0.5.0"
+VERSION = "0.7.0"
 TITLE = f"{NAME} · 일정 비서"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -138,6 +139,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "learn_file": "secretary-1-rules.json",
     "wiki_file": "secretary-1-wiki.json",
     "theme": "dark",
+    "company": "",
     "port": 8765,
     "hotkey": "ctrl+alt+j",
     "open_window": True,
@@ -150,12 +152,13 @@ class ConfigError(Exception):
 
 
 def deep_merge(base: Dict[str, Any], over: Dict[str, Any]) -> Dict[str, Any]:
-    out = dict(base)
+    """깊은 복사로 합친다 — 결과를 고쳐도 DEFAULT_CONFIG 가 바뀌지 않게 (환경 변수의 키가 기본값에 섞여 새 설정 파일로 새지 않게)"""
+    out = copy.deepcopy(base)
     for k, v in (over or {}).items():
         if isinstance(v, dict) and isinstance(out.get(k), dict):
             out[k] = deep_merge(out[k], v)
         else:
-            out[k] = v
+            out[k] = copy.deepcopy(v)
     return out
 
 
@@ -199,7 +202,7 @@ def load_config(path: str = CONFIG_PATH) -> Tuple[Dict[str, Any], bool]:
         created = True
     cfg = deep_merge(DEFAULT_CONFIG, user)
     for key in ("base_url", "api_key", "model"):
-        val = os.environ.get("SECRETARY_" + key.upper()) or os.environ.get("JABA_" + key.upper())  # JABA_*: 예전 이름
+        val = os.environ.get("SECRETARY_" + key.upper())
         if val:
             cfg["llm"][key] = val
     validate_config(cfg)
@@ -231,6 +234,11 @@ def validate_config(cfg: Dict[str, Any]) -> None:
     cfg["theme"] = str(cfg.get("theme") or "dark").strip().lower()
     if cfg["theme"] not in ("dark", "light", "system"):
         raise ConfigError('theme 는 "dark", "light", "system" 중 하나여야 합니다')
+    company = cfg.get("company")   # 화면 위 이름 아래에 작게 넣는 회사 이름 — 저장소에는 넣지 않고 이 PC 설정에만
+    if company is not None and (not isinstance(company, str) or len(company.strip()) > 24
+                                or re.search(r"[\x00-\x1f\x7f]", company)):
+        raise ConfigError("company 는 24자까지의 글자여야 합니다 (예: --set company=회사이름 · 비우려면 --set company=)")
+    cfg["company"] = (company or "").strip()
     al = cfg.get("alerts")
     if not isinstance(al, dict):
         raise ConfigError("alerts 는 { } 객체여야 합니다")
@@ -450,6 +458,25 @@ class LocalCalendar:
             self.db.close()
         except Exception:
             pass
+
+
+class ReadOnlyLocalCalendar(LocalCalendar):
+    """공개 명령(--export-events)용 — DB 파일을 만들거나 고치지 않고 읽기만 한다. 파일이 없으면 빈 달력"""
+
+    def __init__(self, path: str):  # LocalCalendar.__init__ 은 표를 만들고 저장하므로 부르지 않는다
+        self.path = path
+        self.db = None
+        if os.path.exists(path):
+            uri = "file:" + urllib.request.pathname2url(os.path.abspath(path)) + "?mode=ro"
+            self.db = sqlite3.connect(uri, uri=True)
+            self.db.row_factory = sqlite3.Row
+
+    def list_events(self, start: datetime, end: datetime) -> List[Event]:
+        return [] if self.db is None else super().list_events(start, end)
+
+    def close(self) -> None:
+        if self.db is not None:
+            super().close()
 
 
 def _com_dt(v: Any) -> datetime:
@@ -2648,7 +2675,7 @@ class App:
 
     def render_index(self) -> bytes:
         al = self.cfg.get("alerts") or {}
-        boot = {"version": VERSION, "title": TITLE,
+        boot = {"version": VERSION, "title": TITLE, "company": self.cfg.get("company") or "",
                 "alerts": {"enabled": bool(al.get("enabled", True)), "with_location": al.get("with_location", []),
                            "without_location": al.get("without_location", []),
                            "poll_ms": int(float(al.get("poll_sec", 10)) * 1000)}}
@@ -3008,7 +3035,7 @@ def _port_free(port: int) -> bool:
 
 
 def find_running(port: int, apps: Tuple[str, ...] = (APP,)) -> Optional[str]:
-    """port~port+9 에서 켜져 있는 비서의 주소. apps 에 LEGACY_APP 을 넣으면 예전 이름(jaba)으로 켜진 것도 찾는다"""
+    """port~port+9 에서 켜져 있는 비서의 주소"""
     if not port:
         return None
     for p in range(port, port + 10):
@@ -3144,7 +3171,6 @@ def focus_or_open(url: str) -> None:
 
 def ensure_launcher() -> None:
     """더블클릭용 secretary-1.bat 을 스크립트 옆에 만든다 (콘솔은 최소화). 적힌 파이썬이 사라졌으면 다시 만든다."""
-    _drop_legacy_launcher()
     path = os.path.join(BASE_DIR, APP + ".bat")
     if os.path.exists(path):
         try:
@@ -3177,107 +3203,6 @@ def ensure_launcher() -> None:
         log(f"실행기 생성: {path} (다음부터는 더블클릭)")
     except OSError:
         pass
-
-
-def _drop_legacy_launcher() -> None:
-    """예전 이름의 실행기(jaba.bat)는 이제 없는 jaba.py 를 가리킨다 → 우리가 만든 것이면 지운다"""
-    old = os.path.join(BASE_DIR, LEGACY_APP + ".bat")
-    if not os.path.exists(old) or os.path.exists(os.path.join(BASE_DIR, LEGACY_APP + ".py")):
-        return
-    try:
-        with open(old, "rb") as f:
-            ours = b'start "jaba" /min' in f.read()
-        if ours:
-            os.remove(old)
-            log(f"예전 실행기 {LEGACY_APP}.bat 을 지웠습니다 → 이제 {APP}.bat")
-    except OSError:
-        pass
-
-
-# 예전 이름(jaba) 기본 파일 → 새 이름. config.json 에 적힌 값이 예전 기본값이거나 비어 있을 때만 (직접 정한 경로는 그대로)
-LEGACY_FILES = (("calendar", "local_db", "jaba.db", "secretary-1.db"),
-                ("", "learn_file", "jaba_rules.json", "secretary-1-rules.json"),
-                ("", "wiki_file", "jaba_wiki.json", "secretary-1-wiki.json"))
-
-
-def migrate_legacy(config_path: str = CONFIG_PATH) -> List[str]:
-    """jaba → Secretary–1: 일정 DB · 학습 규칙 · 위키 파일 이름을 바꾸고 config.json 도 맞춘다. 옮긴 것 목록을 돌려준다.
-    예전 비서가 켜져 있으면 파일을 잡고 있으니 먼저 꺼야 한다 (main 이 처리). 새 이름 파일이 이미 있으면 건드리지 않는다"""
-    try:
-        user = _read_user_config(config_path)
-    except Exception:
-        return []
-    done: List[str] = []
-    changed = False
-    for sect, key, old, new in LEGACY_FILES:
-        box = user.get(sect) if sect else user
-        if not isinstance(box, dict) or box.get(key) not in (None, "", old):
-            continue
-        src, dst = resolve_path(old), resolve_path(new)
-        if os.path.exists(src):
-            if os.path.exists(dst):
-                continue  # 둘 다 있으면 사람이 고를 일 — 예전 설정 그대로 둔다
-            try:
-                os.replace(src, dst)
-                if os.path.exists(src + "-journal"):  # 끝나지 않은 SQLite 기록도 함께 (따로 두면 DB 가 깨질 수 있다)
-                    os.replace(src + "-journal", dst + "-journal")
-            except OSError as e:
-                log(f"{old} → {new} 이름 바꾸기 실패 (예전 파일을 그대로 씁니다): {e}")
-                continue
-            done.append(f"{old} → {new}")
-        if box.get(key) == old:
-            box[key] = new
-            changed = True
-    if changed:
-        try:
-            _write_json(config_path, user)
-        except OSError as e:
-            log(f"config.json 에 새 파일 이름을 적지 못했습니다: {e}")
-    return done
-
-
-def adopt_legacy_dir(config_path: str = CONFIG_PATH) -> List[str]:
-    """예전엔 저장소를 따로 받았다 (D:\\OPENCODE\\jaba). 이제 Works 안의 secretary-1 폴더에서 처음 켜면
-    옆의 ../jaba 에서 설정 · 일정 · 학습 · 위키를 가져온다. 이 폴더에 config.json 이 아직 없을 때만 (덮어쓰지 않음).
-    파일 이름은 그다음 migrate_legacy 가 새 이름으로 바꾼다. 가져온 것 목록을 돌려준다"""
-    old_dir = os.path.join(os.path.dirname(BASE_DIR), LEGACY_APP)
-    old_cfg = os.path.join(old_dir, "config.json")
-    if (os.path.exists(config_path) or not os.path.isfile(old_cfg)
-            or os.path.normcase(os.path.abspath(old_dir)) == os.path.normcase(os.path.abspath(BASE_DIR))):
-        return []
-    try:
-        port = int(_read_user_config(old_cfg).get("port") or 8765)
-    except Exception:
-        port = 8765
-    if find_running(port, (LEGACY_APP, APP)):  # 예전 폴더의 비서가 DB 를 잡고 있으면 먼저 끈다
-        log("예전 폴더(jaba)의 비서를 끄고 설정 · 데이터를 가져옵니다")
-        if stop_running(port, (LEGACY_APP, APP), quiet=True) != 0:
-            log("예전 비서를 끄지 못해 이번엔 가져오지 않습니다 (그 창을 닫고 다시 실행하세요)")
-            return []
-    done: List[str] = []
-    for name in ("config.json", "jaba.db", "jaba.db-journal", "jaba_rules.json", "jaba_wiki.json",
-                 "secretary-1.db", "secretary-1.db-journal", "secretary-1-rules.json", "secretary-1-wiki.json"):
-        src, dst = os.path.join(old_dir, name), os.path.join(BASE_DIR, name)
-        if os.path.exists(src) and not os.path.exists(dst):
-            try:
-                shutil.move(src, dst)
-                done.append(name)
-            except OSError as e:
-                log(f"{src} 를 옮기지 못했습니다: {e}")
-    return done
-
-
-def migrate_autostart() -> None:
-    """예전 이름의 자동 실행(jaba.lnk → 없어진 jaba.bat)이 있으면 secretary-1.lnk 로 바꿔 단다 (Windows)"""
-    try:
-        old = os.path.join(startup_dir(), LEGACY_APP + ".lnk")
-    except Exception:
-        return
-    if os.path.exists(old) and set_autostart(True) == 0:
-        try:
-            os.remove(old)
-        except OSError:
-            pass
 
 
 # ─────────────────────────────────────────────────────────────── 설치 도우미 (--setup · --set · --autostart)
@@ -3593,13 +3518,10 @@ def set_autostart(on: bool) -> int:
         return 1
     try:
         lnk = os.path.join(startup_dir(), APP + ".lnk")
-        legacy = os.path.join(startup_dir(), LEGACY_APP + ".lnk")
     except Exception as e:
         print(f"자동 실행: {e}")
         return 1
     if not on:
-        if os.path.exists(legacy):  # 예전 이름으로 걸어 둔 것도 함께 푼다
-            os.remove(legacy)
         if os.path.exists(lnk):
             os.remove(lnk)
             print(f"자동 실행 해제: {lnk} 삭제")
@@ -3637,9 +3559,8 @@ def wait_running(port: int, seconds: float = 0.0) -> Optional[str]:
         time.sleep(0.5)
 
 
-def stop_running(port: int, apps: Tuple[str, ...] = (APP, LEGACY_APP), quiet: bool = False) -> int:
-    """실행 중인 비서를 끈다 (업데이트 전 · 에이전트용). 로컬 화면이 쓰는 토큰으로 /api/shutdown 호출.
-    예전 이름(jaba)으로 켜진 것도 끈다 — 그쪽은 토큰 이름이 jaba-token · X-Jaba-Token 이다."""
+def stop_running(port: int, apps: Tuple[str, ...] = (APP,), quiet: bool = False) -> int:
+    """실행 중인 비서를 끈다 (업데이트 전 · 에이전트용). 로컬 화면이 쓰는 토큰으로 /api/shutdown 호출."""
     say: Callable[[str], None] = (lambda _m: None) if quiet else print
     url = find_running(port, apps)
     if not url:
@@ -3647,12 +3568,11 @@ def stop_running(port: int, apps: Tuple[str, ...] = (APP, LEGACY_APP), quiet: bo
         return 0
     try:
         with _LOCAL_OPENER.open(url, timeout=5) as r:
-            m = re.search(r'name="(?:secretary|jaba)-token" content="([^"]+)"', r.read().decode("utf-8", "replace"))
+            m = re.search(r'name="secretary-token" content="([^"]+)"', r.read().decode("utf-8", "replace"))
         if not m:
             raise ValueError("토큰을 찾지 못했습니다")
         req = urllib.request.Request(url + "api/shutdown", data=b"{}", method="POST",
-                                     headers={"X-Secretary-Token": m.group(1), "X-Jaba-Token": m.group(1),
-                                              "Content-Type": "application/json"})
+                                     headers={"X-Secretary-Token": m.group(1), "Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=5) as r:
             r.read()
     except Exception as e:
@@ -3665,6 +3585,58 @@ def stop_running(port: int, apps: Tuple[str, ...] = (APP, LEGACY_APP), quiet: bo
         time.sleep(0.25)
     say("끄기 요청은 보냈지만 아직 켜져 있습니다.")
     return 1
+
+
+# ─────────────────────────────────────────────────────────────── 공개 명령 (다른 works 앱이 읽는 것)
+# 대장(docs/REGISTRY.md › 공개 명령)에 올린 약속이다. 모양을 바꾸면 EXPORT_FORMAT 을 올리고 대장 · MANUAL 도 고친다.
+
+EXPORT_FORMAT = 1
+
+
+def export_events(config_path: str, date_from: str, date_to: str) -> int:
+    """--export-events: 기간(--from 부터 --to 까지, 두 날 모두 포함) 안의 일정을 JSON 한 줄로 표준 출력에 쓴다.
+    읽기만 한다 — 설정 · DB 파일을 만들거나 고치지 않고, 실행기 만들기도 하지 않는다.
+    일정의 메모는 내주지 않는다. 로그는 표준 오류로 보내 JSON 을 더럽히지 않는다. 종료 코드 0 성공 · 1 실패 · 2 사용법"""
+    out: Dict[str, Any] = {"app": APP, "version": VERSION, "format": EXPORT_FORMAT}
+    code = 0
+    with contextlib.redirect_stdout(sys.stderr):
+        try:
+            d0 = datetime.strptime(str(date_from or ""), "%Y-%m-%d")
+            d1 = datetime.strptime(str(date_to or ""), "%Y-%m-%d") + timedelta(days=1)
+            if d1 <= d0:
+                raise ValueError
+        except ValueError:
+            out["error"] = "--from · --to 는 YYYY-MM-DD 이고, --to 가 --from 보다 앞서면 안 됩니다"
+            code = 2
+        else:
+            try:
+                user = _read_user_config(config_path) if os.path.exists(config_path) else {}
+                c = deep_merge(DEFAULT_CONFIG, user).get("calendar") or {}
+                if str(c.get("backend", "local")).lower() == "outlook":
+                    cal: Any = CalendarService(deep_merge(DEFAULT_CONFIG, user))
+                    if not cal.ok:
+                        raise RuntimeError(cal.error)
+                    backend = "outlook"
+                else:
+                    cal = ReadOnlyLocalCalendar(resolve_path(str(c.get("local_db") or "secretary-1.db")))
+                    backend = "local"
+                try:
+                    evs = cal.list_events(d0, d1)
+                finally:
+                    cal.close()
+                out.update({"backend": backend, "from": fmt_iso(d0), "to": fmt_iso(d1), "events": [
+                    {"id": e.id, "title": e.title, "start": fmt_iso(e.start), "end": fmt_iso(e.end),
+                     "all_day": e.all_day, "location": e.location, "recurring": e.recurring} for e in evs]})
+            except Exception as e:
+                out["error"] = f"일정을 읽지 못했습니다: {e}"
+                code = 1
+    data = (json.dumps(out, ensure_ascii=False) + "\n").encode("utf-8")   # 콘솔 코드 페이지와 상관없이 UTF-8
+    try:
+        sys.stdout.buffer.write(data)
+        sys.stdout.buffer.flush()
+    except AttributeError:
+        sys.stdout.write(data.decode("utf-8"))
+    return code
 
 
 # ─────────────────────────────────────────────────────────────── 점검 · 진입점
@@ -3740,41 +3712,31 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="config.json 값 바꾸기 (여러 번 가능, 예: --set alerts.windows_toast=false)")
     ap.add_argument("--autostart", choices=("on", "off"), help="로그인할 때 창 없이 자동 실행 등록/해제")
     ap.add_argument("--status", action="store_true", help="실행 중인지 확인 (막 켰으면 몇 초 기다림)")
-    ap.add_argument("--stop", action="store_true", help="실행 중인 비서 끄기 (예전 이름 jaba 로 켜진 것도)")
+    ap.add_argument("--stop", action="store_true", help="실행 중인 비서 끄기")
     ap.add_argument("--port", type=int, help="포트 (기본 config.port)")
     ap.add_argument("--no-window", action="store_true", help="창 자동 열기 끔")
     ap.add_argument("--test-notify", action="store_true", help="윈도우 알림 테스트")
     ap.add_argument("--config", default=CONFIG_PATH, help="설정 파일 경로")
     ap.add_argument("--version", action="version", version=f"Secretary-1 {VERSION}")
+    ap.add_argument("--export-events", action="store_true",
+                    help="공개 명령: --from ~ --to (YYYY-MM-DD, 둘 다 포함) 일정을 JSON 으로 표준 출력에 (읽기만)")
+    ap.add_argument("--from", dest="date_from", default="", help="--export-events: 시작 날짜 YYYY-MM-DD")
+    ap.add_argument("--to", dest="date_to", default="", help="--export-events: 끝 날짜 YYYY-MM-DD (포함)")
     args = ap.parse_args(argv)
-    if not (args.status or args.stop) and os.path.abspath(args.config) == os.path.abspath(CONFIG_PATH):
-        for m in adopt_legacy_dir(args.config):
-            log(f"예전 jaba 폴더에서 가져옴: {m}")
+    if args.export_events:  # 다른 앱이 부르는 읽기 전용 명령 — 아래의 설정 만들기 · 실행기 만들기 같은 부작용보다 먼저
+        return export_events(args.config, args.date_from, args.date_to)
     try:
         cfg, created = load_config(args.config)
     except ConfigError as e:
         log(f"설정 오류: {e}")
         return 2
     port = args.port if args.port is not None else int(cfg.get("port") or 8765)
-    if not (args.status or args.stop):
-        # 예전 이름(jaba)에서 넘어온 첫 실행: 켜져 있는 예전 비서를 끄고 → 데이터 파일 이름을 옮긴다
-        legacy_on = bool(find_running(port, (LEGACY_APP,)))
-        if legacy_on:
-            log("예전 이름(jaba)으로 켜져 있는 비서를 끄고 Secretary-1 로 옮깁니다")
-            legacy_on = stop_running(port, (LEGACY_APP,), quiet=True) != 0
-        if legacy_on:
-            log("예전 비서를 끄지 못해 이번엔 파일 이름을 그대로 둡니다 (그 창을 닫고 다시 실행하세요)")
-        else:
-            for m in migrate_legacy(args.config):
-                log(f"예전 이름 파일 옮김: {m}")
-            cfg, _ = load_config(args.config)
     if created:
         log(f"config.json 을 만들었습니다 → {args.config}")
         if not args.setup:
             log("llm.base_url / llm.model / llm.api_key 를 채우면 대화가 켜집니다 (일정 화면은 지금도 동작).")
     if IS_WINDOWS:
         ensure_launcher()
-        migrate_autostart()
     if args.set:
         rc = set_config_values(args.config, args.set)
         if rc or not (args.check or args.setup):
@@ -4187,6 +4149,7 @@ body.off::after{content:"Secretary–1 · off — secretary-1.bat 으로 다시 
 .lbl b{background:var(--prime);color:var(--prime-ink);padding:0 3px;text-shadow:none;letter-spacing:0}
 .lbl i{flex:1;height:1px;background:var(--prime)}
 .lbl em{font-style:normal;color:var(--ink-2)}
+.lbl .brand{color:var(--ink-2);text-transform:none;letter-spacing:0;text-shadow:var(--b);white-space:nowrap}  /* 회사 이름 (config.company) — 줄이 짧아질 뿐 배치는 그대로 */
 .chat .lbl{margin:12px 0 2px}
 
 /* 01 화면: 모서리 재단선 · 흰 숫자 · 라임은 콜론만 */
@@ -4325,7 +4288,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:va
     </span>
     <span class="clock"><span id="clock-date"></span><span id="clock-time" role="img" aria-label="--:--"></span></span>
   </header>
-  <div class="lbl"><b>01</b>next<i></i><em>T−</em></div>
+  <div class="lbl"><b>01</b>next<i></i><span class="brand" id="brand" hidden></span><em>T−</em></div>
   <section class="lcd" id="next-box" aria-label="다음 일정">
     <i class="crop ca"></i><i class="crop cb"></i><i class="crop cc"></i><i class="crop cd"></i>
     <div class="lcd-top"><span id="next-k">next</span><span id="next-meta"></span><button class="wk" id="next-wiki" type="button" title="이 일정 위키 (Alt+W)" hidden>위키</button><span id="next-when"></span></div>
@@ -4391,6 +4354,7 @@ const TOKEN = document.querySelector('meta[name="secretary-token"]').content;
 let BOOT = {};
 try { BOOT = JSON.parse(document.getElementById('boot').textContent || '{}'); } catch (e) {}
 const TITLE = BOOT.title || 'Secretary–1 · 일정 비서';
+if (BOOT.company) { const b = document.getElementById('brand'); b.textContent = BOOT.company; b.hidden = false; }
 const ALERTS = BOOT.alerts || {with_location: [15, 5, 1], without_location: [5, 1], poll_ms: 10000, enabled: true};
 const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const WD = ['일','월','화','수','목','금','토'];

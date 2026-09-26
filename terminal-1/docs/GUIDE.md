@@ -39,6 +39,8 @@ Screenshots: [channel tab](images/channel-tab.png) · [overview tab](images/over
 | `terminal-1 rm api` | unregister (stops a headless server; the pet's save stays) |
 | `terminal-1 prune` | drop offline channels |
 | `terminal-1 setup` | install the `Terminal-1 Black` color scheme |
+| `terminal-1 company "Name"` | company name shown small in the overview header (this PC only; `-` clears) |
+| `terminal-1 version` | print the version (`VERSION` in `t1_term.py`) |
 
 ```
 PS> terminal-1 ls
@@ -52,10 +54,8 @@ Channel numbers are given once and never change (a removed channel's number is r
 Options: `-Port` `-BasePort` `-NoOverview` `-Python "py -3"` · layout: `-RightWidth 0.5` `-BottomHeight 0.42`
 `-GameWidth 0.58` `-ComposeHeight 0.30` `-Compact` (no bottom row) `-NoPet` (monitor only, usage fills the bottom row) `-NoLogs` `-NoCompose`
 
-**Coming from `ocmux`:** the tool was renamed. After `git pull`, run `D:\OPENCODE\terminal-1\terminal-1.cmd setup` once — it moves
-`%LOCALAPPDATA%\ocmux` (registry, pets, raids, headless logs) to `%LOCALAPPDATA%\terminal-1`, points the user PATH at the new folder,
-and swaps the `ocmux Black` scheme for `Terminal-1 Black`. While an old ocmux window is still open it keeps using the old folder and
-moves it on a later run.
+**Coming from `ocmux`:** the tool was renamed. The automatic move was removed in 1.1.0 — close every ocmux window, move
+`%LOCALAPPDATA%\ocmux` to `%LOCALAPPDATA%\terminal-1` once by hand, then run `D:\OPENCODE\terminal-1\terminal-1.cmd setup` (MANUAL › 예전 이름(ocmux) 설치).
 
 ## 03 layout
 
@@ -85,47 +85,32 @@ moves it on a later run.
 
 ## 04 design rules
 
-Seven rules, applied to every pane. They follow the design philosophy of small hardware instruments (synths, samplers,
-pocket recorders): one screen per job, colors that point at controls, numbered parts, nothing hidden.
-No product's screens or logos are copied.
+Terminal–1 follows the works design spec. The seven principles, the palette and the icon table live in one place,
+[docs/DESIGN.md](../../docs/DESIGN.md) (Korean — the single source; principle names below are quoted from it).
+This section only says where each principle shows up in Terminal–1.
+The screen grammar is inspired by small hardware instruments (synths, samplers, pocket recorders); no product's screens
+or logos are copied, and there is no affiliation with any maker.
 
-| # | rule | where you see it |
+| # | principle | where you see it |
 |---|---|---|
-| 1 | **one screen = one mode, 4 big values** | pet: 4 needs · status/overview: 4 token readouts (IN OUT CACHE COST) · usage: tokens/min |
-| 2 | **color = control** — a value drawn in a key's color is changed by that key | pet: `F`①포만 `P`②기분 `Z`③체력 `M`④건강 · compose: `^P`① `^S`② `^R`③ `^L`④ · tokens: ①IN ②OUT ③CACHE ④COST |
-| 3 | **numbered parts + guide** — every region has a number; `?` shows callouts + legend | every pane (`F1` in compose) |
-| 4 | **nothing hidden** — real system state, small | status: `rtt` `poll` `ev` · overview: `sse` `rtt` · pet: Dex → Settings → `02 SYS` (save age, fps) |
-| 5 | **instant feedback** — keys light up, regions blink when something happens | pressed keycap turns lime · `●` LED next to LOG/EVENTS/SESSIONS · compose border flashes the key's color · REC LED |
-| 6 | **square grid** — square corners, 1-cell gaps, leading zeros, small units | spec tables (Dex → Profile, token readouts) · `01` channels · `0145` tape counter |
-| 7 | **one icon map** — status symbols come only from the table below | events, sessions, pet, ranch, `terminal-1 ls` |
+| 1 | **한 화면 = 한 모드** (one screen = one mode, 4 big values) | pet: 4 needs · status/overview: 4 token readouts (IN OUT CACHE COST) · usage: tokens/min |
+| 2 | **색 = 조작** (color = control — a value drawn in a key's color is changed by that key) | pet: `F`①포만 `P`②기분 `Z`③체력 `M`④건강 · compose: `^P`① `^S`② `^R`③ `^L`④ · tokens: ①IN ②OUT ③CACHE ④COST |
+| 3 | **번호 붙은 구역** (numbered parts — every region has a number; `?` shows callouts + legend) | every pane (`F1` in compose) |
+| 4 | **엔지니어링을 숨기지 않기** (nothing hidden — real system state, small) | status: `rtt` `poll` `ev` · overview: `sse` `rtt` · pet: Dex → Settings → `02 SYS` (save age, fps) |
+| 5 | **즉각 반응** (instant feedback — keys light up, regions blink when something happens) | pressed keycap turns lime · `●` LED next to LOG/EVENTS/SESSIONS · compose border flashes the key's color · REC LED |
+| 6 | **사각 격자** (square grid — square corners, 1-cell gaps, leading zeros, small units) | spec tables (Dex → Profile, token readouts) · `01` channels · `0145` tape counter |
+| 7 | **캐릭터** (one character per app) | the TQ–1 pet in every channel · the ranch in `00 overview` |
 
-### 04.1 color map
+### 04.1 colors
 
-| | color | hex | meaning |
-|---|---|---|---|
-| ① | blue | `#75A1C7` | encoder 1 · IN · 포만 `F` · `^P` put |
-| ② | green (lime) | `#6ABA23` | encoder 2 · OUT · 기분 `P` · `^S` send · also *on / active / selected* |
-| ③ | white | `#F2F2F3` | encoder 3 · CACHE · 체력 `Z` · `^R` restore · also *warning* blocks |
-| ④ | gray | `#A5AAAE` | encoder 4 · COST · 건강 `M` · `^L` clear |
-| | navy | `#002341` → `#B8CEE0` | bars, cards, tracks, lines |
-| | grays | `#35383B` → `#D4D6D8` | text, labels, dark keycaps |
+Navy · lime · gray on pure black, and no red: warnings are the brightest white. Navy is the primary color (number badges,
+pane labels, bars); lime only means *on / busy / selected*. Values are in [DESIGN.md › 02](../../docs/DESIGN.md#02-색).
+The four encoder colors map to: ① IN · 포만 `F` · `^P` put — ② OUT · 기분 `P` · `^S` send — ③ CACHE · 체력 `Z` · `^R` restore — ④ COST · 건강 `M` · `^L` clear.
 
-Palette = the three reference swatches (navy · lime · gray) plus their lighter/darker steps, on pure black.
-Navy is the primary color (number badges, pane labels, bars); lime is only for *on / busy / selected*.
-There is no red: warnings are the brightest white. The schedule assistant [Secretary–1](../../secretary-1/README.md) uses the same palette and rules.
+### 04.2 icons
 
-### 04.2 icon map
-
-| icon | meaning | icon | meaning |
-|---|---|---|---|
-| `●` | on · online · activity LED | `○` | off · offline |
-| `◐` | running (spins) | `▶` | tool started · selected |
-| `√` | done | `×` | error · failed |
-| `‼` | waiting for **you** (permission / question) | `⊠` | todo |
-| `⇣` | context compacted | `!` | pet call |
-| `▮` | one LED step | `◆` | boss floor · chapter boss |
-| `☼` | cleared · critical hit · bonus mission done | `⋆` | bonus mission open |
-| `◇` | place caption in story talks | | |
+Status symbols come only from `ICON` in `t1_term.py`, which follows the icon table in [DESIGN.md › 03](../../docs/DESIGN.md#03-아이콘).
+Every one of them is one cell wide in GNU Unifont.
 
 ### 04.3 widgets
 
@@ -313,9 +298,10 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 119 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 125 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `terminal-1.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `terminal-1.ps1` with Windows PowerShell 5.1
+- works rules check (repo root): `python tools/works_check.py` — see [RULES.md](../../RULES.md)
 - one-frame snapshot of any pane, for screenshots or checks without a live terminal:
   `py -3 t1_monitor.py rpg --name demo --once 1 --cols 80 --rows 24` (add `--guide` to show the `?` guide)
 - `t1_monitor.py` modes: `status` `overview` `logs` `usage` `rpg` `compose` — `py -3 t1_monitor.py -h` lists every flag

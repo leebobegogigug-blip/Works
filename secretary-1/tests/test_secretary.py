@@ -173,15 +173,53 @@ class TestConfig(unittest.TestCase):
                 json.dump({"theme": " System "}, f)
             self.assertEqual(sec.load_config(path)[0]["theme"], "system")
 
+    def test_company_name_is_a_setting_not_in_the_repo(self):
+        self.assertEqual(sec.DEFAULT_CONFIG["company"], "")                    # 저장소에는 회사 이름이 없다 (W-12)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "config.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"company": "  작은 회사 </script>  "}, f)
+            cfg, _ = sec.load_config(path)
+            self.assertEqual(cfg["company"], "작은 회사 </script>")
+            app_cfg = cfg_for(os.path.join(d, "s.db"), open_window=False, hotkey="", company=cfg["company"])
+            app = sec.App(app_cfg)                               # DB 는 임시 폴더에 (프로그램 폴더에 만들지 않게)
+            try:
+                html = app.render_index().decode("utf-8")
+            finally:
+                app.cal.close()   # Windows 는 열린 DB 파일이 있으면 임시 폴더를 못 지운다
+            self.assertNotIn("작은 회사 </script>", html)                     # 설정 글자가 스크립트를 닫지 못한다
+            self.assertIn('"company": "작은 회사 <\\/script>"', html)
+            self.assertIn('<i></i><span class="brand" id="brand" hidden></span><em>T−</em>', html)
+            for bad in ("가" * 25, "줄\n바꿈", 3):
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump({"company": bad}, f)
+                with self.assertRaises(sec.ConfigError, msg=repr(bad)):
+                    sec.load_config(path)
+
+    def test_env_key_never_leaks_into_defaults_or_new_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.environ["SECRETARY_API_KEY"] = "leak-me"
+            try:
+                a = os.path.join(d, "a.json")
+                with open(a, "w", encoding="utf-8") as f:
+                    json.dump({"theme": "dark"}, f)                          # llm 칸이 없는 설정 파일
+                self.assertEqual(sec.load_config(a)[0]["llm"]["api_key"], "leak-me")
+                self.assertEqual(sec.DEFAULT_CONFIG["llm"]["api_key"], "")    # 기본값에 섞이지 않고
+                sec.load_config(os.path.join(d, "b.json"))
+                with open(os.path.join(d, "b.json"), encoding="utf-8") as f:
+                    self.assertNotIn("leak-me", f.read())                     # 새로 만드는 설정 파일로 새지 않는다
+            finally:
+                os.environ.pop("SECRETARY_API_KEY", None)
+
     def test_env_override(self):
         with tempfile.TemporaryDirectory() as d:
-            os.environ["JABA_API_KEY"] = "secret-from-old-env"   # 예전 이름도 계속 읽는다
+            os.environ["JABA_API_KEY"] = "secret-from-old-env"   # 예전 이름의 환경 변수는 더 읽지 않는다
             try:
                 cfg, _ = sec.load_config(os.path.join(d, "config.json"))
-                self.assertEqual(cfg["llm"]["api_key"], "secret-from-old-env")
+                self.assertEqual(cfg["llm"]["api_key"], "")
                 os.environ["SECRETARY_API_KEY"] = "secret-from-env"
                 cfg, _ = sec.load_config(os.path.join(d, "config.json"))
-                self.assertEqual(cfg["llm"]["api_key"], "secret-from-env")  # 새 이름이 우선
+                self.assertEqual(cfg["llm"]["api_key"], "secret-from-env")
             finally:
                 os.environ.pop("JABA_API_KEY", None)
                 os.environ.pop("SECRETARY_API_KEY", None)
@@ -1868,8 +1906,8 @@ class TestSetup(unittest.TestCase):
             sec.BASE_DIR = saved
 
 
-class TestLegacyJaba(unittest.TestCase):
-    """이름을 바꾸기 전(jaba) 설치에서 넘어올 때: 파일 · 실행기 · 켜져 있는 예전 비서"""
+class TestLauncherAndStop(unittest.TestCase):
+    """실행기(secretary-1.bat)와 --stop — 예전 이름(jaba)의 흔적은 더 찾지도 끄지도 않는다"""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -1883,82 +1921,21 @@ class TestLegacyJaba(unittest.TestCase):
     def path(self, name):
         return os.path.join(self.tmp.name, name)
 
-    def write(self, name, text):
-        with open(self.path(name), "w", encoding="utf-8") as f:
-            f.write(text)
-
-    def test_migrate_files_and_config(self):
-        cfg = self.path("config.json")
-        with open(cfg, "w", encoding="utf-8") as f:  # 첫 실행 때 기본값 전체가 적힌 예전 config.json
-            json.dump(sec.deep_merge(sec.DEFAULT_CONFIG, {"calendar": {"local_db": "jaba.db"},
-                                                          "learn_file": "jaba_rules.json", "wiki_file": "jaba_wiki.json"}), f)
-        cal = sec.LocalCalendar(self.path("jaba.db"))
-        cal.create_event("주간 회의", datetime(2026, 9, 28, 10), datetime(2026, 9, 28, 11))
-        cal.close()
-        self.write("jaba_rules.json", '{"rules": []}')
-        with contextlib.redirect_stdout(io.StringIO()):
-            moved = sec.migrate_legacy(cfg)
-        self.assertEqual(moved, ["jaba.db → secretary-1.db", "jaba_rules.json → secretary-1-rules.json"])
-        self.assertFalse(os.path.exists(self.path("jaba.db")))
-        loaded, _ = sec.load_config(cfg)
-        self.assertEqual((loaded["calendar"]["local_db"], loaded["learn_file"], loaded["wiki_file"]),
-                         ("secretary-1.db", "secretary-1-rules.json", "secretary-1-wiki.json"))
-        cal = sec.LocalCalendar(self.path("secretary-1.db"))
-        try:
-            self.assertEqual([e.title for e in cal.list_events(datetime(2026, 9, 28), datetime(2026, 9, 29))], ["주간 회의"])
-        finally:
-            cal.close()
-        self.assertEqual(sec.migrate_legacy(cfg), [])  # 두 번째부터는 할 일 없음
-
-    def test_migrate_leaves_custom_paths_and_conflicts(self):
-        cfg = self.path("config.json")
-        with open(cfg, "w", encoding="utf-8") as f:
-            json.dump({"calendar": {"local_db": "D:/my/cal.db"}, "learn_file": "jaba_rules.json"}, f)
-        self.write("jaba_rules.json", "old")
-        self.write("secretary-1-rules.json", "new")   # 둘 다 있으면 고르지 않는다
-        self.write("jaba_wiki.json", "wiki")           # 설정에 없으면 기본값(새 이름)으로 옮긴다
-        with contextlib.redirect_stdout(io.StringIO()):
-            moved = sec.migrate_legacy(cfg)
-        self.assertEqual(moved, ["jaba_wiki.json → secretary-1-wiki.json"])
-        with open(cfg, encoding="utf-8") as f:
-            user = json.load(f)
-        self.assertEqual((user["calendar"]["local_db"], user["learn_file"]), ("D:/my/cal.db", "jaba_rules.json"))
-        self.assertNotIn("wiki_file", user)
-
-    def test_adopt_separate_jaba_folder(self):
-        """예전엔 D:\\OPENCODE\\jaba 에 따로 받았다 → Works 의 secretary-1 폴더에서 처음 켜면 옆 폴더에서 가져온다"""
-        old, new = self.path("jaba"), self.path("secretary-1")
-        os.makedirs(old)
-        os.makedirs(new)
-        with open(os.path.join(old, "config.json"), "w", encoding="utf-8") as f:
-            json.dump({"calendar": {"local_db": "jaba.db"}, "learn_file": "jaba_rules.json", "port": 1}, f)
-        for name in ("jaba.db", "jaba_rules.json"):
-            with open(os.path.join(old, name), "w") as f:
-                f.write(name)
-        sec.BASE_DIR = new
-        cfg = os.path.join(new, "config.json")
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(sec.adopt_legacy_dir(cfg), ["config.json", "jaba.db", "jaba_rules.json"])
-            sec.migrate_legacy(cfg)
-        self.assertEqual(sorted(os.listdir(new)), ["config.json", "secretary-1-rules.json", "secretary-1.db"])
-        self.assertEqual(os.listdir(old), [])
-        self.assertEqual(sec.adopt_legacy_dir(cfg), [])   # config.json 이 생긴 뒤로는 다시 가져오지 않는다
-
-    def test_old_launcher_is_removed(self):
-        self.write("jaba.bat", '@echo off\r\nstart "jaba" /min "python" "%~dp0jaba.py" %*\r\n')
-        self.write("mine.bat", "@echo off")
+    def test_launcher_is_made_and_other_files_are_left(self):
+        with open(self.path("mine.bat"), "w", encoding="utf-8") as f:
+            f.write("@echo off")
         with contextlib.redirect_stdout(io.StringIO()):
             sec.ensure_launcher()
-        self.assertFalse(os.path.exists(self.path("jaba.bat")))
-        self.assertTrue(os.path.exists(self.path("secretary-1.bat")))
+        with open(self.path("secretary-1.bat"), "rb") as f:
+            self.assertIn(b'start "secretary-1" /min', f.read())
         self.assertTrue(os.path.exists(self.path("mine.bat")))
 
-    def test_stops_running_old_jaba(self):
-        """예전 비서는 ping 에 app=jaba, 화면에 jaba-token, 끄기에 X-Jaba-Token 을 쓴다"""
+    def test_stop_uses_page_token_and_ignores_other_apps(self):
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
         stopped = threading.Event()
+        app = {"name": "jaba"}
 
-        class Old(BaseHTTPRequestHandler):
+        class Fake(BaseHTTPRequestHandler):
             def log_message(self, *a):
                 pass
 
@@ -1972,23 +1949,28 @@ class TestLegacyJaba(unittest.TestCase):
 
             def do_GET(self):
                 if self.path == "/api/ping":
-                    return self.reply(json.dumps({"app": "jaba", "version": "0.4.0"}))
-                self.reply('<meta name="jaba-token" content="t0k">', "text/html")
+                    return self.reply(json.dumps({"app": app["name"], "version": "0.6.0"}))
+                meta = "secretary-token" if app["name"] == "secretary-1" else "jaba-token"
+                self.reply(f'<meta name="{meta}" content="t0k">', "text/html")
 
             def do_POST(self):
                 self.rfile.read(int(self.headers.get("Content-Length") or 0))
-                ok = self.path == "/api/shutdown" and self.headers.get("X-Jaba-Token") == "t0k"
+                ok = self.path == "/api/shutdown" and self.headers.get("X-Secretary-Token") == "t0k"
                 self.reply("{}")
                 if ok:
                     stopped.set()
                     threading.Thread(target=srv.shutdown, daemon=True).start()
 
-        srv = ThreadingHTTPServer(("127.0.0.1", 0), Old)
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
         port = srv.server_address[1]
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
-            self.assertIsNone(sec.find_running(port))                     # 새 이름만 찾으면 안 보이고
-            self.assertTrue(sec.find_running(port, (sec.LEGACY_APP,)))    # 예전 이름으로 찾으면 보인다
+            self.assertIsNone(sec.find_running(port))                     # 다른 이름(예전 jaba)으로 켜진 것은 모른다
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(sec.stop_running(port, quiet=True), 0)
+            self.assertFalse(stopped.is_set())
+            app["name"] = "secretary-1"
+            self.assertTrue(sec.find_running(port))
             rc = sec.stop_running(port, quiet=True)
         finally:
             srv.server_close()
@@ -2314,6 +2296,64 @@ class TestAgentWiki(AgentBase):
         item = sch.tick()[0]
         self.assertEqual(item["wiki"], "w1")
         self.assertTrue(n.shown[0][1].endswith("· 준비: 견적서, 노트북"))
+
+
+class ExportEvents(unittest.TestCase):
+    """공개 명령 --export-events: 다른 works 도구가 읽는 약속 (docs/REGISTRY.md › 공개 명령). 실제 프로세스로 실행해 바이트를 본다"""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.db = os.path.join(self.dir, "cal.db")
+        self.cfg = os.path.join(self.dir, "config.json")
+        with open(self.cfg, "w", encoding="utf-8") as f:
+            json.dump({"calendar": {"backend": "local", "local_db": self.db}}, f)
+
+    def run_export(self, *args, config=None):
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "secretary-1.py"), "--export-events", *args,
+                            "--config", config or self.cfg], capture_output=True, timeout=60,
+                           env=dict(os.environ, PYTHONIOENCODING="cp949"))   # 콘솔 코드 페이지가 달라도 UTF-8 로 나와야 한다
+        return r.returncode, json.loads(r.stdout.decode("utf-8"))
+
+    def test_events_in_range_without_notes(self):
+        cal = sec.LocalCalendar(self.db)
+        cal.create_event("주간회의", datetime(2026, 9, 21, 10), datetime(2026, 9, 21, 11), location="3A", notes="비밀 메모")
+        cal.create_event("고객사 방문", datetime(2026, 9, 27, 23), datetime(2026, 9, 28, 1))
+        cal.create_event("다음 주", datetime(2026, 9, 28, 9), datetime(2026, 9, 28, 10))
+        cal.close()
+        code, out = self.run_export("--from", "2026-09-21", "--to", "2026-09-27")
+        self.assertEqual(code, 0, out)
+        self.assertEqual((out["app"], out["format"], out["backend"]), ("secretary-1", sec.EXPORT_FORMAT, "local"))
+        self.assertEqual([e["title"] for e in out["events"]], ["주간회의", "고객사 방문"])   # --to 날짜는 끝까지 포함
+        self.assertEqual(out["events"][0]["location"], "3A")
+        self.assertNotIn("notes", out["events"][0])
+        self.assertNotIn("비밀 메모", json.dumps(out, ensure_ascii=False))
+
+    def test_reads_only(self):
+        cal = sec.LocalCalendar(self.db)
+        cal.create_event("주간회의", datetime(2026, 9, 21, 10), datetime(2026, 9, 21, 11))
+        cal.close()
+        with open(self.db, "rb") as f:
+            before = f.read()
+        self.assertEqual(self.run_export("--from", "2026-09-21", "--to", "2026-09-21")[0], 0)
+        with open(self.db, "rb") as f:
+            self.assertEqual(f.read(), before)
+        self.assertEqual(sorted(os.listdir(self.dir)), ["cal.db", "config.json"])
+
+    def test_nothing_is_created_when_missing(self):
+        missing = os.path.join(self.dir, "none", "config.json")
+        code, out = self.run_export("--from", "2026-09-21", "--to", "2026-09-27", config=missing)
+        self.assertEqual((code, out["events"]), (0, []))
+        self.assertFalse(os.path.exists(missing))
+        code, out = self.run_export("--from", "2026-09-21", "--to", "2026-09-27")
+        self.assertEqual((code, out["events"]), (0, []))
+        self.assertFalse(os.path.exists(self.db))
+
+    def test_bad_dates(self):
+        code, out = self.run_export("--from", "2026-09-27", "--to", "2026-09-21")
+        self.assertEqual(code, 2)
+        self.assertIn("--from", out["error"])
+        self.assertEqual(self.run_export("--from", "9/21", "--to", "2026-09-27")[0], 2)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

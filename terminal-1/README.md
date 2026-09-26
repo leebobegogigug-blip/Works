@@ -59,8 +59,7 @@ TOKEN QUEST · 채널마다 펫 한 마리 · -PETNAME<br>
 미니게임 네 가지 · 장비 +10 강화 · 방 꾸미기<br>
 메인 스토리 12챕터 · 매주 한 장 · 커밋 조각 12개<br>
 은퇴 · 명예의 전당 · 다음 세대<br>
-예전 이름(OCMUX) 데이터 · PATH · 테마 자동 이전<br>
-테스트 119 · WINDOWS + UBUNTU CI
+테스트 125 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -186,11 +185,11 @@ opencode 의 할 일은 메인 퀘스트, 허락 대기는 "결재 부탁!" 팻�
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/page/palette-dark.png">
-    <img src="docs/images/page/palette-light.png" width="880" alt="팔레트: 인코더 네 색(파랑 #75A1C7 · 라임 #6ABA23 · 흰색 #F2F2F3 · 회색 #A5AAAE)과 네이비 · 라임 · 회색 밝기 단계">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/palette-dark.png">
+    <img src="../docs/page/palette-light.png" width="880" alt="팔레트: 인코더 네 색(파랑 #75A1C7 · 라임 #6ABA23 · 흰색 #F2F2F3 · 회색 #A5AAAE)과 네이비 · 라임 · 회색 밝기 단계">
   </picture>
 </p>
-<p align="center"><sub>PALETTE · Secretary–1 과 같은 표</sub></p>
+<p align="center"><sub>PALETTE · works 공통 · <a href="../docs/DESIGN.md">DESIGN.md</a></sub></p>
 
 <br>
 
@@ -206,8 +205,8 @@ Terminal–1 은 works 시스템의 한 부품입니다.<br>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/page/system-dark.jpg">
-    <img src="docs/images/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST 를 나란히">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/system-dark.jpg">
+    <img src="../docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST, Report–1 을 나란히">
   </picture>
 </p>
 
@@ -232,15 +231,15 @@ TOKEN QUEST 7장 「야근의 탑」의 챕터 보스는 크런치 타임 거인
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/page/parts-dark.jpg">
-    <img src="docs/images/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/parts-dark.jpg">
+    <img src="../docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫 · Report–1 근거 달린 보고서">
   </picture>
 </p>
 
 <p align="center">
-<a href="../secretary-1/README.md">Secretary–1 ›</a> &nbsp;·&nbsp;
 <a href="docs/MANUAL.md">Terminal–1 ›</a> &nbsp;·&nbsp;
-<a href="docs/MANUAL.md#06-token-quest">TQ–1 token quest ›</a>
+<a href="docs/MANUAL.md#06-token-quest">TQ–1 token quest ›</a> &nbsp;·&nbsp;
+<a href="../README.md">works 의 다른 부품 ›</a>
 </p>
 
 <br>
@@ -257,7 +256,7 @@ TOKEN QUEST 7장 「야근의 탑」의 챕터 보스는 크런치 타임 거인
 <tr><td>보안</td><td>서버 비밀번호는 명령줄 대신 파일로 · compose 로 보낸 글은 디스크에 남기지 않음</td></tr>
 <tr><td>저장</td><td><code>%LOCALAPPDATA%\terminal-1\</code> — <code>instances.json</code> · <code>pet-*.json</code> · <code>raid-*.json</code> · <code>poll-*.json</code></td></tr>
 <tr><td>화면</td><td>Terminal-1 Black 색 테마 · GNU Unifont 15.1.01 추천 · 폭 1칸 아이콘만</td></tr>
-<tr><td>테스트</td><td>unittest 119 · <code>terminal-1.ps1</code> 실제 실행(pwsh · 가짜 wt) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
+<tr><td>테스트</td><td>unittest 125 · <code>terminal-1.ps1</code> 실제 실행(pwsh · 가짜 wt) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>
@@ -280,32 +279,30 @@ terminal-1 add       # 현재 폴더 → 새 채널 (처음이면 00 overview �
 
 <p align="center">처음 <code>terminal-1 add</code> 뒤에는 Windows Terminal 창을 모두 한 번 닫았다가 여세요. <code>Terminal-1 Black</code> 테마가 그때 로드됩니다.</p>
 
-<p align="center"><sub>예전 이름(ocmux)으로 쓰고 있었다면: <code>git pull</code> 뒤 <code>D:\OPENCODE\terminal-1\terminal-1.cmd setup</code> 한 번. 데이터 폴더 · PATH · 색 테마가 새 이름으로 옮겨집니다 (펫 저장 그대로) — <a href="docs/MANUAL.md#예전-이름ocmux에서-넘어올-때">자세히</a></sub></p>
-
 <br>
 
 <h3 align="center">설치비 0원 · pip install 0번*<br>반품은 terminal-1 rm 한 번*</h3>
 
-<p align="center"><sub>*opencode · Windows Terminal · Python 은 따로. <code>terminal-1 rm</code> 은 등록을 풀고 headless 서버를 끕니다 — 펫 저장은 남습니다. 정이 들었으니까요.</sub></p>
+<p align="center"><sub>*opencode · Windows Terminal · Python 은 따로. <code>terminal-1 rm</code> 은 등록을 풀고 headless 서버를 끕니다 — 펫 저장은 남습니다. 정이 들었으니까요. PATH · 색 테마까지 걷어 내는 순서는 <a href="INSTALL.md#제거">INSTALL.md › 제거</a></sub></p>
 
 <br>
 
 <table align="center">
 <tr><td width="620"><a href="docs/MANUAL.md">매뉴얼</a> <sub>· 명령 · 레이아웃 · 키 · 화면 · 구조</sub></td><td align="right" width="40">›</td></tr>
-<tr><td><a href="INSTALL.md">설치 가이드</a> <sub>· opencode 에이전트용 단계별 절차</sub></td><td align="right">›</td></tr>
+<tr><td><a href="INSTALL.md">설치 가이드</a> <sub>· opencode 에이전트용 단계별 절차 · 업데이트 · 제거</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#06-token-quest">TOKEN QUEST</a> <sub>· 돌봄 · 진화 · 모험 · 레이드 · 메인 스토리</sub></td><td align="right">›</td></tr>
-<tr><td><a href="docs/MANUAL.md#07-디자인">디자인</a> <sub>· 규칙 일곱 가지 · 색 · 움직임</sub></td><td align="right">›</td></tr>
+<tr><td><a href="../docs/DESIGN.md">디자인</a> <sub>· works 공통 원칙 일곱 가지 · 팔레트 · 이 앱에서는 <a href="docs/MANUAL.md#07-디자인">MANUAL › 07</a></sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/GUIDE.md">GUIDE (English)</a> <sub>· detailed manual</sub></td><td align="right">›</td></tr>
 <tr><td><a href="https://github.com/leebobegogigug-blip/Works/issues">문제 알리기</a> <sub>· 이슈</sub></td><td align="right">›</td></tr>
-<tr><td><a href="../secretary-1/README.md">Secretary–1</a> <sub>· works 시스템의 다른 부품</sub></td><td align="right">›</td></tr>
+<tr><td><a href="../README.md">works</a> <sub>· 시스템 전체 · 다른 부품</sub></td><td align="right">›</td></tr>
 </table>
 
 <br>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/page/colophon-dark.png">
-    <img src="docs/images/page/colophon-light.png" width="880" alt="works — 매일 쓰는 사내 도구를 만드는 작은 작업실. D:\OPENCODE\ · 127.0.0.1 · 내 PC">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/colophon-dark.png">
+    <img src="../docs/page/colophon-light.png" width="880" alt="works — 매일 쓰는 사내 도구를 만드는 작은 작업실. D:\OPENCODE\ · 127.0.0.1 · 내 PC">
   </picture>
 </p>
 

@@ -62,8 +62,8 @@ OPENCODE 설정에서 LLM 값 가져오기 · --SETUP<br>
 빨강 없는 팔레트 · 네이비 · 라임 · 회색<br>
 설치는 OPENCODE 에게 · INSTALL.MD<br>
 가짜 LLM 서버로 도는 브라우저 E2E<br>
-예전 이름(JABA) 데이터 자동 이전<br>
-단위 테스트 119 · WINDOWS + UBUNTU CI
+공개 명령 · 일정 JSON · --EXPORT-EVENTS<br>
+단위 테스트 123 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -186,11 +186,11 @@ Secretary–1 의 화면은 다음 일정까지 남은 시간만 7세그먼트�
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/page/palette-dark.png">
-    <img src="docs/page/palette-light.png" width="880" alt="팔레트: 인코더 네 색(파랑 #75A1C7 · 라임 #6ABA23 · 흰색 #F2F2F3 · 회색 #A5AAAE)과 네이비 · 라임 · 회색 밝기 단계">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/palette-dark.png">
+    <img src="../docs/page/palette-light.png" width="880" alt="팔레트: 인코더 네 색(파랑 #75A1C7 · 라임 #6ABA23 · 흰색 #F2F2F3 · 회색 #A5AAAE)과 네이비 · 라임 · 회색 밝기 단계">
   </picture>
 </p>
-<p align="center"><sub>PALETTE · Terminal–1 과 같은 표</sub></p>
+<p align="center"><sub>PALETTE · works 공통 · <a href="../docs/DESIGN.md">DESIGN.md</a></sub></p>
 
 <br>
 
@@ -206,8 +206,8 @@ Secretary–1 은 works 시스템의 한 부품입니다.<br>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/page/system-dark.jpg">
-    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST 를 나란히">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/system-dark.jpg">
+    <img src="../docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST, Report–1 을 나란히">
   </picture>
 </p>
 
@@ -232,15 +232,14 @@ Secretary–1 은 works 시스템의 한 부품입니다.<br>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/page/parts-dark.jpg">
-    <img src="docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/parts-dark.jpg">
+    <img src="../docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫 · Report–1 근거 달린 보고서">
   </picture>
 </p>
 
 <p align="center">
 <a href="#specs">Secretary–1 ›</a> &nbsp;·&nbsp;
-<a href="../terminal-1/README.md">Terminal–1 ›</a> &nbsp;·&nbsp;
-<a href="../terminal-1/docs/MANUAL.md#06-token-quest">TQ–1 token quest ›</a>
+<a href="../README.md">works 의 다른 부품 ›</a>
 </p>
 
 <br>
@@ -260,7 +259,7 @@ Secretary–1 은 works 시스템의 한 부품입니다.<br>
 <tr><td>키</td><td><code>Ctrl+Alt+J</code> 전역 · <code>Alt+1–4</code> · <code>Alt+D</code> · <code>Alt+M</code> · <code>Alt+W</code> · <code>Ctrl+Z</code></td></tr>
 <tr><td>테마</td><td>dark (기본) · light · system — 둘 다 네이비 주색 · 라임 강조</td></tr>
 <tr><td>글꼴</td><td>Secretary1DOS — GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1</td></tr>
-<tr><td>테스트</td><td>단위 · 통합 119 · 브라우저 E2E (가짜 LLM) · CI Windows + Ubuntu</td></tr>
+<tr><td>테스트</td><td>단위 · 통합 123 · 브라우저 E2E (가짜 LLM) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>
@@ -290,32 +289,30 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 
 <p align="center">그다음부터는 <code>secretary-1.bat</code> 더블클릭, 또는 어디서든 <b>Ctrl+Alt+J</b>.</p>
 
-<p align="center"><sub>예전 이름(jaba)으로 쓰고 있었다면 <code>git pull</code> 뒤 <code>python secretary-1.py</code> 한 번이면 일정 · 학습 · 위키 · 실행기 · 자동 실행이 새 이름으로 옮겨집니다 — <a href="INSTALL.md#예전-이름jaba에서-넘어올-때">INSTALL.md › 예전 이름(jaba)에서 넘어올 때</a></sub></p>
-
 <br>
 
-<h3 align="center">설치비 0원 · 의존성 0개*<br>반품은 폴더를 지우면 끝*</h3>
+<h3 align="center">설치비 0원 · 의존성 0개*<br>반품은 두 줄이면 끝*</h3>
 
-<p align="center"><sub>*Outlook 연동 때만 <code>pywin32</code>. 자동 실행을 켰다면 먼저 <code>--autostart off</code> — 자세한 순서는 <a href="INSTALL.md#제거">INSTALL.md › 제거</a></sub></p>
+<p align="center"><sub>*Outlook 연동 때만 <code>pywin32</code>. <code>--stop</code> · <code>--autostart off</code> 두 줄이면 조용해지고, 일정 · 설정 파일 정리는 <a href="INSTALL.md#제거">INSTALL.md › 제거</a></sub></p>
 
 <br>
 
 <table align="center">
 <tr><td width="620"><a href="INSTALL.md">설치 가이드</a> <sub>· OpenCode 에이전트용 단계별 절차 · 문제 해결</sub></td><td align="right" width="40">›</td></tr>
 <tr><td><a href="docs/MANUAL.md">매뉴얼</a> <sub>· 설정 · 쓰는 법 · 명령어 · 화면</sub></td><td align="right">›</td></tr>
-<tr><td><a href="docs/MANUAL.md#디자인--terminal1-과-같은-규칙">디자인</a> <sub>· Terminal–1 과 같은 규칙 일곱 가지 · 팔레트</sub></td><td align="right">›</td></tr>
+<tr><td><a href="../docs/DESIGN.md">디자인</a> <sub>· works 공통 원칙 일곱 가지 · 팔레트</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#개발">개발</a> <sub>· build.py · 테스트 · 브라우저 E2E</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#알려진-한계">알려진 한계</a></td><td align="right">›</td></tr>
 <tr><td><a href="https://github.com/leebobegogigug-blip/Works/issues">문제 알리기</a> <sub>· 이슈</sub></td><td align="right">›</td></tr>
-<tr><td><a href="../terminal-1/README.md">Terminal–1</a> <sub>· works 시스템의 다른 부품</sub></td><td align="right">›</td></tr>
+<tr><td><a href="../README.md">works</a> <sub>· 시스템 전체 · 다른 부품</sub></td><td align="right">›</td></tr>
 </table>
 
 <br>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/page/colophon-dark.png">
-    <img src="docs/page/colophon-light.png" width="880" alt="works — 매일 쓰는 사내 도구를 만드는 작은 작업실. D:\OPENCODE\ · 127.0.0.1 · 내 PC">
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/page/colophon-dark.png">
+    <img src="../docs/page/colophon-light.png" width="880" alt="works — 매일 쓰는 사내 도구를 만드는 작은 작업실. D:\OPENCODE\ · 127.0.0.1 · 내 PC">
   </picture>
 </p>
 
