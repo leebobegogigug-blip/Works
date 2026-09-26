@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""브라우저 E2E: 가짜 LLM + 가짜 Secretary–1(공개 명령) + 진짜 git + Report–1 실제 프로세스 + Chromium.
+"""브라우저 E2E: 가짜 LLM + Report–1 실제 프로세스 + Chromium.
 
   pip install playwright && python -m playwright install chromium
   python tests/e2e_ui.py            흐름 확인 + 스크린샷 (SHOT_DIR, 기본 shots/)
@@ -14,7 +14,6 @@ import sys
 import tempfile
 import time
 import urllib.request
-from datetime import date, timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -25,7 +24,24 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 OUT = os.environ.get("SHOT_DIR", os.path.join(ROOT, "shots"))
 PAGES = os.path.join(ROOT, "docs", "page")
 LOCAL = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-W, H = 1100, 820
+W, H = 1180, 820
+
+# 지어낸 예시 자료 (사내 정보 아님 · RULES.md › W-12)
+MAIL = """보낸 사람: 김대리 <kim@example.com>
+받는 사람: 운영팀
+제목: 결제 서버 응답 지연 보고
+
+안녕하세요. 공유드립니다.
+
+9월 12일 14:05부터 14:47까지 결제 서버 응답이 느려졌습니다. 영향 받은 주문은 1,240건입니다.
+원인은 DB 연결 풀 고갈로 보입니다. 연결 풀 크기를 40에서 80으로 늘린 뒤 정상화됐습니다.
+
+> 지난 메일 인용
+"""
+CHAT = ("[김대리] [오후 2:10] 결제 느린 거 저만 그런가요\n[박과장] [오후 2:11] 저도요 DB 쪽 확인 중\n"
+        "[김대리] [오후 2:15] 풀 크기 늘렸습니다\n[박과장] [오후 2:47] 정상화 확인, 재발 방지책은 내일 회의에서\n")
+TABLE = "시각\t응답 시간(ms)\t실패 주문\n14:00\t180\t0\n14:20\t2,400\t610\n14:40\t1,900\t630\n15:00\t190\t0\n"
+MEMO = "내일 10시 재발 방지 회의 · 모니터링 알림 기준 다시 정할 것"
 
 
 def free_port():
@@ -36,55 +52,14 @@ def free_port():
     return p
 
 
-def git(repo, *args, when=None):
-    env = dict(os.environ)
-    if when:
-        env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = when
-    subprocess.run(["git", "-C", repo, *args], check=True, capture_output=True, env=env)
-
-
-def seed(tmp):
-    """이번 주 월요일 기준의 커밋 · 일정 — 언제 돌려도 '이번 주' 안에 들어간다"""
-    mon = date.today() - timedelta(days=date.today().weekday())
-    work = os.path.join(tmp, "work")
-    for repo, commits in (("api-server", [("로그인 토큰 만료 처리", 0), ("토큰 갱신 실패 로그 정리", 1), ("만료 시각 테스트 추가", 2)]),
-                          ("web-front", [("대시보드 차트 색 정리", 1), ("차트 범례 겹침 수정", 3)])):
-        path = os.path.join(work, repo)
-        os.makedirs(path)
-        git(path, "init", "-q")
-        git(path, "config", "user.email", "me@example.com")
-        git(path, "config", "user.name", "Me")
-        for msg, d in commits:
-            with open(os.path.join(path, "f.txt"), "a", encoding="utf-8") as f:
-                f.write(msg + "\n")
-            git(path, "add", "f.txt")
-            git(path, "commit", "-q", "-m", msg, when=f"{mon + timedelta(days=d)}T{10 + d}:00:00")
-    evs = [("주간회의", 0, "10:00", "3A"), ("고객사 미팅 · 견적 검토", 2, "14:00", "본사 5층"),
-           ("주간회의", 7, "10:00", "3A"), ("분기 계획 리뷰", 9, "15:00", "")]
-    events = [{"id": f"L{i}", "title": t, "start": f"{mon + timedelta(days=d)}T{h}", "end": f"{mon + timedelta(days=d)}T{h}",
-               "all_day": False, "location": loc, "recurring": t == "주간회의"} for i, (t, d, h, loc) in enumerate(evs, 1)]
-    sec = os.path.join(tmp, "sec", "secretary-1.py")
-    os.makedirs(os.path.dirname(sec))
-    with open(sec, "w", encoding="utf-8") as f:
-        f.write("import json, sys\na = sys.argv\nf, t = a[a.index('--from') + 1], a[a.index('--to') + 1]\n"
-                f"evs = [e for e in json.loads({json.dumps(events, ensure_ascii=False)!r}) if f <= e['start'][:10] <= t]\n"
-                "sys.stdout.buffer.write((json.dumps({'app': 'secretary-1', 'version': '0.6.0', 'format': 1, "
-                "'backend': 'local', 'events': evs}, ensure_ascii=False) + '\\n').encode('utf-8'))\n")
-    return work, sec
-
-
 def start_app(tmp, llm, theme="dark"):
-    run = tempfile.mkdtemp(prefix=theme + "-", dir=tmp)   # 켤 때마다 새 폴더 (저장소 · 설정 · 일지)
+    run = tempfile.mkdtemp(prefix=theme + "-", dir=tmp)   # 켤 때마다 새 데이터 폴더
     home = os.path.join(run, "home")
     os.makedirs(home)
-    work, sec = seed(run)
     with open(os.path.join(home, "config.json"), "w", encoding="utf-8") as f:
-        json.dump({"llm": {"base_url": llm.url, "model": "fake-model"}, "theme": theme, "idle_exit_min": 0,
-                   "user_name": "김개발", "sources": {"git": {"roots": [work]}, "calendar": {"secretary": sec}}}, f)
+        json.dump({"llm": {"base_url": llm.url, "model": "fake-model"}, "theme": theme, "idle_exit_min": 0}, f)
     port = free_port()
-    env = dict(os.environ, REPORT_HOME=home, PYTHONUNBUFFERED="1", GIT_CONFIG_NOSYSTEM="1",
-               GIT_CONFIG_GLOBAL=os.path.join(run, "gitconfig"))
-    open(env["GIT_CONFIG_GLOBAL"], "a").close()
+    env = dict(os.environ, REPORT_HOME=home, PYTHONUNBUFFERED="1")
     proc = subprocess.Popen([sys.executable, os.path.join(ROOT, "report-1.py"), "--no-window", "--port", str(port)],
                             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     url = f"http://127.0.0.1:{port}/"
@@ -92,7 +67,7 @@ def start_app(tmp, llm, theme="dark"):
         try:
             with LOCAL.open(url + "api/ping", timeout=1) as r:
                 if json.loads(r.read())["app"] == "report-1":
-                    return proc, url
+                    return proc, url, home
         except Exception:
             time.sleep(0.25)
     proc.kill()
@@ -105,85 +80,165 @@ def check(cond, msg):
     print(f"  √ {msg}")
 
 
-def flow(page, llm, shots):
-    page.wait_for_selector(".src")
-    check(page.locator(".src").count() >= 7, "근거: 커밋 · 일정 · 다음 일정이 모인다")
-    check("W" in page.inner_text("#wk"), "LCD 에 주차")
-    page.fill("#jin", "신입 온보딩 문서 초안 작성")
-    page.press("#jin", "Enter")
-    page.wait_for_selector(".src:has-text('신입 온보딩 문서 초안 작성')")
-    check(True, "오늘 한 일 → 일지 근거")
+def paste(page, text, target="body"):
+    """Ctrl+V 흉내 — 붙여 넣기 이벤트를 그대로 보낸다 (헤드리스 브라우저는 시스템 클립보드가 없다)"""
+    page.evaluate("""([sel, text]) => { const dt = new DataTransfer(); dt.setData('text/plain', text);
+        document.querySelector(sel).dispatchEvent(new ClipboardEvent('paste', {clipboardData: dt, bubbles: true, cancelable: true})); }""",
+                  [target, text])
+
+
+def disk_has(folder, needle):
+    for dp, _, fs in os.walk(folder):
+        for f in fs:
+            with open(os.path.join(dp, f), "rb") as fh:
+                if needle.encode("utf-8") in fh.read():
+                    return True
+    return False
+
+
+def fill(page):
+    page.fill("#topic", "9월 결제 서버 응답 지연")
+    page.press("#topic", "Enter")
+    paste(page, MAIL)
+    page.wait_for_selector(".card >> nth=0")
+    paste(page, CHAT, "#drop")
+    page.wait_for_selector(".card >> nth=1")
+    paste(page, TABLE)
+    page.wait_for_selector(".card >> nth=2")
+    page.fill("#drop", MEMO)
+    page.press("#drop", "Control+Enter")
+    page.wait_for_selector(".card >> nth=3")
+
+
+def flow(page, llm, home, shots):
+    page.wait_for_selector("#pastes .hello")
+    fill(page)
+    check(page.locator(".card").count() == 4, "붙여 넣기 → 자료 넷 (화면 어디서든 · 붙여 넣는 칸 · 메모 Ctrl+Enter)")
+    kinds = page.locator(".card .chip.navy").all_inner_texts()
+    check([k.split(" · ")[1] for k in kinds] == ["메일", "대화", "표", "메모"], f"자료 종류를 알아본다 {kinds}")
+    check("메일 인용 1줄" in page.inner_text(".card >> nth=0"), "메일 인용(>) 줄은 건너뛴다")
+    paste(page, MAIL)
+    page.wait_for_selector(".toast:has-text('이미 붙여 넣은 조각뿐')")
+    check(page.locator(".card").count() == 4, "같은 메일을 또 붙이면 새 자료를 만들지 않는다")
+    check("err" in page.get_attribute("#led-save", "class"), "보관 LED: 보관 안 한 자료 있음")
+    check(not os.path.isdir(os.path.join(home, "topics")) and not disk_has(home, "DB 연결 풀"),
+          "보관 전에는 원문이 디스크에 없다 (W-05)")
+    check("/ 20,000자" in page.inner_text("#meter-t"), "자료 계기판")
+    shots("1-sources")
+
+    llm.mode = "good"
     page.click("#draft")
-    page.wait_for_selector(".ln .txt")
-    check(page.inner_text("#mode") == "LLM", "초안: 사내 LLM (가짜)")
-    check(page.locator("#errs").is_hidden(), "근거 없는 줄 없음")
-    check(page.locator(".ln .ref").count() >= 5, "줄마다 근거 칩")
-    first = page.locator(".ln .ref").first
-    first.hover()
-    check(page.locator(".src.hl").count() == 1, "근거 칩에 올리면 근거 줄이 켜진다")
-    page.mouse.move(5, 5)
-    shots("1-draft")
-    page.keyboard.press("Control+s")
+    page.wait_for_selector(".ln .ref")
+    check(page.locator(".sec-h").first.inner_text() == "□ 요약", "초안: 맨 위는 요약")
+    for chip in ("추론", "확인", "빈칸"):
+        check(page.locator(f".ln .chip:has-text('{chip}')").count() >= 1, f"'{chip}' 줄")
+    check(page.locator(".ln.err").count() == 0 and not page.is_disabled("#ok"), "근거 없는 줄 없음 · 확정 가능")
+    ref = page.locator(".ln .ref").first
+    rid = ref.inner_text()
+    ref.hover()
+    check(page.locator(f".fr.hl[data-id='{rid}']").count() == 1, "근거 칩에 올리면 조각이 켜진다")
+    shots("2-draft")
+
+    page.click("#ok")
     page.wait_for_selector(".seal")
-    check(page.is_visible("#undo"), "확정 → 도장 · 되돌리기")
-    copied = page.evaluate("navigator.clipboard.readText()")
-    check(copied.startswith("■ 금주 실적"), "확정하면 보고서 글이 클립보드로")
-    shots("2-confirmed")
+    clip = page.evaluate("navigator.clipboard.readText()")
+    check(clip.startswith("9월 결제 서버 응답 지연\n\n□ 요약\n  ○ "), "확정 → 보고서 글이 클립보드로")
     page.click("#undo")
     page.wait_for_selector(".seal", state="detached")
-    check(page.locator("#undo").is_hidden(), "20초 안에 되돌리기")
+    check(page.locator(".toast:has-text('되돌렸습니다')").count() == 1, "20초 안에 되돌리기")
+
+    first = page.locator(".card >> nth=0").locator(".fr").first
+    fid = first.get_attribute("data-id")
+    llm.requests.clear()
+    first.locator("input").uncheck()
+    page.wait_for_selector(f".fr.off[data-id='{fid}']")
+    page.wait_for_timeout(300)
+    check(fid not in page.locator(".ln .ref").all_inner_texts(), "체크를 푼 조각은 근거에서 빠진다")
+    page.click("#draft")
+    page.wait_for_selector(".ln .ref")
+    sent = json.dumps(llm.requests, ensure_ascii=False)
+    check(f"[{fid}]" not in sent and "[p2]" in sent, "체크를 푼 조각은 사내 LLM 에 보내지 않는다")
+    first.locator("input").check()
+    page.wait_for_selector(f".fr:not(.off)[data-id='{fid}']")
 
     llm.mode = "lie"
     page.click("#draft")
     page.wait_for_selector(".chip.err:has-text('ERR 근거 없음')")
-    check(page.is_disabled("#ok"), "지어낸 실적(ERR)이 있으면 확정 못 함")
+    check(page.is_disabled("#ok"), "지어낸 사실(ERR)이 있으면 확정 못 함")
     shots("3-err")
     bad = page.locator(".ln.err .txt").first
     bad.click()
     page.keyboard.press("End")
-    page.keyboard.type(" (고객 설문 기준)")
+    page.keyboard.type(" (다음 주 측정 예정)")
     page.keyboard.press("Enter")
-    page.wait_for_selector(".chip.navy:has-text('직접')")
-    page.wait_for_function("!document.querySelector('#ok').disabled")
-    check(True, "사람이 고치면 '직접' — 책임을 지고 확정할 수 있다")
-    page.click("#ok")
-    page.wait_for_selector(".seal")
+    page.wait_for_selector(".ln .chip.navy:has-text('직접')")
+    page.wait_for_timeout(300)
+    check(not page.is_disabled("#ok"), "사람이 고치면 '직접' — 책임을 지고 확정할 수 있다")
+
+    llm.mode = "number"
+    page.click("#draft")
+    page.wait_for_selector(".chip.warn:has-text('숫자?')")
+    check(page.locator(".ln .txt .n").all_inner_texts() == ["97"], "근거 조각에 없는 숫자에 물결 밑줄")
     llm.mode = "good"
-    page.click("#reports")
-    page.wait_for_selector(".drawer .rep")
-    check(page.locator(".drawer .rep").count() == 1, "지난 보고서에 하나")
+
+    page.keyboard.press("Control+s")
+    page.wait_for_selector(".toast:has-text('보관했습니다')")
+    check("ok" in page.get_attribute("#led-save", "class"), "Ctrl+S 보관 → LED 라임")
+    check(disk_has(os.path.join(home, "topics"), "DB 연결 풀"), "보관한 뒤에만 원문이 topics 에")
+
+    page.click("#shelf")
+    page.wait_for_selector(".drawer .row")
+    check(page.locator(".drawer .row").count() == 1 and "9월 결제 서버" in page.inner_text(".drawer"), "보관함에 토픽")
     page.keyboard.press("Escape")
+
+    paste(page, "새로 붙인 자료 하나 — 보관 안 함")
+    page.wait_for_selector(".card >> nth=4")
+    page.once("dialog", lambda d: d.accept())
+    page.click("#new")
+    page.wait_for_selector("#pastes .hello")
+    check(page.input_value("#topic") == "", "새 토픽: 보관 안 한 자료가 있으면 묻고 비운다")
+    page.click("#shelf")
+    page.click(".drawer .row >> text=열기")
+    page.wait_for_selector(".card >> nth=3")
+    check(page.locator(".card").count() == 4 and page.input_value("#topic") == "9월 결제 서버 응답 지연",
+          "보관함에서 다시 열기 (보관한 때의 자료)")
+
+    before = page.inner_text("#lcd-form")
     page.click(".knob.k1")
-    page.wait_for_selector(".hello")
-    check(page.inner_text("#kl1") == "지난 주", "① 기간 노브 → 지난 주 · 초안 비움")
+    page.wait_for_timeout(300)
+    check(page.inner_text("#lcd-form") != before and page.inner_text("#kl1") == page.inner_text("#lcd-form"),
+          "① 양식 노브 → LCD 도 같은 값")
 
 
 def pages(browser, tmp, llm):
     """문서 사진 — 실제 화면 (라이트 · 다크) + 제목 카드"""
     os.makedirs(PAGES, exist_ok=True)
     for theme in ("dark", "light"):
-        proc, url = start_app(tmp, llm, theme)
+        proc, url, _ = start_app(tmp, llm, theme)
         try:
             ctx = browser.new_context(viewport={"width": W, "height": H}, color_scheme=theme,
                                       permissions=["clipboard-read", "clipboard-write"])
             page = ctx.new_page()
             page.goto(url)
-            page.wait_for_selector(".src")
-            page.fill("#jin", "신입 온보딩 문서 초안 작성")
-            page.press("#jin", "Enter")
-            page.wait_for_selector(".src:has-text('신입 온보딩')")
+            page.wait_for_selector("#pastes .hello")
+            fill(page)
+            page.click(".knob.k1")                                      # ① 양식 → 이슈 보고
+            page.wait_for_function("document.querySelector('#kl1').textContent === '이슈 보고'")
             llm.mode = "good"
             page.click("#draft")
-            page.wait_for_selector(".ln .txt")
+            page.wait_for_selector(".ln .ref")
             page.click("#ok")
             page.wait_for_selector(".seal")
-            page.wait_for_timeout(2900)   # 알림이 사라진 뒤
+            page.locator(".ln .ref").nth(2).hover()
+            page.evaluate("document.querySelector('#p-src .pane-b').scrollTop = 0")   # 토픽 · 붙여 넣는 칸이 보이게
+            page.wait_for_timeout(3200)   # 알림이 사라진 뒤
             page.screenshot(path=os.path.join(PAGES, f"hero-{theme}.jpg"), type="jpeg", quality=86)
             if theme == "dark":
-                llm.mode = "lie"
+                llm.mode = "lie number"
                 page.click("#draft")
                 page.wait_for_selector(".chip.err:has-text('ERR 근거 없음')")
-                page.wait_for_timeout(300)
+                page.mouse.move(0, 0)
+                page.wait_for_timeout(3200)
                 page.locator("#p-draft").screenshot(path=os.path.join(PAGES, "err.png"))
                 llm.mode = "good"
             font = url + "font/report-1-dos.woff"
@@ -194,8 +249,8 @@ def pages(browser, tmp, llm):
                 f"font-family:D,monospace}}.c{{width:880px;padding:40px 0 34px;text-align:center}}"
                 f".a{{font-size:16px;color:{sub};letter-spacing:2px}}.b{{font-size:64px;line-height:72px;margin:10px 0;"
                 f"text-shadow:3px 0 0 currentColor}}.b i{{font-style:normal;color:{acc}}}.d{{font-size:24px;color:{sub}}}</style>"
-                "<div class=c><div class=a>근거 달린 주간보고</div><div class=b>Report–1<i>_</i></div>"
-                "<div class=d>한 주를 모아, 근거와 함께.</div></div>")
+                "<div class=c><div class=a>근거 달린 보고서</div><div class=b>Report–1<i>_</i></div>"
+                "<div class=d>붙여 넣으면, 근거와 함께.</div></div>")
             page.wait_for_timeout(400)
             page.locator(".c").screenshot(path=os.path.join(PAGES, f"title-{theme}.png"))
             ctx.close()
@@ -209,7 +264,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     tmp = tempfile.mkdtemp(prefix="report1-e2e-")
     llm = FakeLLM()
-    proc, url = start_app(tmp, llm)
+    proc, url, home = start_app(tmp, llm)
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch()
@@ -218,9 +273,10 @@ def main():
             page = ctx.new_page()
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
-            page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+            handled = ("status of 400", "status of 409")   # 화면이 알림으로 알려 주는 거절 (같은 자료 · 보관 안 한 자료)
+            page.on("console", lambda m: errors.append(m.text) if m.type == "error" and not any(h in m.text for h in handled) else None)
             page.goto(url)
-            flow(page, llm, lambda name: page.screenshot(path=os.path.join(OUT, name + ".png")))
+            flow(page, llm, home, lambda name: page.screenshot(path=os.path.join(OUT, name + ".png")))
             check(not errors, f"브라우저 오류 없음 {errors or ''}")
             page.set_viewport_size({"width": 460, "height": 800})
             page.wait_for_timeout(300)

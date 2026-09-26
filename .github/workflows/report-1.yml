@@ -29,11 +29,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: UI 반영 확인
         run: python build.py --check
-      - name: 단위 · 통합 테스트 (진짜 git · 가짜 LLM · 가짜 Secretary–1)
+      - name: 단위 · 통합 테스트 (가짜 LLM)
         run: python -m unittest discover -s tests -v
 
   e2e:
-    # 브라우저 E2E (가짜 LLM + 가짜 Secretary–1 + Report–1 + Chromium). Playwright 는 테스트에만 쓰고 실행에는 필요 없다
+    # 브라우저 E2E (가짜 LLM + Report–1 + Chromium). Playwright 는 테스트에만 쓰고 실행에는 필요 없다
     runs-on: ubuntu-latest
     env:
       PYTHONUTF8: "1"

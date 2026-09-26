@@ -1,73 +1,86 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/hero-dark.jpg">
-    <img src="docs/page/hero-light.jpg" width="880" alt="Report–1 본체 — 왼쪽 01 근거(커밋 · 일정 · 일지 · 다음 일정), 오른쪽 02 초안(줄마다 근거 칩, 확정 도장), 아래 노브 네 개">
+    <img src="docs/page/hero-light.jpg" width="880" alt="Report–1 본체 — 왼쪽 01 자료(붙여 넣은 메일 · 대화 · 표 · 메모가 조각 p1 p2 … 로), 오른쪽 02 보고서(요약 · 칸마다 근거 칩, 확정 도장), 아래 노브 네 개">
   </picture>
 </p>
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/title-dark.png">
-    <img src="docs/page/title-light.png" width="880" alt="근거 달린 주간보고 — Report–1 — 한 주를 모아, 근거와 함께.">
+    <img src="docs/page/title-light.png" width="880" alt="근거 달린 보고서 — Report–1 — 붙여 넣으면, 근거와 함께.">
   </picture>
 </p>
 
 <p align="center">
-금요일 오후 다섯 시 반, 이번 주에 뭘 했는지 기억나지 않을 때를 위해 만들었습니다. 몇 가지만 꼽으면:<br>
-내 커밋과 일정과 한 줄 일지를 모으고, 사내 LLM 이 주간보고 초안을 쓰고, 줄마다 근거가 붙습니다.<br>
-근거 없는 실적은 확정할 수 없습니다. 실적을 부풀리는 노브는 없습니다.<br>
+메일 스레드 셋, 메신저 캡처 글, 회의 메모, 엑셀 표 한 장. 이걸로 보고서를 써야 할 때를 위해 만들었습니다. 몇 가지만 꼽으면:<br>
+순서 없이 그냥 붙여 넣으면, 사내 LLM 이 양식에 맞춰 두괄식으로 정리하고, 줄마다 근거 조각이 붙습니다.<br>
+근거 없는 사실은 확정할 수 없습니다. 논리를 지어내는 노브는 없습니다.<br>
 전부는 아니고, 이 정도입니다:
 </p>
 
 <p align="center"><sub>
 파일 하나 · REPORT-1.PY · 표준 라이브러리만 · 파이썬 3.8+<br>
-근거 세 가지 · 내 커밋 · 일정 · 오늘 한 일<br>
-내 커밋만 · 작성자 이메일로 거름 · 모르면 가져오지 않음<br>
-일정은 SECRETARY–1 공개 명령으로 · 없으면 일정 없이<br>
-오늘 한 일 한 줄 · ENTER 로 일지에<br>
-초안 세 칸 · 금주 실적 · 차주 계획 · 이슈<br>
-줄마다 근거 칩 · 올리면 근거 줄이 켜짐<br>
-근거 없는 실적은 ERR · 확정 안 됨<br>
+화면 어디서든 CTRL+V · 붙여 넣은 것 하나 = 자료 하나<br>
+메일 · 대화 · 표 · 글을 알아봄 · 조각 P1 P2 … 로 나눔<br>
+같은 조각 · 메일 인용(>) 줄은 건너뜀<br>
+토픽 한 줄 · 양식 다섯 · 칸은 설정에서 더하기<br>
+맨 위는 요약 · 결론부터<br>
+줄마다 근거 칩 · 올리면 조각이 켜짐<br>
+근거 없는 사실은 ERR · 확정 안 됨<br>
+추론 · 확인(자료끼리 다름) · 빈칸(자료 없음) 표시<br>
+조각에 없는 숫자는 물결 밑줄 · 숫자?<br>
 고친 줄은 '직접' · 책임은 사람에게<br>
 서버가 다시 판정 · 화면을 믿지 않음<br>
-체크한 근거만 사내 LLM 으로<br>
-LLM 이 없으면 기본 초안 · 규칙으로 묶기<br>
-노브 네 개 · ①기간 ②상세도 ③어조 ④분량 · ALT+1–4<br>
-확정 CTRL+S · 도장 · 클립보드로<br>
-확정 뒤 20초 되돌리기 · CTRL+Z<br>
-지난 보고서 서랍<br>
---DRAFT · 창 없이 글만<br>
+체크한 조각만 사내 LLM 으로 · 한도 계기판<br>
+원문은 메모리에만 · 보관을 눌러야 저장<br>
+LLM 이 없으면 기본 초안 · 자료를 그대로 묶기<br>
+노브 네 개 · ①양식 ②분량 ③어조 ④독자 · ALT+1–4<br>
+확정 · 도장 · 클립보드로 · 20초 되돌리기<br>
+근거 붙이기 · [1] 표시와 근거 목록<br>
+보관함 · 토픽 다시 열기 · 지난 보고서<br>
+--DRAFT 파일… · 창 없이 글만<br>
 127.0.0.1 전용 · 실행마다 새 토큰<br>
-창을 닫으면 저절로 꺼짐<br>
-결재판 얼굴<br>
+결재판 얼굴 · 붙여 넣으면 받아먹음<br>
 다크 · 라이트 · 시스템 테마 · 빨강 없음<br>
 설치는 OPENCODE 에게 · INSTALL.MD<br>
-단위 · 통합 테스트 32 · 브라우저 E2E · WINDOWS + UBUNTU CI
+단위 · 통합 테스트 36 · 브라우저 E2E · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
 
 <br>
 
-<h3 align="center">근거 없는 실적은, 없습니다.</h3>
+<h3 align="center">근거 없는 사실은, 없습니다.</h3>
 
 <p align="center">
-초안의 실적 · 이슈 줄에는 근거 id 가 꼭 붙습니다. 커밋은 <code>c</code>, 일정은 <code>e</code>, 일지는 <code>n</code>.<br>
-LLM 이 근거 없는 성과를 적으면 그 줄은 <code>ERR</code> — 확정 버튼이 꺼집니다.<br>
+보고서의 줄마다 붙여 넣은 자료의 조각 id 가 붙습니다. <code>p3</code> 에 올리면 왼쪽의 그 조각이 켜집니다.<br>
+LLM 이 근거 없이 적은 사실은 <code>ERR</code> — 확정 버튼이 꺼집니다. 근거 조각에 없는 숫자는 <code>숫자?</code> 와 물결 밑줄.<br>
+조각을 이어 내린 판단은 <code>추론</code>, 자료끼리 다르면 <code>확인</code>, 양식에 필요한데 자료에 없으면 <code>빈칸</code>.<br>
 사람이 고치면 <code>직접</code> 이 붙고 확정할 수 있습니다. 그 줄의 책임은 사람에게 있으니까요.
 </p>
 
-<p align="center"><img src="docs/page/err.png" width="620" alt="02 DRAFT — '성과 30% 향상' 줄에 ERR 근거 없음 칩, 확정 버튼 꺼짐"></p>
-<p align="center"><sub>02 DRAFT · 근거 칩 · ERR 근거 없음 · 직접 · 계획</sub></p>
+<p align="center"><img src="docs/page/err.png" width="620" alt="02 DRAFT — '성과 30% 향상' 줄에 ERR 근거 없음 칩, '복구 시간 97분 단축' 의 97 에 물결 밑줄과 숫자? 칩, 추론 · 확인 칩"></p>
+<p align="center"><sub>02 DRAFT · 근거 칩 · ERR 근거 없음 · 숫자? · 추론 · 확인 · 빈칸</sub></p>
 
 <br>
 
-<h3 align="center">모으는 건 흔적뿐입니다.</h3>
+<h3 align="center">그냥 붙여 넣으세요.</h3>
 
 <p align="center">
-커밋은 설정한 폴더의 저장소에서 <b>내</b> 이메일로 쓴 것만. 모르면 가져오지 않습니다. 남의 커밋이 내 실적이 되는 것보다 비어 있는 편이 낫습니다.<br>
-일정은 <a href="../README.md">Secretary–1</a> 의 공개 명령으로 읽습니다. 메모는 받지 않고 제목 · 시각 · 장소만.<br>
-나머지는 <code>오늘 한 일 ›</code> 에 한 줄씩. 매일 한 줄이면 금요일이 짧아집니다.
+메일은 제목을, 메신저는 첫 말을 제목으로 삼고, 엑셀 표는 줄마다 머리글을 붙여 조각으로 나눕니다.<br>
+답장마다 되풀이되는 본문은 한 번만, 메일 인용(<code>&gt;</code>) 줄은 건너뜁니다. 무엇을 건너뛰었는지는 화면에 보입니다.<br>
+사내 LLM 에는 <b>체크한 조각만</b> 보냅니다. 보내기 전에 화면에 다 보이고, 한도 계기판이 넘치면 보내지 않습니다.
+</p>
+
+<br>
+
+<h3 align="center">원문은 메모리에만.</h3>
+
+<p align="center">
+붙여 넣은 원문은 디스크에 쓰지 않습니다. 며칠에 걸쳐 모을 때만 <b>보관</b>(Ctrl+S)을 누르세요 — 그때 이 PC 에만 저장됩니다.<br>
+보관 안 한 자료가 있으면 창을 닫아도 저절로 꺼지지 않고 기다립니다. 다시 열면 그대로 있습니다.<br>
+확정한 보고서는 복사한 글 그대로만 남습니다.
 </p>
 
 <br>
@@ -75,9 +88,9 @@ LLM 이 근거 없는 성과를 적으면 그 줄은 <code>ERR</code> — 확정
 <h3 align="center">노브 네 개, 한 번 더.</h3>
 
 <p align="center">
-① 기간(이번 주 · 지난 주 · 2주 · 이번 달) ② 상세도 ③ 어조(개조식 · 서술식) ④ 분량.<br>
-노브 색은 works 인코더 색 그대로입니다. 초안 칸 위의 칩도 같은 색 — 색이 곧 조작입니다.<br>
-사내 LLM 에는 <b>체크한 근거 줄만</b> 보냅니다. 보내기 전에 화면에 다 보입니다.
+① 양식(현황 · 이슈 · 검토 · 회의 결과 · 자유 구성) ② 분량 ③ 어조(개조식 · 서술식) ④ 독자(팀 내부 · 상사 · 임원).<br>
+노브 색은 works 인코더 색 그대로입니다. 초안 칸 위의 칩도, LCD 의 양식 이름도 같은 색 — 색이 곧 조작입니다.<br>
+회사 양식이 따로 있으면 칸 이름만 설정에 넣으면 됩니다.
 </p>
 
 <br>
@@ -98,16 +111,16 @@ Report–1 은 works 시스템의 한 부품입니다.<br>
 <h3 align="center">사양.</h3>
 
 <table align="center">
-<tr><td width="140">실행</td><td width="560">Windows 10 / 11 · Python 3.8+ · git (커밋을 모을 때)</td></tr>
+<tr><td width="140">실행</td><td width="560">Windows 10 / 11 · Python 3.8+</td></tr>
 <tr><td>의존성</td><td>없음 — 표준 라이브러리만</td></tr>
 <tr><td>배포</td><td><code>report-1.py</code> 한 파일 · UI 와 폰트 내장</td></tr>
-<tr><td>근거</td><td>git 커밋 (내 이메일) · Secretary–1 공개 명령 <code>--export-events</code> · 오늘 한 일 일지</td></tr>
+<tr><td>자료</td><td>붙여 넣은 글 (메일 · 대화 · 표 · 글 · 메모) · 한 번에 100,000자 · 토픽 하나에 400,000자</td></tr>
 <tr><td>LLM</td><td>OpenAI 호환 <code>/v1/chat/completions</code> · <a href="../docs/SPEC-llm.md">works LLM 규격</a> · 없으면 기본 초안</td></tr>
-<tr><td>저장</td><td><code>%LOCALAPPDATA%\report-1\</code> — <code>config.json</code> · <code>journal.json</code> · <code>reports\</code> — 초안은 메모리에만</td></tr>
+<tr><td>저장</td><td><code>%LOCALAPPDATA%\report-1\</code> — <code>config.json</code> · <code>topics\</code>(보관할 때만) · <code>reports\</code>(확정한 글) — 원문 · 초안은 메모리에만</td></tr>
 <tr><td>네트워크</td><td><code>127.0.0.1</code> 전용 · 실행마다 새 토큰 · 밖으로는 설정한 LLM 주소 하나</td></tr>
-<tr><td>키</td><td><code>Ctrl+Enter</code> 초안 · <code>Ctrl+S</code> 확정 · <code>Ctrl+Z</code> 되돌리기 · <code>Alt+1–4</code> 노브</td></tr>
+<tr><td>키</td><td><code>Ctrl+V</code> 붙여 넣기 · <code>Ctrl+Enter</code> 초안 · <code>Ctrl+S</code> 보관 · <code>Ctrl+Shift+Enter</code> 확정 · <code>Ctrl+Z</code> 되돌리기 · <code>Alt+1–4</code> 노브</td></tr>
 <tr><td>글꼴</td><td>GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 (<a href="fonts/OFL.txt">fonts/OFL.txt</a>)</td></tr>
-<tr><td>테스트</td><td>단위 · 통합 32 · 브라우저 E2E · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
+<tr><td>테스트</td><td>단위 · 통합 36 · 브라우저 E2E · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>
@@ -151,7 +164,7 @@ Report–1 을 설치해줘. works 저장소를 D:\OPENCODE 에 받고, 프로�
 </p>
 
 <p align="center"><sub>
-Report–1 · 주간보고는 써 드립니다. 한 일은 직접 하셔야 합니다.<br>
+Report–1 · 정리는 해 드립니다. 판단은 직접 하셔야 합니다.<br>
 내장 폰트 GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 (<a href="fonts/OFL.txt">fonts/OFL.txt</a>)<br>
 화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.
 </sub></p>

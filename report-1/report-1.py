@@ -1,35 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 r"""
-Report–1 - 근거 달린 주간보고 초안 (내 PC에서만 · Python 3.8+ · 이 파일 하나가 전부)
+Report–1 - 근거 달린 보고서 (내 PC에서만 · Python 3.8+ · 이 파일 하나가 전부)
 
 [실행]
   python report-1.py              창을 연다 (처음이면 %LOCALAPPDATA%\report-1\config.json 을 만든다)
   python report-1.py --setup      설치 도우미: OpenCode 설정에서 사내 LLM 값을 가져오고 점검까지
-  python report-1.py --check      git · 일정 · LLM 점검 (마지막 줄 '결과: …')
-  python report-1.py --draft      이번 주 초안을 글로만 출력 (--period last|2w|month · --basic 은 LLM 없이)
+  python report-1.py --check      LLM 점검 (마지막 줄 '결과: …')
+  python report-1.py --draft a.txt b.txt --topic "9월 서버 장애"
+                                  파일을 자료로 초안을 글로만 출력 (--form "이슈 보고" · --basic 은 LLM 없이 · - 는 표준 입력)
   기타: --set 키=값 · --status · --stop · --shortcut on|off (시작 메뉴) · --no-window · --port 8775 · --config 경로
 
-[근거] 한 주 동안 남은 흔적만 모은다
-  커밋  sources.git.roots 아래 저장소들의 '내' 커밋 (작성자 = git config user.email + sources.git.authors)
-  일정  Secretary–1 의 공개 명령 --export-events 로 읽는다 (없으면 일정 없이 · docs/REGISTRY.md › 공개 명령)
-  일지  화면에서 적은 '오늘 한 일' 한 줄 (journal.json)
-  실적 · 이슈 줄에는 근거가 꼭 붙는다. 근거 없는 실적은 ERR 로 표시하고 확정을 막는다.
-  사람이 직접 고치거나 더한 줄은 '직접' 으로 표시한다 (그 줄의 책임은 사람에게).
+[자료] 토픽 하나에 메일 · 메신저 · 회의 메모 · 기사 · 엑셀 표를 순서 없이 붙여 넣는다
+  붙여 넣은 것 하나 = 자료 하나 (a1, a2 …). 자료는 조각(p1, p2 …)으로 나뉜다. 같은 조각 · 메일 인용(>) 줄은 건너뛴다
+  보고서의 줄마다 근거 조각이 붙는다
+    사실 · 추론 · 확인 줄에 근거가 없으면 ERR — 확정할 수 없다
+    추론 = 조각을 이어 LLM 이 내린 판단 · 확인 = 조각끼리 다름 · 빈칸 = 양식 칸에 필요한데 자료에 없음
+    근거 조각에 없는 숫자(10 이상 · 소수)는 '숫자?' 로 표시한다 · 사람이 고친 줄은 '직접'
 
 [config.json]  %LOCALAPPDATA%\report-1\config.json  (REPORT_HOME 으로 폴더를 바꿀 수 있다)
-  llm.*                        사내 LLM (docs/SPEC-llm.md 와 같은 키). 비워 두면 기본 초안(규칙으로 묶기)만
-  sources.git.roots            커밋을 찾을 폴더 목록 (저장소 자체, 또는 저장소들이 들어 있는 폴더)
-  sources.git.authors          내 커밋으로 칠 작성자 이메일 (git config user.email 은 저절로 들어감)
-  sources.git.depth            roots 아래로 저장소를 찾을 깊이 (기본 2)
-  sources.calendar.secretary   Secretary–1 의 secretary-1.py 위치 (비우면 works 저장소 안의 것)
-  report.sections              양식의 세 칸 이름 · report.max_lines 칸마다 최대 줄 수
+  llm.*                 사내 LLM (docs/SPEC-llm.md 와 같은 키). 비워 두면 기본 초안(자료를 그대로 묶기)만
+  report.forms          양식 이름 → 칸 이름 목록 (빈 목록 = 칸을 LLM 이 정함) · report.summary 맨 위 요약 칸
+  report.budget_chars   LLM 에 한 번에 보낼 자료 글자 수 한도 (사내 LLM 입력 한도에 맞춘다)
   theme · port(8775) · open_window · idle_exit_min(창을 닫고 이만큼 지나면 저절로 꺼짐, 0 = 안 꺼짐)
 
-[보안]
+[보안 · 저장]
   127.0.0.1 에만 열리고 실행마다 새 토큰 · 밖으로 나가는 통신은 설정한 LLM 주소 하나
-  사내 LLM 에 보내는 것은 화면에서 체크된 근거 줄뿐 · 초안은 메모리에만
-  저장하는 것은 '오늘 한 일' 로 적은 일지와 확정한 보고서뿐 (%LOCALAPPDATA%\report-1)
+  붙여 넣은 원문은 메모리에만 둔다. '보관' 을 누른 토픽만 저장 (topics\) · 확정한 보고서는 복사한 글 그대로 (reports\)
+  보관 안 한 자료가 있으면 창을 닫아도 저절로 꺼지지 않는다 (다시 열면 그대로)
+  사내 LLM 에 보내는 것은 화면에서 체크된 조각뿐
 
 [폰트]
   도스풍 픽셀 폰트를 이 파일 안에 내장 (GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 · fonts/OFL.txt)
@@ -56,18 +55,17 @@ import urllib.error
 import urllib.request
 import webbrowser
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from urllib.parse import parse_qs, urlparse
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from urllib.parse import urlparse
 
 APP = "report-1"            # 명령 · 파일 · 데이터 폴더 이름
 NAME = "Report–1"           # 화면에 보이는 이름
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 ENV = "REPORT"              # 환경 변수 접두어 (docs/REGISTRY.md)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IS_WINDOWS = sys.platform == "win32"
-WEEKDAYS = "월화수목금토일"
 NO_WINDOW = 0x08000000 if IS_WINDOWS else 0   # 자식 프로세스 콘솔 창을 띄우지 않음
 
 
@@ -91,6 +89,10 @@ def default_config_path() -> str:
     return os.path.join(data_dir(), "config.json")
 
 
+def now_iso() -> str:
+    return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+
 # ─────────────────────────────────────────────────────────────── 설정
 
 DEFAULT_CONFIG: Dict[str, Any] = {
@@ -106,21 +108,23 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "proxy": None,
         "ca_file": "",
     },
-    "sources": {
-        "git": {"roots": [], "authors": [], "depth": 2},
-        "calendar": {"enabled": True, "secretary": ""},
-        "journal": {"enabled": True},
-    },
     "report": {
-        "sections": ["금주 실적", "차주 계획", "이슈 · 협조 요청"],
-        "max_lines": 8,
+        "forms": {
+            "현황 보고": ["개요", "현황", "문제점", "향후 계획"],
+            "이슈 보고": ["현상", "원인", "영향", "조치", "요청 사항"],
+            "검토 보고": ["검토 배경", "검토 내용", "대안", "검토 의견"],
+            "회의 결과": ["회의 개요", "논의 내용", "결정 사항", "후속 조치"],
+            "자유 구성": [],
+        },
+        "summary": True,
+        "budget_chars": 20000,
     },
     "theme": "dark",
     "port": 8775,
     "open_window": True,
     "idle_exit_min": 30,
-    "user_name": "",
 }
+SUMMARY = "요약"
 
 
 class ConfigError(Exception):
@@ -190,6 +194,9 @@ def load_config(path: str, create: bool = True) -> Tuple[Dict[str, Any], bool]:
             raise ConfigError(f"{path} 를 만들 수 없습니다: {e}")
         created = True
     cfg = deep_merge(DEFAULT_CONFIG, user)
+    rep = user.get("report")
+    if isinstance(rep, dict) and isinstance(rep.get("forms"), dict):
+        cfg["report"]["forms"] = copy.deepcopy(rep["forms"])   # 사용자가 정한 양식은 기본 양식과 섞지 않는다 (지운 양식이 되살아나지 않게)
     for key in ("base_url", "api_key", "model"):   # docs/SPEC-llm.md › 02
         val = os.environ.get(f"{ENV}_{key.upper()}")
         if val:
@@ -199,40 +206,50 @@ def load_config(path: str, create: bool = True) -> Tuple[Dict[str, Any], bool]:
     return cfg, created
 
 
-def _str_list(v: Any, what: str) -> List[str]:
-    if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
-        raise ConfigError(f'{what} 는 글자 목록이어야 합니다. 예: ["C:/work"]')
-    return [x.strip() for x in v if x.strip()]
-
-
 def validate_config(cfg: Dict[str, Any]) -> None:
     llm = cfg.get("llm") or {}
     if not isinstance(llm.get("models", []), list) or not all(isinstance(m, str) for m in llm.get("models", [])):
         raise ConfigError('llm.models 는 모델 이름 목록이어야 합니다. 예: ["qwen3-32b"]')
-    g = (cfg.get("sources") or {}).get("git") or {}
-    g["roots"] = _str_list(g.get("roots", []), "sources.git.roots")
-    g["authors"] = [a.lower() for a in _str_list(g.get("authors", []), "sources.git.authors")]
+    rep = cfg.get("report")
+    if not isinstance(rep, dict):
+        raise ConfigError("report 는 { } 객체여야 합니다")
+    forms = rep.get("forms")
+    if not isinstance(forms, dict) or not forms:
+        raise ConfigError('report.forms 는 양식 이름 → 칸 이름 목록입니다. 예: {"이슈 보고": ["현상", "원인", "조치"]}')
+    clean: Dict[str, List[str]] = {}
+    for name, secs in forms.items():
+        n = str(name).strip()
+        if not n or len(n) > 20:
+            raise ConfigError(f"양식 이름은 1~20자입니다: {name!r}")
+        if not isinstance(secs, list) or len(secs) > 8 \
+                or not all(isinstance(s, str) and s.strip() and len(s.strip()) <= 20 for s in secs):
+            raise ConfigError(f"report.forms 의 '{n}' 는 칸 이름 목록이어야 합니다 (최대 8칸 · 칸 이름 20자까지 · 빈 목록 = 자유 구성)")
+        ss = [s.strip() for s in secs]
+        if len(set(ss)) != len(ss):
+            raise ConfigError(f"report.forms 의 '{n}' 에 같은 칸 이름이 두 번 있습니다")
+        clean[n] = ss
+    rep["forms"] = clean
+    rep["summary"] = bool(rep.get("summary", True))
     try:
-        g["depth"] = min(4, max(0, int(g.get("depth", 2))))
-    except (TypeError, ValueError):
-        raise ConfigError("sources.git.depth 는 0~4 숫자여야 합니다")
-    rep = cfg.get("report") or {}
-    secs = rep.get("sections")
-    if not isinstance(secs, list) or len(secs) != 3 or not all(isinstance(s, str) and s.strip() for s in secs):
-        raise ConfigError('report.sections 는 칸 이름 세 개여야 합니다. 예: ["금주 실적", "차주 계획", "이슈"]')
-    rep["sections"] = [s.strip() for s in secs]
-    try:
-        rep["max_lines"] = min(20, max(1, int(rep.get("max_lines", 8))))
+        rep["budget_chars"] = min(1_000_000, max(1000, int(rep.get("budget_chars", 20000))))
         cfg["port"] = int(cfg.get("port") or 8775)
         cfg["idle_exit_min"] = max(0.0, float(cfg.get("idle_exit_min", 30)))
     except (TypeError, ValueError):
-        raise ConfigError("report.max_lines · port · idle_exit_min 은 숫자여야 합니다")
+        raise ConfigError("report.budget_chars · port · idle_exit_min 은 숫자여야 합니다")
     cfg["theme"] = str(cfg.get("theme") or "dark").strip().lower()
     if cfg["theme"] not in ("dark", "light", "system"):
         raise ConfigError('theme 는 "dark", "light", "system" 중 하나여야 합니다')
 
 
-# ─────────────────────────────────────────────────────────────── 저장 (일지 · 확정한 보고서)
+def sections_of(cfg: Dict[str, Any], form: str) -> Tuple[List[str], bool]:
+    """양식의 칸 이름 (맨 위 요약 포함) · 자유 구성이면 (요약만, True)"""
+    rep = cfg["report"]
+    body = [s for s in rep["forms"].get(form, []) if not (rep["summary"] and s == SUMMARY)]
+    head = [SUMMARY] if rep["summary"] else []
+    return head + body, not rep["forms"].get(form)
+
+
+# ─────────────────────────────────────────────────────────────── 저장 (보관한 토픽 · 확정한 보고서)
 
 class JsonDoc:
     """내 PC 의 JSON 파일 하나 ({"version": N, …}) — RULES.md › W-06.
@@ -274,478 +291,424 @@ class JsonDoc:
         self.error = ""
 
 
-class Journal:
-    """'오늘 한 일' 한 줄 기록 — 사용자가 적고 Enter 를 누른 것만 저장한다 (RULES.md › W-05)"""
+class Folder:
+    """JSON 파일이 쌓이는 폴더 하나 (topics · reports). 파일 이름은 id 규칙에 맞는 것만 받는다"""
 
-    MAX_LEN = 300
-    MAX_ITEMS = 2000
+    ID_RE = re.compile(r"[0-9A-Za-z\-]{4,40}")
 
-    def __init__(self, path: str):
-        self.doc = JsonDoc(path, "일지")
-        self.lock = threading.Lock()
-
-    def all(self) -> List[Dict[str, Any]]:
-        items = self.doc.load().get("entries", [])
-        out = []
-        for x in items if isinstance(items, list) else []:
-            if isinstance(x, dict) and re.fullmatch(r"n\d+", str(x.get("id", ""))) \
-                    and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(x.get("date", ""))) and str(x.get("text", "")).strip():
-                out.append({"id": x["id"], "date": x["date"], "text": str(x["text"]), "created": str(x.get("created", ""))})
-        return out
-
-    def add(self, text: Any, day: Optional[date] = None) -> Dict[str, Any]:
-        t = re.sub(r"\s+", " ", str(text or "")).strip()
-        if not t:
-            raise ValueError("한 줄을 적어 주세요")
-        if len(t) > self.MAX_LEN:
-            raise ValueError(f"일지는 한 줄에 {self.MAX_LEN}자까지입니다")
-        with self.lock:
-            items = self.all()
-            if len(items) >= self.MAX_ITEMS:
-                raise ValueError("일지가 너무 많습니다 — 오래된 줄을 지워 주세요")
-            n = max([int(x["id"][1:]) for x in items] + [0]) + 1
-            item = {"id": f"n{n}", "date": (day or date.today()).isoformat(), "text": t,
-                    "created": datetime.now().strftime("%Y-%m-%dT%H:%M")}
-            self.doc.save({"entries": items + [item]})
-            return item
-
-    def remove(self, nid: str) -> Dict[str, Any]:
-        with self.lock:
-            items = self.all()
-            hit = next((x for x in items if x["id"] == nid), None)
-            if hit is None:
-                raise KeyError(f"없는 일지: {nid}")
-            self.doc.save({"entries": [x for x in items if x["id"] != nid]})
-            return hit
-
-    def between(self, d0: date, d1: date) -> List[Dict[str, Any]]:
-        return [x for x in self.all() if d0.isoformat() <= x["date"] <= d1.isoformat()]
-
-
-class ReportStore:
-    """확정한 보고서 — 기간마다 파일 하나 (reports/2026-W39.json)"""
-
-    def __init__(self, folder: str):
-        self.folder = folder
+    def __init__(self, folder: str, what: str):
+        self.folder, self.what = folder, what
 
     def path(self, key: str) -> str:
-        if not re.fullmatch(r"[0-9A-Za-z+\-]{4,32}", key):
-            raise ValueError(f"잘못된 기간: {key}")
+        if not self.ID_RE.fullmatch(key or ""):
+            raise ValueError(f"잘못된 {self.what} 이름: {key}")
         return os.path.join(self.folder, key + ".json")
 
+    def new_key(self, prefix: str = "") -> str:
+        base = prefix + datetime.now().strftime("%Y%m%d-%H%M%S")
+        key, n = base, 1
+        while os.path.exists(self.path(key)):
+            n += 1
+            key = f"{base}-{n}"
+        return key
+
     def get(self, key: str) -> Optional[Dict[str, Any]]:
-        doc = JsonDoc(self.path(key), "보고서")
+        doc = JsonDoc(self.path(key), self.what)
         data = doc.load()
+        if data and doc.readonly:
+            data["readonly"] = True
         return data or None
 
-    def save(self, key: str, report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """저장하고 전에 있던 것을 돌려준다 (되돌리기용)"""
+    def save(self, key: str, data: Dict[str, Any]) -> None:
+        doc = JsonDoc(self.path(key), self.what)
+        doc.load()   # 더 새 버전이 쓴 파일은 덮어쓰지 않는다
+        doc.save(data)
+
+    def delete(self, key: str) -> Optional[Dict[str, Any]]:
+        """지우고 지운 내용을 돌려준다 (되돌리기용)"""
         before = self.get(key)
-        JsonDoc(self.path(key), "보고서").save(report)
+        if os.path.exists(self.path(key)):
+            os.remove(self.path(key))
         return before
 
-    def restore(self, key: str, before: Optional[Dict[str, Any]]) -> None:
-        if before:
-            JsonDoc(self.path(key), "보고서").save(before)
-        elif os.path.exists(self.path(key)):
-            os.remove(self.path(key))
-
-    def all(self) -> List[Dict[str, Any]]:
-        out = []
-        if os.path.isdir(self.folder):
-            for name in sorted(os.listdir(self.folder), reverse=True):
-                if name.endswith(".json"):
-                    try:
-                        r = self.get(name[:-5])
-                    except ValueError:
-                        continue
-                    if r:
-                        out.append({"key": name[:-5], "label": r.get("label", ""), "confirmed": r.get("confirmed", "")})
-        return out
+    def keys(self) -> List[str]:
+        if not os.path.isdir(self.folder):
+            return []
+        out = [n[:-5] for n in os.listdir(self.folder) if n.endswith(".json") and self.ID_RE.fullmatch(n[:-5])]
+        return sorted(out, reverse=True)
 
 
-# ─────────────────────────────────────────────────────────────── 기간
+# ─────────────────────────────────────────────────────────────── 자료 · 조각
 
-KINDS = ("this", "last", "2w", "month")
-KIND_LABEL = {"this": "이번 주", "last": "지난 주", "2w": "최근 2주", "month": "이번 달"}
+MAX_PASTE = 100_000     # 한 번에 붙여 넣을 수 있는 글자 수
+MAX_DESK = 400_000      # 토픽 하나의 자료 전체 글자 수
+MAX_FRAGS = 3000        # 토픽 하나의 조각 수
+FRAG_MAX = 420          # 조각 하나의 최대 글자 수 (넘으면 줄 · 문장 단위로 자른다)
+FRAG_MIN = 60           # 이보다 짧은 조각은 다음 조각과 묶는다
+KIND_KO = {"mail": "메일", "chat": "대화", "table": "표", "text": "글", "memo": "메모"}
+
+_MAIL_RE = re.compile(r"^\s*(from|to|cc|sent|date|subject|보낸\s*사람|받는\s*사람|참조|보낸\s*날짜|날짜|제목)\s*:",
+                      re.I | re.M)
+_SUBJECT_RE = re.compile(r"^\s*(?:subject|제목)\s*:\s*(.+)$", re.I | re.M)
+_CHAT_RE = re.compile(r"^\s*(?:\[[^\]\n]{1,24}\]\s*\[(?:오전|오후)\s*\d{1,2}:\d{2}\]|(?:오전|오후)\s*\d{1,2}:\d{2}\b"
+                      r"|\d{1,2}:\d{2}\s*(?:AM|PM)?\s)", re.I | re.M)
+_RULE_RE = re.compile(r"^[\s\-=_*~·•.#]{3,}$")    # 구분선만 있는 줄
+_SENT_RE = re.compile(r"(?<=[.!?。…])\s+")
 
 
-def _md(d: date) -> str:
-    return f"{d.month}/{d.day}"
+def clean_text(text: Any) -> str:
+    t = str(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    return re.sub(r"[​‌‍﻿­]", "", t).replace(" ", " ")
 
 
-@dataclass
-class Period:
-    kind: str
-    start: date          # 포함
-    end: date            # 포함
-    next_start: date     # 계획 칸이 보는 다음 기간
-    next_end: date
+def frag_key(text: str) -> str:
+    """같은 조각 찾기용 — 띄어쓰기 · 문장부호를 빼고 비교한다"""
+    return re.sub(r"[\W_]+", "", text).lower()
 
-    @property
-    def key(self) -> str:
-        if self.kind == "month":
-            return f"{self.start:%Y-%m}"
-        y, w, _ = self.start.isocalendar()
-        if self.kind == "2w":
-            return f"{y}-W{w:02d}+{self.end.isocalendar()[1]:02d}"
-        return f"{y}-W{w:02d}"
 
-    @property
-    def label(self) -> str:
-        if self.kind == "month":
-            head = f"{self.start.year} {self.start.month:02d}월"
+def detect_kind(t: str) -> str:
+    lines = [ln for ln in t.split("\n") if ln.strip()]
+    if len(lines) >= 2 and sum(1 for ln in lines if "\t" in ln) >= max(2, int(len(lines) * 0.6)):
+        return "table"
+    if len(_MAIL_RE.findall(t)) >= 2:
+        return "mail"
+    if len(_CHAT_RE.findall(t)) >= 3:
+        return "chat"
+    return "text"
+
+
+def _cut(text: str, limit: int) -> List[str]:
+    """limit 보다 긴 한 줄을 문장 → 띄어쓰기 순으로 자른다"""
+    parts: List[str] = []
+    for s in _SENT_RE.split(text):
+        while len(s) > limit:
+            i = s.rfind(" ", 0, limit)
+            i = i if i >= limit // 2 else limit
+            parts.append(s[:i].strip())
+            s = s[i:].strip()
+        if s:
+            parts.append(s)
+    out, cur = [], ""
+    for s in parts:
+        if cur and len(cur) + 1 + len(s) > limit:
+            out.append(cur)
+            cur = s
         else:
-            y, w, _ = self.start.isocalendar()
-            head = f"{y} W{w:02d}" + (f"–{self.end.isocalendar()[1]:02d}" if self.kind == "2w" else "")
-        return f"{head} · {_md(self.start)} – {_md(self.end)}"
-
-    def to_ui(self) -> Dict[str, Any]:
-        return {"kind": self.kind, "key": self.key, "label": self.label, "start": self.start.isoformat(),
-                "end": self.end.isoformat(), "next_start": self.next_start.isoformat(),
-                "next_end": self.next_end.isoformat(), "range": f"{_md(self.start)} – {_md(self.end)}",
-                "next_range": f"{_md(self.next_start)} – {_md(self.next_end)}"}
+            cur = f"{cur} {s}".strip()
+    if cur:
+        out.append(cur)
+    return out
 
 
-def make_period(kind: str, today: Optional[date] = None) -> Period:
-    """주는 월요일부터 일요일까지. 다음 기간은 끝난 다음 날부터 7일"""
-    today = today or date.today()
-    if kind not in KINDS:
-        raise ValueError(f"기간은 {', '.join(KINDS)} 중 하나입니다")
-    monday = today - timedelta(days=today.weekday())
-    if kind == "this":
-        s, e = monday, monday + timedelta(days=6)
-    elif kind == "last":
-        s, e = monday - timedelta(days=7), monday - timedelta(days=1)
-    elif kind == "2w":
-        s, e = monday - timedelta(days=7), monday + timedelta(days=6)
+def _split_table(lines: List[str]) -> List[str]:
+    rows = [[c.strip() for c in ln.split("\t")] for ln in lines if ln.strip()]
+    head = rows[0]
+    use_head = len(rows) > 1 and all(h and len(h) <= 30 and not re.fullmatch(r"[\d,.\-%\s]+", h) for h in head)
+    out = []
+    for r in rows[1:] if use_head else rows:
+        if use_head:
+            parts = [f"{head[i] if i < len(head) and head[i] else f'열{i + 1}'}: {c}" for i, c in enumerate(r) if c]
+        else:
+            parts = [c for c in r if c]
+        if parts:
+            out.extend(_cut(" · ".join(parts), FRAG_MAX))
+    return out
+
+
+def split_paste(text: Any) -> Dict[str, Any]:
+    """붙여 넣은 글 → {kind, title, frags[글], quotes(건너뛴 인용 줄 수)}"""
+    t = clean_text(text)
+    kind = detect_kind(t)
+    lines = t.split("\n")
+    quotes = 0
+    if kind == "table":
+        frags = _split_table(lines)
+        cols = max((len(ln.split("\t")) for ln in lines if ln.strip()), default=0)
+        first = [c.strip() for c in next((ln for ln in lines if ln.strip()), "").split("\t") if c.strip()]
+        title = f"{' · '.join(first[:3])} … ({len(frags)}행 × {cols}열)" if first else f"표 ({len(frags)}행)"
     else:
-        s = today.replace(day=1)
-        e = (s.replace(year=s.year + 1, month=1) if s.month == 12 else s.replace(month=s.month + 1)) - timedelta(days=1)
-    return Period(kind, s, e, e + timedelta(days=1), e + timedelta(days=7))
-
-
-# ─────────────────────────────────────────────────────────────── 근거 모으기
-
-KIND_KO = {"commit": "커밋", "event": "일정", "note": "일지", "plan": "다음 일정"}
+        blocks: List[List[str]] = [[]]
+        for ln in lines:
+            s = ln.strip()
+            if s.startswith(">"):
+                quotes += 1
+                continue
+            if not s or _RULE_RE.fullmatch(s):
+                if blocks[-1]:
+                    blocks.append([])
+                continue
+            blocks[-1].append(s)
+        pieces: List[str] = []
+        for b in blocks:
+            cur = ""
+            for s in b:
+                for seg in ([s] if len(s) <= FRAG_MAX else _cut(s, FRAG_MAX)):
+                    if cur and len(cur) + 1 + len(seg) > FRAG_MAX:
+                        pieces.append(cur)
+                        cur = seg
+                    else:
+                        cur = f"{cur}\n{seg}" if cur else seg
+            if cur:
+                pieces.append(cur)
+        frags = []
+        for p in pieces:   # 아주 짧은 조각(인사 · 머리글 한 줄)은 다음 조각과 묶는다
+            if frags and len(frags[-1]) < FRAG_MIN and len(frags[-1]) + 1 + len(p) <= FRAG_MAX:
+                frags[-1] = frags[-1] + "\n" + p
+            else:
+                frags.append(p)
+        m = _SUBJECT_RE.search(t) if kind == "mail" else None
+        first = m.group(1) if m else next((s for b in blocks for s in b if len(s) >= 4), "")
+        title = first
+    if kind == "chat":   # [이름] [오후 2:10] 머리를 뗀 첫 말
+        title = re.sub(r"^\s*(?:\[[^\]]*\]\s*)+", "", title)
+    title = re.sub(r"\s+", " ", title).strip()
+    return {"kind": kind, "title": _short(title, 40) or KIND_KO[kind], "frags": frags, "quotes": quotes}
 
 
 @dataclass
-class Source:
-    id: str          # c1 커밋 · e1 일정 · n3 일지 · f1 다음 기간 일정
-    kind: str
+class Frag:
+    id: str          # p1
+    paste: str       # a1
+    text: str
+
+
+@dataclass
+class Paste:
+    id: str          # a1
+    kind: str        # mail · chat · table · text · memo
     title: str
-    when: str        # YYYY-MM-DDTHH:MM
-    where: str = ""  # 저장소 이름 · 장소
-    ref: str = ""    # 짧은 커밋 해시 · 일정 id
-
-    def prompt_line(self) -> str:
-        where = f" · {self.where}" if self.where else ""
-        return f"[{self.id}] {self.when[:10]} {KIND_KO.get(self.kind, self.kind)}{where} · {self.title}"
-
-    def short(self) -> str:
-        """보고서에 근거를 붙일 때 쓰는 짧은 이름"""
-        if self.kind == "commit":
-            return f"{self.where} {self.ref}".strip()
-        md = _md(date.fromisoformat(self.when[:10]))
-        return f"{KIND_KO.get(self.kind, self.kind)} {md}"
+    added: str
+    frags: List[str] = field(default_factory=list)
+    chars: int = 0
+    dups: int = 0    # 이미 있는 조각이라 건너뛴 수
+    quotes: int = 0  # 건너뛴 메일 인용(>) 줄 수
 
 
-def _run(cmd: List[str], timeout: float, cwd: Optional[str] = None) -> Tuple[int, str, str]:
-    p = subprocess.run(cmd, cwd=cwd, capture_output=True, timeout=timeout, creationflags=NO_WINDOW)
-    return p.returncode, p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace")
+class Desk:
+    """지금 쓰고 있는 토픽 하나 — 메모리에만 있다. 보관(save)하면 topics\\ 에 저장된다 (RULES.md › W-05)"""
 
+    def __init__(self, form: str):
+        self.topic = ""
+        self.form = form
+        self.pastes: List[Paste] = []
+        self.frags: Dict[str, Frag] = {}
+        self.exclude: Set[str] = set()
+        self.next_a = 1
+        self.next_p = 1
+        self.saved_id = ""
+        self.dirty = False
+        self.created = now_iso()
 
-class GitCollector:
-    """sources.git.roots 아래 저장소에서 '내' 커밋만 (작성자 이메일로 거른다 — 모르면 아무것도 안 가져온다:
-    남의 커밋이 내 실적으로 들어가는 것보다 비어 있는 편이 낫다)"""
+    # 읽기
+    def unsaved(self) -> bool:
+        """보관 안 한 자료가 있나 — 있으면 창을 닫아도 서버가 기다린다"""
+        return self.dirty and bool(self.pastes)
 
-    MAX_COMMITS = 300
-    SLACK_DAYS = 60   # git --since 는 날짜가 거꾸로 된 커밋(틀린 시계 · 옛 날짜 커밋)을 만나면 거기서 멈춘다 → 넉넉히 주고 파이썬에서 거른다
-    SKIP = {"node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".git"}
+    def known(self) -> Dict[str, Frag]:
+        """체크된 조각 (초안 · LLM · 근거 판정에 쓰는 것)"""
+        return {k: f for k, f in self.frags.items() if k not in self.exclude}
 
-    def __init__(self, cfg: Dict[str, Any]):
-        g = (cfg.get("sources") or {}).get("git") or {}
-        self.roots = [os.path.expandvars(os.path.expanduser(r)) for r in g.get("roots", [])]
-        self.extra_authors = list(g.get("authors", []))
-        self.depth = int(g.get("depth", 2))
-        self._global_email: Optional[str] = None
+    def chars(self, included_only: bool = True) -> int:
+        src = self.known() if included_only else self.frags
+        return sum(len(f.text) for f in src.values())
 
-    def git_version(self) -> str:
-        try:
-            rc, out, _ = _run(["git", "--version"], 10)
-        except (OSError, subprocess.SubprocessError):
-            return ""
-        return out.strip() if rc == 0 else ""
+    def paste_of(self) -> Dict[str, Paste]:
+        return {p.id: p for p in self.pastes}
 
-    def find_repos(self) -> List[str]:
-        seen, out = set(), []
-
-        def add(p: str) -> None:
-            k = os.path.normcase(os.path.abspath(p))
-            if k not in seen:
-                seen.add(k)
-                out.append(p)
-
-        def walk(p: str, depth: int) -> None:
-            if os.path.exists(os.path.join(p, ".git")):
-                add(p)
-                return
-            if depth <= 0:
-                return
-            try:
-                names = sorted(os.listdir(p))
-            except OSError:
-                return
-            for n in names:
-                sub = os.path.join(p, n)
-                if n in self.SKIP or n.startswith(".") or not os.path.isdir(sub):
-                    continue
-                walk(sub, depth - 1)
-
-        for r in self.roots:
-            if os.path.isdir(r):
-                walk(r, self.depth)
-        return out
-
-    def authors(self, repo: str) -> List[str]:
-        if self._global_email is None:
-            try:
-                rc, out, _ = _run(["git", "config", "--global", "user.email"], 10)
-                self._global_email = out.strip().lower() if rc == 0 else ""
-            except (OSError, subprocess.SubprocessError):
-                self._global_email = ""
-        names = list(self.extra_authors) + ([self._global_email] if self._global_email else [])
-        try:
-            rc, out, _ = _run(["git", "-C", repo, "config", "user.email"], 10)
-            if rc == 0 and out.strip():
-                names.append(out.strip().lower())
-        except (OSError, subprocess.SubprocessError):
-            pass
-        return sorted(set(n for n in names if n))
-
-    def collect(self, d0: date, d1: date) -> Tuple[List[Dict[str, Any]], str]:
-        if not self.roots:
-            return [], "폴더 미설정 → sources.git.roots"
-        if not self.git_version():
-            return [], "git 을 찾지 못했습니다"
-        repos = self.find_repos()
-        if not repos:
-            return [], "저장소를 찾지 못했습니다 (sources.git.roots · depth)"
-        commits: Dict[str, Dict[str, Any]] = {}
-        no_author, errors = 0, []
-        for repo in repos:
-            who = self.authors(repo)
-            if not who:
-                no_author += 1
+    # 쓰기
+    def add(self, text: Any, memo: bool = False) -> Paste:
+        raw = clean_text(text)
+        if not raw.strip():
+            raise ValueError("붙여 넣은 글이 비어 있습니다")
+        if len(raw) > MAX_PASTE:
+            raise ValueError(f"한 번에 {MAX_PASTE:,}자까지 붙여 넣을 수 있습니다 (지금 {len(raw):,}자) — 나눠서 붙여 넣으세요")
+        if self.chars(False) + len(raw) > MAX_DESK:
+            raise ValueError(f"토픽 하나의 자료는 {MAX_DESK:,}자까지입니다 — 필요 없는 자료를 지우세요")
+        sp = split_paste(raw)
+        if memo:
+            sp["kind"] = "memo"
+        seen = {frag_key(f.text) for f in self.frags.values()}
+        p = Paste(f"a{self.next_a}", sp["kind"], sp["title"], now_iso(), quotes=sp["quotes"])
+        new: List[Frag] = []
+        for t in sp["frags"]:
+            key = frag_key(t)
+            if len(key) < 2:
                 continue
-            cmd = ["git", "-C", repo, "-c", "i18n.logOutputEncoding=UTF-8", "log", "--branches", "--remotes",
-                   "--no-merges", "--fixed-strings", "--regexp-ignore-case",
-                   f"--since={d0 - timedelta(days=self.SLACK_DAYS):%Y-%m-%d}", *[f"--author={a}" for a in who],
-                   "--date=format-local:%Y-%m-%dT%H:%M", "--pretty=format:%H%x1f%ad%x1f%s%x1e"]
-            try:
-                rc, out, err = _run(cmd, 30)
-            except (OSError, subprocess.SubprocessError) as e:
-                errors.append(f"{os.path.basename(repo)}: {e}")
+            if key in seen:
+                p.dups += 1
                 continue
-            if rc != 0:
-                if "does not have any commits" not in err:
-                    errors.append(f"{os.path.basename(repo)}: {err.strip()[:120]}")
+            seen.add(key)
+            new.append(Frag(f"p{self.next_p + len(new)}", p.id, t))
+        if not new:
+            raise ValueError("새 내용이 없습니다 — 이미 붙여 넣은 조각뿐입니다" if p.dups else "쓸 수 있는 글이 없습니다")
+        if len(self.frags) + len(new) > MAX_FRAGS:
+            raise ValueError(f"조각이 {MAX_FRAGS:,}개를 넘습니다 — 필요 없는 자료를 지우세요")
+        self.next_a += 1
+        self.next_p += len(new)
+        p.frags = [f.id for f in new]
+        p.chars = sum(len(f.text) for f in new)
+        self.pastes.append(p)
+        self.frags.update({f.id: f for f in new})
+        self.dirty = True
+        return p
+
+    def remove(self, aid: str) -> Dict[str, Any]:
+        """자료 하나를 지우고 되돌리기용 조각을 돌려준다 (id 는 다시 쓰지 않는다)"""
+        i = next((i for i, p in enumerate(self.pastes) if p.id == aid), -1)
+        if i < 0:
+            raise KeyError(f"없는 자료: {aid}")
+        p = self.pastes.pop(i)
+        frags = {k: self.frags.pop(k) for k in p.frags if k in self.frags}
+        off = [k for k in p.frags if k in self.exclude]
+        self.exclude -= set(p.frags)
+        self.dirty = True
+        return {"index": i, "paste": p, "frags": frags, "exclude": off}
+
+    def restore(self, snap: Dict[str, Any]) -> None:
+        self.pastes.insert(min(snap["index"], len(self.pastes)), snap["paste"])
+        self.frags.update(snap["frags"])
+        self.frags = dict(sorted(self.frags.items(), key=lambda kv: int(kv[0][1:])))
+        self.exclude |= set(snap["exclude"])
+        self.dirty = True
+
+    # 화면 · 파일
+    def view(self, budget: int) -> Dict[str, Any]:
+        return {"topic": self.topic, "form": self.form, "saved_id": self.saved_id, "dirty": self.dirty,
+                "unsaved": self.unsaved(), "exclude": sorted(self.exclude, key=lambda k: int(k[1:])),
+                "chars": self.chars(), "total": self.chars(False), "budget": budget,
+                "pastes": [dict(asdict(p), kind_ko=KIND_KO.get(p.kind, p.kind),
+                                frags=[{"id": k, "text": self.frags[k].text} for k in p.frags if k in self.frags])
+                           for p in self.pastes]}
+
+    def to_doc(self) -> Dict[str, Any]:
+        return {"topic": self.topic, "form": self.form, "created": self.created, "updated": now_iso(),
+                "next_a": self.next_a, "next_p": self.next_p, "exclude": sorted(self.exclude),
+                "pastes": [dict(asdict(p), frags=[{"id": k, "text": self.frags[k].text} for k in p.frags
+                                                  if k in self.frags]) for p in self.pastes]}
+
+    @classmethod
+    def from_doc(cls, doc: Dict[str, Any], forms: Dict[str, List[str]], default_form: str) -> "Desk":
+        d = cls(doc.get("form") if doc.get("form") in forms else default_form)
+        d.topic = str(doc.get("topic") or "")[:80]
+        d.created = str(doc.get("created") or now_iso())
+        for x in doc.get("pastes") or []:
+            if not isinstance(x, dict) or not re.fullmatch(r"a\d+", str(x.get("id", ""))):
                 continue
-            for rec in out.split("\x1e"):
-                parts = rec.strip("\n").split("\x1f")
-                if len(parts) != 3 or parts[0] in commits or not (d0.isoformat() <= parts[1][:10] <= d1.isoformat()):
-                    continue   # 기간은 작성 날짜(내 PC 시각)로 여기서 정확히
-                commits[parts[0]] = {"hash": parts[0], "when": parts[1], "title": parts[2].strip() or "(제목 없음)",
-                                     "repo": os.path.basename(os.path.normpath(repo))}
-        items = sorted(commits.values(), key=lambda c: c["when"])
-        cut = len(items) > self.MAX_COMMITS
-        items = items[-self.MAX_COMMITS:]
-        status = f"OK · {len(items)}건 · 저장소 {len(repos)}개"
-        if cut:
-            status += f" · 최근 {self.MAX_COMMITS}건만"
-        if no_author:
-            status += f" · 작성자 이메일을 모르는 저장소 {no_author}개는 건너뜀 (sources.git.authors)"
-        if errors:
-            status += " · 실패 " + "; ".join(errors[:3])
-        return items, status
+            fr = [f for f in x.get("frags") or [] if isinstance(f, dict) and re.fullmatch(r"p\d+", str(f.get("id", "")))
+                  and str(f.get("text") or "").strip() and f["id"] not in d.frags]
+            if not fr:
+                continue
+            kind = x.get("kind") if x.get("kind") in KIND_KO else "text"
+            p = Paste(x["id"], kind, str(x.get("title") or "")[:60], str(x.get("added") or ""),
+                      [f["id"] for f in fr], sum(len(str(f["text"])) for f in fr),
+                      int(x.get("dups") or 0), int(x.get("quotes") or 0))
+            d.pastes.append(p)
+            d.frags.update({f["id"]: Frag(f["id"], p.id, str(f["text"])) for f in fr})
+        d.exclude = {k for k in doc.get("exclude") or [] if k in d.frags}
+        top_a = max([int(p.id[1:]) for p in d.pastes] + [0])
+        top_p = max([int(k[1:]) for k in d.frags] + [0])
+        d.next_a = max(top_a + 1, int(doc.get("next_a") or 1))
+        d.next_p = max(top_p + 1, int(doc.get("next_p") or 1))
+        return d
 
 
-EXPORT_FORMATS = (1,)   # 읽을 줄 아는 Secretary–1 공개 명령 형식
+# ─────────────────────────────────────────────────────────────── 초안 · 근거 판정
 
-
-class CalendarCollector:
-    """Secretary–1 의 공개 명령으로 일정을 읽는다 (RULES.md › W-01 · docs/REGISTRY.md › 공개 명령).
-    Secretary–1 이 없거나 · 실패하거나 · 모르는 형식이면 일정 없이 동작한다"""
-
-    TIMEOUT = 90
-
-    def __init__(self, cfg: Dict[str, Any]):
-        c = (cfg.get("sources") or {}).get("calendar") or {}
-        self.enabled = bool(c.get("enabled", True))
-        path = str(c.get("secretary") or "").strip()
-        self.path = os.path.expandvars(os.path.expanduser(path)) if path else self.default_path()
-
-    @staticmethod
-    def default_path() -> str:
-        """works 저장소 안의 Secretary–1 (이 폴더의 옆 폴더)"""
-        return os.path.join(os.path.dirname(BASE_DIR), "secretary-1", "secretary-1.py")
-
-    @staticmethod
-    def python() -> str:
-        exe = sys.executable or "python"
-        if os.path.basename(exe).lower() == "pythonw.exe":   # 창 없는 파이썬은 표준 출력이 없을 수 있다
-            alt = os.path.join(os.path.dirname(exe), "python.exe")
-            if os.path.isfile(alt):
-                return alt
-        return exe
-
-    def collect(self, d0: date, d1: date) -> Tuple[List[Dict[str, Any]], str]:
-        if not self.enabled:
-            return [], "끔 (sources.calendar.enabled)"
-        if not os.path.isfile(self.path):
-            return [], "Secretary–1 이 없습니다 → 일정 없이"
-        cmd = [self.python(), self.path, "--export-events", "--from", d0.isoformat(), "--to", d1.isoformat()]
-        try:
-            rc, out, err = _run(cmd, self.TIMEOUT)
-        except subprocess.TimeoutExpired:
-            return [], f"Secretary–1 응답 시간 초과 ({self.TIMEOUT}초)"
-        except (OSError, subprocess.SubprocessError) as e:
-            return [], f"Secretary–1 을 실행하지 못했습니다: {e}"
-        lines = [ln for ln in out.splitlines() if ln.strip()]
-        try:
-            data = json.loads(lines[-1]) if lines else {}
-        except ValueError:
-            data = {}
-        if not isinstance(data, dict) or data.get("app") != "secretary-1":
-            return [], f"Secretary–1 의 답을 읽지 못했습니다 (코드 {rc}) {err.strip()[:120]}"
-        if data.get("format") not in EXPORT_FORMATS:
-            return [], f"Secretary–1 의 일정 형식({data.get('format')})을 모릅니다 → {NAME} 업데이트"
-        if data.get("error"):
-            return [], f"Secretary–1: {str(data['error'])[:160]}"
-        evs = [e for e in data.get("events") or [] if isinstance(e, dict) and e.get("title") and e.get("start")]
-        return evs, f"OK · {len(evs)}건 · Secretary–1 {data.get('version', '')} ({data.get('backend', '')})"
-
-
-class SourceBook:
-    """기간의 근거 목록을 모은다 (같은 기간은 60초 동안 다시 모으지 않는다)"""
-
-    CACHE_SEC = 60
-
-    def __init__(self, cfg: Dict[str, Any], journal: Journal):
-        self.cfg = cfg
-        self.journal = journal
-        self.git = GitCollector(cfg)
-        self.cal = CalendarCollector(cfg)
-        self.journal_on = bool(((cfg.get("sources") or {}).get("journal") or {}).get("enabled", True))
-        self._cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
-        self._lock = threading.Lock()
-
-    def gather(self, period: Period, refresh: bool = False) -> Dict[str, Any]:
-        with self._lock:
-            hit = self._cache.get(period.key)
-            if hit and not refresh and time.time() - hit[0] < self.CACHE_SEC:
-                return hit[1]
-            items: List[Source] = []
-            commits, git_st = self.git.collect(period.start, period.end)
-            for i, c in enumerate(commits, 1):
-                items.append(Source(f"c{i}", "commit", c["title"], c["when"], c["repo"], c["hash"][:7]))
-            events, cal_st = self.cal.collect(period.start, period.next_end)
-            now_i = next_i = 0
-            for e in sorted(events, key=lambda x: str(x.get("start"))):
-                when = str(e["start"])[:16]
-                if when[:10] <= period.end.isoformat():
-                    now_i += 1
-                    items.append(Source(f"e{now_i}", "event", str(e["title"]), when, str(e.get("location") or ""),
-                                        str(e.get("id") or "")))
-                else:
-                    next_i += 1
-                    items.append(Source(f"f{next_i}", "plan", str(e["title"]), when, str(e.get("location") or ""),
-                                        str(e.get("id") or "")))
-            if self.journal_on:
-                notes = self.journal.between(period.start, period.end)
-                for n in notes:
-                    items.append(Source(n["id"], "note", n["text"], n["date"] + "T00:00"))
-                jr_st = f"OK · {len(notes)}줄" + (f" · {self.journal.doc.error}" if self.journal.doc.error else "")
-            else:
-                jr_st = "끔 (sources.journal.enabled)"
-            out = {"period": period.to_ui(), "items": [asdict(s) for s in items],
-                   "status": {"git": git_st, "calendar": cal_st, "journal": jr_st}}
-            self._cache[period.key] = (time.time(), out)
-            return out
-
-    def forget(self) -> None:
-        with self._lock:
-            self._cache.clear()
-
-
-def sources_of(gathered: Dict[str, Any], exclude: Optional[List[str]] = None) -> Dict[str, Source]:
-    skip = set(exclude or [])
-    return {x["id"]: Source(**x) for x in gathered["items"] if x["id"] not in skip}
-
-
-# ─────────────────────────────────────────────────────────────── 초안 · 근거 검사
-
-ALLOWED = [("commit", "event", "note"),              # 0 실적: 이번 기간에 있었던 일만
-           ("commit", "event", "note", "plan"),      # 1 계획
-           ("commit", "event", "note", "plan")]      # 2 이슈
-TONES = {"brief": "개조식 — '~완료', '~진행 중', '~검토' 처럼 짧은 명사형으로 끝낸다",
-         "prose": "서술식 — '~했습니다' 로 끝나는 짧은 존댓말 문장"}
-DETAILS = {1: "한 줄에 한 가지를 아주 짧게, 비슷한 일은 과감히 묶는다",
-           2: "무엇을 했는지 알 수 있을 만큼",
-           3: "무엇을 왜 했는지 조금 더 자세히"}
+LINE_KINDS = ("fact", "infer", "check", "gap")
+KIND_ALIAS = {"사실": "fact", "추론": "infer", "판단": "infer", "확인": "check", "충돌": "check", "빈칸": "gap",
+              "자료 없음": "gap", "conflict": "check", "inference": "infer", "missing": "gap"}
+TONES = {"brief": "개조식 — 명사형으로 짧게 끝낸다 ('~완료', '~필요', '~예정')",
+         "prose": "서술식 — '~했습니다', '~입니다' 로 끝나는 짧은 문장"}
+DETAILS = {1: ("짧게", 3), 2: ("보통", 6), 3: ("자세히", 10)}          # 칸마다 최대 줄 수
+AUDIENCES = {"team": ("팀 내부", "실무 세부(담당 · 일정 · 수치)를 빠짐없이"),
+             "boss": ("상사", "핵심 사실과 판단, 필요한 요청 중심으로"),
+             "exec": ("임원", "결론 · 숫자 · 결정이 필요한 사항만, 세부는 뺀다")}
+SUMMARY_MAX = 3
 
 
 @dataclass
 class Line:
-    section: int
+    section: int                  # 칸 번호 (요약이 있으면 0 = 요약)
     text: str
     refs: List[str] = field(default_factory=list)
-    origin: str = "llm"      # llm · basic · user
-    state: str = ""          # ok · err(근거 없음) · plan(계획, 근거 없어도 됨) · user(사람이 씀)
+    kind: str = "fact"            # fact 사실 · infer 추론 · check 자료끼리 다름 · gap 자료 없음
+    level: int = 1                # 1 큰 항목 · 2 세부
+    origin: str = "llm"           # llm · basic · user
+    state: str = ""               # ok · infer · check · gap · err(근거 없음) · user(사람이 씀)
+    nums: List[str] = field(default_factory=list)   # 근거 조각에 없는 숫자
 
 
-def judge(line: Line, known: Dict[str, Source]) -> Line:
-    """근거 id 를 걸러내고 줄의 상태를 정한다. 실적 칸의 근거는 이번 기간의 것만 인정한다"""
-    kinds = ALLOWED[line.section] if 0 <= line.section < 3 else ()
-    refs = []
+_NUM_RE = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?")
+
+
+def numbers(text: str) -> List[str]:
+    """글 속의 숫자를 비교할 수 있는 모양으로 (1,500 → 1500 · 09 → 9 · 3.50 → 3.5)"""
+    out = []
+    for m in _NUM_RE.finditer(text or ""):
+        s = m.group(0).replace(",", "")
+        if "." in s:
+            s = s.rstrip("0").rstrip(".")
+        ip, dot, fp = s.partition(".")
+        out.append((ip.lstrip("0") or "0") + (dot + fp if fp else ""))
+    return out
+
+
+def unsupported_numbers(text: str, sources: List[str]) -> List[str]:
+    """줄의 숫자 가운데 근거 조각에 없는 것 (한 자리 정수는 세지 않는다 — '3건' 처럼 센 숫자가 흔해서)"""
+    have: Set[str] = set()
+    for s in sources:
+        have.update(numbers(s))
+    out = []
+    for n in numbers(text):
+        if (n.isdigit() and int(n) < 10) or n in have or n in out:
+            continue
+        out.append(n)
+    return out
+
+
+def judge(line: Line, known: Dict[str, Frag]) -> Line:
+    """근거 id 를 걸러내고 줄의 상태를 정한다 — 서버가 매번 다시 한다 (LLM 도 화면도 믿지 않는다)"""
+    refs: List[str] = []
     for r in line.refs:
-        r = str(r).strip().lower()
-        if r in known and known[r].kind in kinds and r not in refs:
+        r = str(r).strip().strip("[]()").lower()
+        if r in known and r not in refs:
             refs.append(r)
+    kind = line.kind if line.kind in LINE_KINDS else "fact"
+    nums: List[str] = []
     if line.origin == "user":
         state = "user"
-    elif refs:
-        state = "ok"
+    elif kind == "gap":
+        state, refs = "gap", []
+    elif not refs:
+        state = "err"
     else:
-        state = "plan" if line.section == 1 else "err"
-    return Line(line.section, line.text, refs, line.origin, state)
+        state = {"fact": "ok", "infer": "infer", "check": "check"}[kind]
+        nums = unsupported_numbers(line.text, [known[r].text for r in refs])
+    return Line(line.section, line.text, refs, kind, 2 if line.level == 2 else 1, line.origin, state, nums)
 
 
-def basic_draft(known: Dict[str, Source], max_lines: int) -> List[Line]:
-    """LLM 없이 규칙으로 묶는 초안 — 일지는 한 줄씩, 커밋은 저장소마다, 일정은 제목마다"""
-    src = list(known.values())
-    done: List[Line] = []
-    for s in src:
-        if s.kind == "note":
-            done.append(Line(0, s.title, [s.id], "basic"))
-    repos: Dict[str, List[Source]] = {}
-    for s in src:
-        if s.kind == "commit":
-            repos.setdefault(s.where, []).append(s)
-    for repo, cs in sorted(repos.items(), key=lambda kv: -len(kv[1])):
-        latest = cs[-1].title
-        done.append(Line(0, f"{repo}: {latest}" + (f" 외 {len(cs) - 1}건" if len(cs) > 1 else ""),
-                         [c.id for c in cs], "basic"))
-    titles: Dict[str, List[Source]] = {}
-    for s in src:
-        if s.kind == "event":
-            titles.setdefault(s.title, []).append(s)
-    for t, es in titles.items():
-        done.append(Line(0, t + (f" ×{len(es)}" if len(es) > 1 else ""), [e.id for e in es], "basic"))
-    plans = [Line(1, f"{s.title} ({_md(date.fromisoformat(s.when[:10]))})", [s.id], "basic")
-             for s in src if s.kind == "plan"]
-    return [judge(x, known) for x in done[:max_lines] + plans[:max_lines]]
+def basic_draft(known: Dict[str, Frag], pastes: Dict[str, Paste], sections: List[str], max_lines: int,
+                summary: bool) -> List[Line]:
+    """LLM 없이 — 자료마다 제목 한 줄 + 앞 조각 몇 개를 첫 칸에 그대로 묶고, 나머지 칸은 빈칸으로"""
+    first = 1 if summary and len(sections) > 1 else 0
+    lines: List[Line] = []
+    if summary and len(sections) > 1:
+        lines.append(Line(0, "", [], "gap", 1, "basic"))   # 요약은 사람이 — '+ 줄' 로
+    by_paste: Dict[str, List[Frag]] = {}
+    for f in known.values():
+        by_paste.setdefault(f.paste, []).append(f)
+    for aid, fs in by_paste.items():
+        p = pastes.get(aid)
+        if len([x for x in lines if x.section == first]) >= max_lines * 2:
+            break
+        lines.append(Line(first, f"{KIND_KO.get(p.kind, '자료') if p else '자료'} · {p.title if p else aid}",
+                          [fs[0].id], "fact", 1, "basic"))
+        for f in fs[:3]:
+            lines.append(Line(first, _short(f.text.split("\n")[0], 120), [f.id], "fact", 2, "basic"))
+    for i, name in enumerate(sections):
+        if i > first:
+            lines.append(Line(i, "", [], "gap", 1, "basic"))
+    return [judge(x, known) for x in lines]
 
 
 def strip_think(text: str) -> str:
@@ -755,75 +718,135 @@ def strip_think(text: str) -> str:
     return t.strip()
 
 
-def parse_draft(text: str, max_lines: int) -> List[Line]:
-    """LLM 답에서 JSON 을 꺼낸다 (코드 울타리 · 앞뒤 말이 붙어 있어도). 모양이 틀리면 ValueError"""
+_INLINE_REF = re.compile(r"\s*[\[(]((?:p\d+)(?:\s*[,·/]\s*p\d+)*)[\])]", re.I)
+
+
+def parse_draft(text: str, sections: List[str], free: bool, max_lines: int) -> Tuple[str, List[str], List[Line]]:
+    """LLM 답에서 JSON 을 꺼낸다 (코드 울타리 · 앞뒤 말이 붙어 있어도) → (제목, 칸 이름, 줄). 모양이 틀리면 ValueError"""
     t = strip_think(text)
     t = re.sub(r"^```(?:json)?\s*|\s*```$", "", t.strip(), flags=re.I | re.M)
     a, b = t.find("{"), t.rfind("}")
     if a < 0 or b <= a:
         raise ValueError("JSON 을 찾지 못했습니다")
     data = json.loads(t[a:b + 1])
-    if isinstance(data, dict) and isinstance(data.get("sections"), list):
-        secs = data["sections"]
-    elif isinstance(data, dict) and any(k in data for k in ("done", "next", "issues")):
-        secs = [data.get("done") or [], data.get("next") or [], data.get("issues") or []]
-    else:
+    if not isinstance(data, dict) or not isinstance(data.get("sections"), list):
         raise ValueError("sections 가 없습니다")
+    title = re.sub(r"\s+", " ", str(data.get("title") or "")).strip()[:80]
+    names = list(sections)
+    if free:   # 자유 구성: 요약 다음 칸은 LLM 이 정한 이름
+        for sec in data["sections"]:
+            n = re.sub(r"\s+", " ", str(sec.get("name") or "") if isinstance(sec, dict) else "").strip()[:20]
+            if n and n not in names and len(names) < 9:
+                names.append(n)
+        if len(names) == len(sections):
+            names.append("내용")
     lines: List[Line] = []
-    for i, sec in enumerate(secs[:3]):
+    for i, sec in enumerate(data["sections"]):
+        name = str(sec.get("name") or "").strip() if isinstance(sec, dict) else ""
         rows = sec.get("lines") if isinstance(sec, dict) else sec
-        for row in (rows if isinstance(rows, list) else [])[:max_lines]:
+        if name in names:
+            idx = names.index(name)
+        else:
+            idx = min(i, len(names) - 1)
+        cap = SUMMARY_MAX if names[idx] == SUMMARY else max_lines
+        for row in (rows if isinstance(rows, list) else []):
+            if len([x for x in lines if x.section == idx]) >= cap:
+                break
             if isinstance(row, str):
                 row = {"text": row}
             if not isinstance(row, dict):
                 continue
-            txt = re.sub(r"\s+", " ", str(row.get("text") or "")).strip()[:300]
+            txt = re.sub(r"\s+", " ", str(row.get("text") or "")).strip()
             refs = row.get("refs") or []
             if isinstance(refs, str):
                 refs = re.split(r"[\s,]+", refs)
-            if txt:
-                lines.append(Line(i, txt, [str(r) for r in refs if str(r).strip()], "llm"))
-    return lines
+            refs = [str(r) for r in refs if str(r).strip()]
+            for m in _INLINE_REF.finditer(txt):   # 글 속에 박힌 [p3] 도 근거로 옮긴다
+                refs += re.findall(r"p\d+", m.group(1), re.I)
+            txt = _INLINE_REF.sub("", txt).strip()[:300]
+            kind = str(row.get("kind") or "fact").strip().lower()
+            kind = KIND_ALIAS.get(kind, kind)
+            level = 2 if str(row.get("level") or "1").strip() == "2" else 1
+            if txt or kind == "gap":
+                lines.append(Line(idx, txt, refs, kind if kind in LINE_KINDS else "fact", level, "llm"))
+    return title, names, lines
 
 
-def build_messages(period: Period, known: Dict[str, Source], sections: List[str], detail: int, tone: str,
-                   max_lines: int, user_name: str = "") -> List[Dict[str, str]]:
-    who = user_name.strip() or "사용자"
+def build_messages(topic: str, form: str, sections: List[str], free: bool, known: Dict[str, Frag],
+                   pastes: Dict[str, Paste], detail: int, tone: str, audience: str) -> List[Dict[str, str]]:
+    per = DETAILS.get(detail, DETAILS[2])
+    aud = AUDIENCES.get(audience, AUDIENCES["boss"])
+    body_secs = [s for s in sections if s != SUMMARY]
+    if free:
+        sec_rule = ("칸: " + (f"'{SUMMARY}' 다음에 " if SUMMARY in sections else "")
+                    + "자료에 맞는 칸 3~5개를 네가 정한다 (칸 이름은 짧게, 결론 → 근거 → 할 일 순서)")
+    else:
+        sec_rule = "칸: " + " · ".join(f"'{s}'" for s in sections) + " — 이 순서, 이 이름 그대로"
+    summary_rule = (f"'{SUMMARY}' 칸은 결론부터 {SUMMARY_MAX}줄 이내로 쓴다 (두괄식). 요약 줄도 근거가 있어야 한다.\n"
+                    if SUMMARY in sections else "")
+    example_secs = [{"name": s, "lines": []} for s in (sections if not free else sections + ["…"])][:3]
+    example_secs[0]["lines"] = [{"text": "…", "refs": ["p1", "p4"], "kind": "fact", "level": 1}]
     system = (
-        f"너는 {who}의 주간보고 초안을 쓰는 비서다. 규칙:\n"
-        "1. 아래 [근거] 목록에 있는 일만 쓴다. 근거에 없는 일 · 수치 · 성과 · 사람 이름을 지어내지 않는다.\n"
-        f"2. 줄마다 그 줄의 근거 id 를 refs 에 넣는다 (예: [\"c3\", \"e1\"]). '{sections[0]}' 와 '{sections[2]}' 줄은 근거가 꼭 있어야 한다.\n"
-        f"3. '{sections[0]}' 에는 이번 기간의 근거(c · e · n)만 쓴다. f 로 시작하는 id 는 다음 기간 일정이라 '{sections[1]}' 에만 쓴다.\n"
-        f"4. 같은 일은 한 줄로 묶는다. 칸마다 최대 {max_lines}줄.\n"
-        f"5. 말투: {TONES.get(tone, TONES['brief'])}. 자세한 정도: {DETAILS.get(detail, DETAILS[2])}.\n"
-        "6. 다른 말 없이 JSON 하나만 출력한다:\n"
-        '{"sections": [{"lines": [{"text": "…", "refs": ["c1"]}]}, {"lines": []}, {"lines": []}]}\n'
-        f"세 칸은 차례로 '{sections[0]}', '{sections[1]}', '{sections[2]}' 이다. 쓸 것이 없으면 빈 목록."
+        f"너는 보고서를 쓰는 비서다. 사용자가 붙여 넣은 [자료] 조각만으로 '{form}' 을 쓴다. 규칙:\n"
+        "1. 자료에 적힌 것만 쓴다. 자료 밖의 지식 · 수치 · 날짜 · 사람 이름 · 원인을 지어내지 않는다.\n"
+        "2. 줄마다 그 줄의 근거 조각 id 를 refs 에 넣는다 (예: [\"p3\", \"p7\"]). 근거를 댈 수 없는 줄은 쓰지 않는다.\n"
+        "3. kind 는 넷 중 하나다.\n"
+        "   fact  = 조각에 적힌 사실\n"
+        "   infer = 여러 조각을 이어 네가 내린 판단. 문장을 '~로 보임', '~로 판단됨' 처럼 끝내고 근거 조각을 모두 refs 에\n"
+        "   check = 조각끼리 내용이 다름. 무엇이 어떻게 다른지 적고 다른 조각을 모두 refs 에\n"
+        "   gap   = 양식 칸에 필요한데 자료에 없음. text 에는 빠진 항목 이름만 짧게, refs 는 빈 목록\n"
+        "4. 숫자 · 날짜는 조각에 적힌 그대로 옮긴다. 더하거나 바꾸거나 반올림하지 않는다.\n"
+        f"5. {sec_rule}. 칸마다 최대 {per[1]}줄.\n"
+        f"{summary_rule}"
+        f"6. 분량: {per[0]}. 어조: {TONES.get(tone, TONES['brief'])}. 읽는 사람: {aud[0]} — {aud[1]}.\n"
+        "7. level 1 = 큰 항목, level 2 = 바로 위 항목의 세부.\n"
+        "8. 다른 말 없이 JSON 하나만 출력한다:\n"
+        + json.dumps({"title": "…", "sections": example_secs}, ensure_ascii=False)
     )
-    body = "\n".join(s.prompt_line() for s in known.values()) or "(없음)"
-    user = (f"기간: {period.label} · 다음 기간: {_md(period.next_start)} – {_md(period.next_end)}\n"
-            f"[근거]\n{body}")
+    rows = []
+    for f in known.values():
+        p = pastes.get(f.paste)
+        head = f"자료 {p.id[1:]} · {KIND_KO.get(p.kind, '')}" if p else "자료"
+        rows.append(f"[{f.id}] ({head}) {f.text.replace(chr(10), ' / ')}")
+    user = (f"토픽: {topic or '(없음 — 자료를 보고 제목을 정한다)'}\n양식: {form}"
+            + (f" ({' · '.join(body_secs)})" if body_secs else "")
+            + "\n[자료]\n" + ("\n".join(rows) or "(없음)"))
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def render_text(period: Period, sections: List[str], lines: List[Line], known: Dict[str, Source],
-                with_refs: bool = False) -> str:
-    """메일에 붙일 글 — 개조식 세 칸"""
-    heads = [f"■ {sections[0]} ({_md(period.start)} – {_md(period.end)})",
-             f"■ {sections[1]} ({_md(period.next_start)} – {_md(period.next_end)})",
-             f"■ {sections[2]}"]
-    out = []
-    for i, head in enumerate(heads):
-        out.append(head)
-        rows = [ln for ln in lines if ln.section == i and ln.text.strip()]
-        for ln in rows:
-            tail = ""
-            if with_refs and ln.refs:
-                tail = " (" + ", ".join(known[r].short() for r in ln.refs if r in known) + ")"
-            out.append(f" - {ln.text.strip()}{tail}")
+def render_text(title: str, sections: List[str], lines: List[Line], known: Dict[str, Frag],
+                pastes: Dict[str, Paste], tone: str = "brief", with_refs: bool = False) -> str:
+    """복사할 글 — 개조식(□ ○ -) 또는 서술식. 근거 붙이기를 켜면 [1] 표시와 맨 아래 근거 목록"""
+    out = [title, ""] if title else []
+    cite: Dict[str, int] = {}
+    for i, name in enumerate(sections):
+        out.append(f"□ {name}")
+        rows = [ln for ln in lines if ln.section == i and (ln.text.strip() or ln.state == "gap")]
         if not rows:
-            out.append(" - 없음")
+            out.append("  ○ 자료 없음" if tone != "prose" else "  자료 없음")
+        for ln in rows:
+            text = ln.text.strip()
+            if ln.state == "gap":
+                text = f"{text} — 자료 없음 (확인 필요)" if text else "자료 없음 (확인 필요)"
+            elif ln.state == "check":
+                text += " (확인 필요)"
+            mark = ""
+            if with_refs and ln.refs and ln.state != "gap":
+                for r in ln.refs:
+                    cite.setdefault(r, len(cite) + 1)
+                mark = "".join(f"[{cite[r]}]" for r in ln.refs)
+            if tone == "prose":
+                out.append(("  " if ln.level == 1 else "    ") + text + mark)
+            else:
+                out.append(("  ○ " if ln.level == 1 else "    - ") + text + mark)
         out.append("")
+    if cite:
+        out.append("※ 근거")
+        for r, n in cite.items():
+            f = known.get(r)
+            p = pastes.get(f.paste) if f else None
+            head = f"{KIND_KO.get(p.kind, '자료')} 「{p.title}」" if p else "자료"
+            out.append(f"[{n}] {head}: {_short(f.text, 60) if f else r}")
     return "\n".join(out).rstrip() + "\n"
 
 
@@ -857,6 +880,7 @@ class LLMClient:
         self.opener = self._build_opener(c.get("proxy"), ca)
         self.last_ok: Optional[bool] = None
         self.last_error = ""
+        self.last_finish = ""
 
     @staticmethod
     def _build_opener(proxy: Any, ca_file: str) -> urllib.request.OpenerDirector:
@@ -890,6 +914,7 @@ class LLMClient:
             req.add_header("Authorization", "Bearer " + self.api_key)
         for k, v in self.extra_headers.items():
             req.add_header(k, v)
+        self.last_finish = ""
         try:
             with self.opener.open(req, timeout=self.timeout) as resp:
                 raw = resp.read().decode("utf-8", errors="replace")
@@ -902,7 +927,9 @@ class LLMClient:
             finally:
                 e.close()
             self.last_ok, self.last_error = False, f"LLM 서버 오류 {e.code}"
-            raise LLMError(f"LLM 서버 오류 {e.code}: {_short(body) or e.reason}", e.code)
+            hint = " (자료가 LLM 입력 한도를 넘었을 수 있습니다 — report.budget_chars 를 줄이세요)" \
+                if e.code in (400, 413) and re.search(r"context|length|token", body, re.I) else ""
+            raise LLMError(f"LLM 서버 오류 {e.code}: {_short(body) or e.reason}{hint}", e.code)
         except urllib.error.URLError as e:
             msg = (f"LLM 응답 시간 초과 ({int(self.timeout)}초)" if isinstance(e.reason, socket.timeout)
                    else f"LLM 서버에 연결할 수 없습니다: {e.reason}")
@@ -916,10 +943,12 @@ class LLMClient:
             raise LLMError(f"LLM 서버 연결 오류: {e}")
         try:
             data = json.loads(raw)
-            msg = data["choices"][0]["message"]
+            choice = data["choices"][0]
+            msg = choice["message"]
             content = msg.get("content")
             if isinstance(content, list):
                 content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
+            self.last_finish = str(choice.get("finish_reason") or "")
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
             self.last_ok, self.last_error = False, "LLM 응답 형식 오류"
             raise LLMError(f"LLM 응답 형식 오류: {_short(raw)}")
@@ -929,6 +958,10 @@ class LLMClient:
 
 # ─────────────────────────────────────────────────────────────── 앱 · 로컬 서버
 
+class Conflict(Exception):
+    """보관 안 한 자료를 버리게 되는 요청 — 화면이 사람에게 물어본 뒤 discard 를 붙여 다시 보낸다 (HTTP 409)"""
+
+
 class App:
     UNDO_SEC = 20
 
@@ -937,133 +970,273 @@ class App:
         self.config_path = config_path
         home = cfg.get("_dir") or data_dir()
         self.token = secrets.token_urlsafe(24)
-        self.journal = Journal(os.path.join(home, "journal.json"))
-        self.reports = ReportStore(os.path.join(home, "reports"))
-        self.book = SourceBook(cfg, self.journal)
+        self.topics = Folder(os.path.join(home, "topics"), "토픽")
+        self.reports = Folder(os.path.join(home, "reports"), "보고서")
         self.llm = LLMClient(cfg)
         self.llm_lock = threading.Lock()
-        self.sections: List[str] = cfg["report"]["sections"]
-        self.max_lines: int = cfg["report"]["max_lines"]
-        self._undo: Dict[str, Tuple[float, Optional[Dict[str, Any]]]] = {}
+        self.lock = threading.RLock()
+        self.forms: Dict[str, List[str]] = cfg["report"]["forms"]
+        self.budget: int = cfg["report"]["budget_chars"]
+        self.desk = Desk(self.default_form)
+        self._undo: Optional[Tuple[float, str, Any]] = None
         self.httpd: Optional[ThreadingHTTPServer] = None
         self.port = 0
-        self.allowed_hosts: set = set()
+        self.allowed_hosts: Set[str] = set()
         self.last_seen = time.time()
+        self._waiting_logged = False
+
+    @property
+    def default_form(self) -> str:
+        return next(iter(self.forms))
 
     @property
     def url(self) -> str:
         return f"http://127.0.0.1:{self.port}/"
 
     def render_index(self) -> bytes:
-        boot = {"version": VERSION, "sections": self.sections, "max_lines": self.max_lines,
-                "kinds": [{"kind": k, "label": KIND_LABEL[k]} for k in KINDS], "undo_sec": self.UNDO_SEC,
-                "user": str(self.cfg.get("user_name") or "")}
+        boot = {"version": VERSION, "forms": [{"name": k, "sections": sections_of(self.cfg, k)[0],
+                                              "free": sections_of(self.cfg, k)[1]} for k in self.forms],
+                "undo_sec": self.UNDO_SEC, "budget": self.budget, "max_paste": MAX_PASTE}
         boot_js = json.dumps(boot, ensure_ascii=False).replace("</", "<\\/")
         html = INDEX_HTML.replace("__THEME__", self.cfg.get("theme") or "dark")
         return html.replace("__TOKEN__", self.token).replace("__BOOT__", boot_js).encode("utf-8")
 
     def state(self) -> Dict[str, Any]:
+        with self.lock:
+            d = self.desk
+            desk = {"topic": d.topic, "pastes": len(d.pastes), "frags": len(d.frags), "saved_id": d.saved_id,
+                    "dirty": d.dirty, "unsaved": d.unsaved()}
         return {"version": VERSION, "llm_ready": self.llm.ready, "llm_ok": self.llm.last_ok,
-                "llm_error": self.llm.last_error, "model": self.llm.model, "journal_error": self.journal.doc.error,
-                "today": date.today().isoformat()}
+                "llm_error": self.llm.last_error, "model": self.llm.model, "desk": desk}
 
-    # 근거 · 일지
-    def sources(self, q: Dict[str, str]) -> Dict[str, Any]:
-        return self.book.gather(make_period(q.get("period") or "this"), refresh=q.get("refresh") == "1")
+    def view(self) -> Dict[str, Any]:
+        with self.lock:
+            return {"desk": self.desk.view(self.budget)}
 
-    def journal_add(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        day = None
-        if body.get("date"):
-            day = date.fromisoformat(str(body["date"]))
-        item = self.journal.add(body.get("text"), day)
-        self.book.forget()
-        return {"item": item}
+    # 자료
+    def paste(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            p = self.desk.add(body.get("text"), memo=bool(body.get("memo")))
+            out = self.view()
+        out["added"] = {"id": p.id, "frags": len(p.frags), "dups": p.dups, "quotes": p.quotes, "kind": p.kind}
+        return out
 
-    def journal_remove(self, nid: str) -> Dict[str, Any]:
-        item = self.journal.remove(nid)
-        self.book.forget()
-        return {"removed": item}
+    def paste_delete(self, aid: str) -> Dict[str, Any]:
+        with self.lock:
+            snap = self.desk.remove(aid)
+            self._undo = (time.time() + self.UNDO_SEC, "paste", snap)
+            return dict(self.view(), undo_sec=self.UNDO_SEC)
+
+    def desk_update(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            d = self.desk
+            if "topic" in body:
+                t = re.sub(r"\s+", " ", str(body.get("topic") or "")).strip()[:80]
+                if t != d.topic:
+                    d.topic, d.dirty = t, True
+            if "form" in body:
+                f = str(body.get("form") or "")
+                if f not in self.forms:
+                    raise ValueError(f"없는 양식: {f}")
+                if f != d.form:
+                    d.form, d.dirty = f, True
+            if "exclude" in body:
+                ex = {str(k) for k in (body.get("exclude") or []) if str(k) in d.frags}
+                if ex != d.exclude:
+                    d.exclude, d.dirty = ex, True
+            return self.view()
+
+    def _guard(self, body: Dict[str, Any]) -> None:
+        if self.desk.unsaved() and not body.get("discard"):
+            raise Conflict(f"보관 안 한 자료 {len(self.desk.pastes)}개가 있습니다 — 보관하거나, 버린다고 해 주세요")
+
+    def desk_new(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            self._guard(body)
+            self.desk = Desk(self.desk.form if self.desk.form in self.forms else self.default_form)
+            self._undo = None
+            return self.view()
+
+    def save(self) -> Dict[str, Any]:
+        """보관 — 사람이 누른 때만 원문을 디스크에 쓴다 (RULES.md › W-05)"""
+        with self.lock:
+            d = self.desk
+            if not d.pastes:
+                raise ValueError("보관할 자료가 없습니다")
+            key = d.saved_id or self.topics.new_key("t")
+            self.topics.save(key, d.to_doc())
+            d.saved_id, d.dirty = key, False
+            return dict(self.view(), saved=key)
+
+    def topic_list(self) -> Dict[str, Any]:
+        out = []
+        for key in self.topics.keys():
+            doc = self.topics.get(key)
+            if doc:
+                ps = doc.get("pastes") or []
+                out.append({"id": key, "topic": str(doc.get("topic") or ""), "form": str(doc.get("form") or ""),
+                            "pastes": len(ps), "frags": sum(len(p.get("frags") or []) for p in ps if isinstance(p, dict)),
+                            "updated": str(doc.get("updated") or "")})
+        out.sort(key=lambda x: x["updated"], reverse=True)
+        return {"topics": out}
+
+    def topic_open(self, key: str, body: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            doc = self.topics.get(key)
+            if not doc:
+                raise KeyError(f"보관한 토픽이 없습니다: {key}")
+            self._guard(body)
+            d = Desk.from_doc(doc, self.forms, self.default_form)
+            d.saved_id = "" if doc.get("readonly") else key
+            self.desk, self._undo = d, None
+            return self.view()
+
+    def topic_delete(self, key: str) -> Dict[str, Any]:
+        with self.lock:
+            before = self.topics.delete(key)
+            if before is None:
+                raise KeyError(f"보관한 토픽이 없습니다: {key}")
+            before.pop("version", None)
+            was_open = self.desk.saved_id == key
+            if was_open:
+                self.desk.saved_id, self.desk.dirty = "", True
+            self._undo = (time.time() + self.UNDO_SEC, "topic", (key, before, was_open))
+            return dict(self.topic_list(), **self.view(), undo_sec=self.UNDO_SEC)
 
     # 초안
-    def draft(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        period = make_period(str(body.get("period") or "this"))
-        gathered = self.book.gather(period)
-        known = sources_of(gathered, body.get("exclude") or [])
-        max_lines = min(20, max(1, int(body.get("max_lines") or self.max_lines)))
-        detail = min(3, max(1, int(body.get("detail") or 2)))
+    def _opts(self, body: Dict[str, Any]) -> Tuple[int, str, str]:
+        try:
+            detail = min(3, max(1, int(body.get("detail") or 2)))
+        except (TypeError, ValueError):
+            detail = 2
         tone = str(body.get("tone") or "brief")
-        mode, error = "basic", ""
+        audience = str(body.get("audience") or "boss")
+        return detail, tone if tone in TONES else "brief", audience if audience in AUDIENCES else "boss"
+
+    def draft(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            d = self.desk
+            known, pastes, form, topic = d.known(), d.paste_of(), d.form, d.topic
+        if not known:
+            raise ValueError("자료를 붙여 넣어 주세요 (체크된 조각이 없습니다)")
+        detail, tone, audience = self._opts(body)
+        sections, free = sections_of(self.cfg, form)
+        max_lines = DETAILS[detail][1]
+        mode, error, title = "basic", "", ""
         lines: List[Line] = []
+        names = sections
         if self.llm.ready and not body.get("basic"):
-            messages = build_messages(period, known, self.sections, detail, tone, max_lines,
-                                      str(self.cfg.get("user_name") or ""))
+            chars = sum(len(f.text) for f in known.values())
+            if chars > self.budget:
+                raise ValueError(f"체크된 자료가 한도보다 깁니다 ({chars:,} / {self.budget:,}자) — 체크를 풀어 줄이거나 "
+                                 "report.budget_chars 를 사내 LLM 입력 한도에 맞게 늘리세요")
+            messages = build_messages(topic, form, sections, free, known, pastes, detail, tone, audience)
             with self.llm_lock:
                 try:
                     reply = self.llm.complete(messages)
                     try:
-                        lines = parse_draft(reply, max_lines)
-                    except ValueError as e:   # 한 번만 다시 — JSON 으로만 답하라고
-                        log(f"초안 JSON 을 읽지 못해 다시 요청합니다: {e}")
+                        title, names, lines = parse_draft(reply, sections, free, max_lines)
+                    except ValueError as e:
+                        if self.llm.last_finish == "length":
+                            raise LLMError(f"LLM 답이 llm.max_tokens({self.llm.max_tokens})에서 잘렸습니다 — "
+                                           "② 분량을 줄이거나 llm.max_tokens 를 늘리세요")
+                        log(f"초안 JSON 을 읽지 못해 다시 요청합니다: {e}")   # 한 번만 다시 — JSON 으로만 답하라고
                         reply = self.llm.complete(messages + [
                             {"role": "assistant", "content": reply[:2000]},
                             {"role": "user", "content": "형식이 틀렸다. 설명 없이 위에서 말한 JSON 하나만 다시 출력해."}])
-                        lines = parse_draft(reply, max_lines)
+                        title, names, lines = parse_draft(reply, sections, free, max_lines)
                     lines = [judge(x, known) for x in lines]
                     mode = "llm"
                 except (LLMError, ValueError) as e:
                     error = f"LLM 초안 실패 → 기본 초안으로: {e}"
                     log(error)
         if mode == "basic":
-            lines = basic_draft(known, max_lines)
-        return {"period": period.to_ui(), "mode": mode, "error": error, "lines": [asdict(x) for x in lines],
-                "text": render_text(period, self.sections, lines, known)}
+            names = sections if not free else sections + ["내용"]
+            lines = basic_draft(known, pastes, names, max_lines, bool(self.cfg["report"]["summary"]))
+        title = topic or title or "보고서"
+        return {"mode": mode, "error": error, "title": title, "form": form, "sections": names, "tone": tone,
+                "lines": [asdict(x) for x in lines], "text": render_text(title, names, lines, known, pastes, tone)}
 
-    def check_lines(self, body: Dict[str, Any]) -> Tuple[Period, Dict[str, Source], List[Line]]:
+    def check_lines(self, body: Dict[str, Any]) -> Tuple[str, List[str], List[Line], Dict[str, Frag], Dict[str, Paste]]:
         """화면이 보낸 줄을 서버에서 다시 판정한다 (화면을 믿지 않는다)"""
-        period = make_period(str(body.get("period") or "this"))
-        known = sources_of(self.book.gather(period), body.get("exclude") or [])
+        form = str(body.get("form") or "")
+        if form not in self.forms:
+            raise ValueError(f"없는 양식: {form}")
+        sections, free = sections_of(self.cfg, form)
+        if free:
+            got = body.get("sections") or []
+            extra = [re.sub(r"\s+", " ", str(s)).strip()[:20] for s in got if isinstance(s, str)]
+            sections = sections + [s for s in extra if s and s not in sections][:8]
+        with self.lock:
+            known, pastes = self.desk.known(), self.desk.paste_of()
         lines = []
-        for row in body.get("lines") or []:
+        for row in (body.get("lines") or [])[:300]:
             if not isinstance(row, dict):
                 continue
-            text = re.sub(r"\s+", " ", str(row.get("text") or "")).strip()[:300]
+            text = re.sub(r"\s+", " ", str(row.get("text") or "")).strip()[:400]
             try:
                 sec = int(row.get("section"))
             except (TypeError, ValueError):
                 continue
-            if text and 0 <= sec < 3:
-                origin = "user" if row.get("origin") == "user" else ("basic" if row.get("origin") == "basic" else "llm")
+            kind = str(row.get("kind") or "fact")
+            if (text or kind == "gap") and 0 <= sec < len(sections):
+                origin = row.get("origin") if row.get("origin") in ("user", "basic") else "llm"
                 refs = [str(r) for r in (row.get("refs") or [])][:50]
-                lines.append(judge(Line(sec, text, refs, origin), known))
-        return period, known, lines
+                level = 2 if row.get("level") == 2 else 1
+                lines.append(judge(Line(sec, text, refs, kind, level, str(origin)), known))
+        title = re.sub(r"\s+", " ", str(body.get("title") or "")).strip()[:80] or "보고서"
+        return title, sections, lines, known, pastes
 
     def preview(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        period, known, lines = self.check_lines(body)
-        return {"lines": [asdict(x) for x in lines],
-                "text": render_text(period, self.sections, lines, known, bool(body.get("with_refs")))}
+        title, sections, lines, known, pastes = self.check_lines(body)
+        tone = self._opts(body)[1]
+        return {"lines": [asdict(x) for x in lines], "sections": sections,
+                "text": render_text(title, sections, lines, known, pastes, tone, bool(body.get("with_refs")))}
 
     def confirm(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        period, known, lines = self.check_lines(body)
+        title, sections, lines, known, pastes = self.check_lines(body)
         bad = [x for x in lines if x.state == "err"]
         if bad:
             raise ValueError(f"근거 없는 줄이 {len(bad)}개 있습니다 — 근거를 달거나, 직접 고치거나, 지워 주세요")
-        if not lines:
+        if not any(x.text.strip() for x in lines if x.state != "gap"):
             raise ValueError("확정할 줄이 없습니다")
-        text = render_text(period, self.sections, lines, known, bool(body.get("with_refs")))
-        report = {"key": period.key, "label": period.label, "period": period.to_ui(), "sections": self.sections,
-                  "lines": [asdict(x) for x in lines], "sources": {r: asdict(known[r]) for x in lines for r in x.refs},
-                  "text": text, "confirmed": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}
-        before = self.reports.save(period.key, report)
-        self._undo[period.key] = (time.time() + self.UNDO_SEC, before)
-        return {"key": period.key, "text": text, "undo_sec": self.UNDO_SEC, "replaced": bool(before)}
+        tone = self._opts(body)[1]
+        text = render_text(title, sections, lines, known, pastes, tone, bool(body.get("with_refs")))
+        key = self.reports.new_key()
+        with self.lock:
+            topic_id = self.desk.saved_id
+        report = {"key": key, "title": title, "form": str(body.get("form")), "sections": sections, "tone": tone,
+                  "lines": [asdict(x) for x in lines], "text": text, "topic_id": topic_id, "confirmed": now_iso()}
+        self.reports.save(key, report)   # 원문 조각은 넣지 않는다 — 복사한 글 그대로만 (RULES.md › W-05)
+        with self.lock:
+            self._undo = (time.time() + self.UNDO_SEC, "confirm", key)
+        return {"key": key, "text": text, "undo_sec": self.UNDO_SEC}
 
-    def undo(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        key = str(body.get("key") or "")
-        until, before = self._undo.pop(key, (0.0, None))
-        if time.time() > until:
-            raise ValueError("되돌릴 수 있는 시간이 지났습니다")
-        self.reports.restore(key, before)
-        return {"key": key, "restored": bool(before)}
+    def undo(self) -> Dict[str, Any]:
+        with self.lock:
+            until, kind, payload = self._undo or (0.0, "", None)
+            self._undo = None
+            if not kind or time.time() > until:
+                raise ValueError("되돌릴 수 있는 시간이 지났습니다")
+            if kind == "confirm":
+                self.reports.delete(payload)
+            elif kind == "paste":
+                self.desk.restore(payload)
+            elif kind == "topic":
+                key, before, was_open = payload
+                self.topics.save(key, before)
+                if was_open and not self.desk.saved_id:
+                    self.desk.saved_id = key
+            return dict(self.view(), undone=kind)
+
+    def report_list(self) -> Dict[str, Any]:
+        out = []
+        for key in self.reports.keys():
+            r = self.reports.get(key)
+            if r:
+                out.append({"key": key, "title": str(r.get("title") or ""), "form": str(r.get("form") or ""),
+                            "confirmed": str(r.get("confirmed") or "")})
+        return {"reports": out}
 
     def report(self, key: str) -> Dict[str, Any]:
         r = self.reports.get(key)
@@ -1076,12 +1249,24 @@ class App:
         if self.httpd is not None:
             self.httpd.shutdown()
 
+    def idle_should_exit(self, now: Optional[float] = None) -> bool:
+        """창을 닫은 뒤 idle_exit_min 동안 조용하면 끈다 — 단, 보관 안 한 자료가 있으면 기다린다 (원문이 사라지지 않게)"""
+        limit = float(self.cfg.get("idle_exit_min") or 0) * 60
+        if limit <= 0 or (now or time.time()) - self.last_seen <= limit:
+            return False
+        with self.lock:
+            if self.desk.unsaved():
+                if not self._waiting_logged:
+                    log("보관 안 한 자료가 있어 켜 둡니다 — 창을 다시 열면 그대로 있습니다")
+                    self._waiting_logged = True
+                return False
+        return True
+
     def _idle_watch(self) -> None:
-        """창을 닫으면 화면이 더 묻지 않는다 → idle_exit_min 동안 조용하면 저절로 끈다"""
         limit = float(self.cfg.get("idle_exit_min") or 0) * 60
         while limit > 0:
             time.sleep(min(30.0, limit / 4))
-            if time.time() - self.last_seen > limit:
+            if self.idle_should_exit():
                 log(f"{int(limit // 60)}분 동안 쓰지 않아 끕니다")
                 self.shutdown()
                 return
@@ -1168,18 +1353,31 @@ def make_handler(app: App) -> Any:
         def _auth_ok(self) -> bool:
             return secrets.compare_digest(self.headers.get("X-Report-Token", ""), app.token)
 
-        def _body(self) -> Dict[str, Any]:
+        def _body(self, limit: int) -> Dict[str, Any]:
             try:
                 n = int(self.headers.get("Content-Length") or 0)
             except ValueError:
                 raise ValueError("Content-Length 가 숫자가 아닙니다")
-            if n < 0 or n > 512_000:
-                raise ValueError("요청 크기가 올바르지 않습니다")
+            if n < 0 or n > limit:
+                raise ValueError("요청이 너무 큽니다 — 나눠서 붙여 넣으세요" if n > limit else "요청 크기가 올바르지 않습니다")
             raw = self.rfile.read(n) if n else b""
             data = json.loads(raw.decode("utf-8")) if raw.strip() else {}
             if not isinstance(data, dict):
                 raise ValueError("JSON 객체가 필요합니다")
             return data
+
+        def _run(self, fn: Callable[[], Any]) -> None:
+            try:
+                return self._json(200, fn())
+            except Conflict as e:
+                return self._json(409, {"error": str(e)})
+            except KeyError as e:
+                return self._json(404, {"error": str(e).strip("'\"")})
+            except (ValueError, OSError) as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:
+                log("요청 처리 오류:\n" + traceback.format_exc())
+                return self._json(500, {"error": str(e)})
 
         def do_GET(self) -> None:
             u = urlparse(self.path)
@@ -1196,24 +1394,14 @@ def make_handler(app: App) -> Any:
             if not self._auth_ok():
                 return self._json(401, {"error": "unauthorized"})
             app.last_seen = time.time()
-            q = {k: v[0] for k, v in parse_qs(u.query).items()}
-            try:
-                if u.path == "/api/state":
-                    return self._json(200, app.state())
-                if u.path == "/api/sources":
-                    return self._json(200, app.sources(q))
-                if u.path == "/api/reports":
-                    return self._json(200, {"reports": app.reports.all()})
-                m = re.match(r"^/api/reports/([0-9A-Za-z+\-]{4,32})$", u.path)
-                if m:
-                    return self._json(200, app.report(m.group(1)))
-            except KeyError as e:
-                return self._json(404, {"error": str(e).strip("'\"")})
-            except ValueError as e:
-                return self._json(400, {"error": str(e)})
-            except Exception as e:
-                log("요청 처리 오류:\n" + traceback.format_exc())
-                return self._json(500, {"error": str(e)})
+            routes: Dict[str, Callable[[], Any]] = {
+                "/api/state": app.state, "/api/desk": app.view, "/api/topics": app.topic_list,
+                "/api/reports": app.report_list}
+            if u.path in routes:
+                return self._run(routes[u.path])
+            m = re.match(r"^/api/reports/([0-9A-Za-z\-]{4,40})$", u.path)
+            if m:
+                return self._run(lambda: app.report(m.group(1)))
             return self._json(404, {"error": "not found"})
 
         def do_POST(self) -> None:
@@ -1226,34 +1414,32 @@ def make_handler(app: App) -> Any:
                 return self._json(415, {"error": "application/json 필요"})
             app.last_seen = time.time()
             try:
-                body = self._body()
-                if u.path == "/api/journal":
-                    return self._json(200, app.journal_add(body))
-                m = re.match(r"^/api/journal/(n\d+)/delete$", u.path)
-                if m:
-                    return self._json(200, app.journal_remove(m.group(1)))
-                if u.path == "/api/draft":
-                    return self._json(200, app.draft(body))
-                if u.path == "/api/preview":
-                    return self._json(200, app.preview(body))
-                if u.path == "/api/confirm":
-                    return self._json(200, app.confirm(body))
-                if u.path == "/api/undo":
-                    return self._json(200, app.undo(body))
-                if u.path == "/api/shutdown":
-                    self._json(200, {"ok": True})
-                    threading.Thread(target=app.shutdown, daemon=True).start()
-                    return None
-            except KeyError as e:
-                return self._json(404, {"error": str(e).strip("'\"")})
-            except (ValueError, OSError) as e:
-                return self._json(400, {"error": str(e)})
-            except Exception as e:
-                log("요청 처리 오류:\n" + traceback.format_exc())
-                return self._json(500, {"error": str(e)})
+                body = self._body(MAX_PASTE * 8 if u.path == "/api/paste" else 1_000_000)
+            except ValueError as e:
+                return self._json(400 if "너무 큽니다" not in str(e) else 413, {"error": str(e)})
+            routes: Dict[str, Callable[[], Any]] = {
+                "/api/paste": lambda: app.paste(body), "/api/desk": lambda: app.desk_update(body),
+                "/api/desk/new": lambda: app.desk_new(body), "/api/save": app.save,
+                "/api/draft": lambda: app.draft(body), "/api/preview": lambda: app.preview(body),
+                "/api/confirm": lambda: app.confirm(body), "/api/undo": app.undo}
+            if u.path in routes:
+                return self._run(routes[u.path])
+            m = re.match(r"^/api/paste/(a\d+)/delete$", u.path)
+            if m:
+                return self._run(lambda: app.paste_delete(m.group(1)))
+            m = re.match(r"^/api/topics/([0-9A-Za-z\-]{4,40})/(open|delete)$", u.path)
+            if m:
+                key, act = m.group(1), m.group(2)
+                return self._run(lambda: app.topic_open(key, body) if act == "open" else app.topic_delete(key))
+            if u.path == "/api/shutdown":
+                self._json(200, {"ok": True})
+                threading.Thread(target=app.shutdown, daemon=True).start()
+                return None
             return self._json(404, {"error": "not found"})
 
     return Handler
+
+
 
 
 # ─────────────────────────────────────────────────────────────── 창 · 실행 중 찾기 · 바로가기
@@ -1389,7 +1575,7 @@ def set_shortcut(on: bool) -> int:
         exe = alt if os.path.isfile(alt) else exe
     ps = ("$ErrorActionPreference='Stop';$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:REPORT_LNK);"
           "$s.TargetPath=$env:REPORT_EXE;$s.Arguments='\"'+$env:REPORT_PY+'\"';$s.WorkingDirectory=$env:REPORT_DIR;"
-          "$s.Description='Report-1 · 주간보고 초안';$s.Save()")
+          "$s.Description='Report-1 · 근거 달린 보고서';$s.Save()")
     err = ""
     try:
         r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True,
@@ -1588,8 +1774,10 @@ def mask_secret(value: Any, base_dir: Optional[str] = None) -> str:
     return f"설정됨 ({len(v)}자 · 값은 표시 안 함)"
 
 
+
 def set_config_values(path: str, pairs: List[str]) -> int:
-    """--set 키=값 (값은 JSON 으로 읽히면 JSON, 아니면 문자열). 저장 뒤 검증해서 틀리면 되돌린다."""
+    """--set 키=값 (값은 JSON 으로 읽히면 JSON, 아니면 문자열). 저장 뒤 검증해서 틀리면 되돌린다.
+    양식: --set "report.forms.주간 점검=현황;이슈;계획" 으로 더하거나 바꾸고, 값을 비우면 그 양식을 지운다."""
     user = _read_user_config(path) if os.path.exists(path) else {}
     before = json.dumps(user, ensure_ascii=False)
     for pair in pairs:
@@ -1606,6 +1794,24 @@ def set_config_values(path: str, pairs: List[str]) -> int:
             print("API 키는 --set 으로 넣지 않습니다 (명령 기록에 남음). config.json 을 직접 열어 넣거나 "
                   "--set llm.api_key={env:환경변수이름} 처럼 참조로 넣으세요.")
             return 2
+        if key.startswith("report.forms."):
+            name = key[len("report.forms."):].strip()
+            rep = user.get("report") if isinstance(user.get("report"), dict) else {}
+            user["report"] = rep
+            if not isinstance(rep.get("forms"), dict):   # 처음 고칠 때 기본 양식을 옮겨 둔다 (기본 양식이 사라지지 않게)
+                rep["forms"] = copy.deepcopy(DEFAULT_CONFIG["report"]["forms"])
+            if value is None or value == "":
+                if name not in rep["forms"]:
+                    print(f"없는 양식: {name}")
+                    return 2
+                del rep["forms"][name]
+                print(f"설정: 양식 '{name}' 지움")
+                continue
+            if isinstance(value, str):
+                value = [v.strip() for v in value.split(";") if v.strip()]
+            rep["forms"][name] = value
+            print(f"설정: 양식 '{name}' = {json.dumps(value, ensure_ascii=False)}")
+            continue
         parts, node, spec = key.split("."), user, DEFAULT_CONFIG
         for i, part in enumerate(parts):
             free = isinstance(spec, dict) and not spec and i > 0  # extra_headers 같은 자유 형식 칸
@@ -1638,34 +1844,15 @@ def run_check(cfg: Dict[str, Any], config_path: str) -> int:
     """점검 — 0 OK · 1 점검 실패. LLM 은 없어도 된다 (기본 초안만)"""
     print(f"Report-1 {VERSION} 점검")
     print(f"- 설정 파일 : {config_path}")
-    rc = 0
-    g = GitCollector(cfg)
-    ver = g.git_version()
-    if not g.roots:
-        print("- git       : 커밋 폴더 미설정 → --set \"sources.git.roots=C:\\work\" (여러 개는 ; 로 · 커밋 없이도 일정 · 일지로 동작)")
-    elif not ver:
-        print("- git       : 실패 · git 을 찾지 못했습니다 (PATH)")
-        rc = 1
-    else:
-        repos = g.find_repos()
-        print(f"- git       : {ver} · 저장소 {len(repos)}개 ({', '.join(os.path.basename(r) for r in repos[:5])}"
-              + (" …" if len(repos) > 5 else "") + ")")
-        who = sorted(set(a for r in repos[:20] for a in g.authors(r)))
-        hint = '없음 → --set "sources.git.authors=me@example.com" (여러 개는 ; 로)'
-        print(f"  · 내 커밋으로 칠 작성자: {', '.join(who) or hint}")
-        period = make_period("this")
-        items, st = g.collect(period.start, period.end)
-        print(f"  · 이번 주 커밋: {st}")
-    cal = CalendarCollector(cfg)
-    period = make_period("this")
-    evs, st = cal.collect(period.start, period.end)
-    print(f"- 일정      : {st}")
-    j = Journal(os.path.join(cfg.get("_dir") or data_dir(), "journal.json"))
-    print(f"- 일지      : {len(j.all())}줄" + (f" ({j.doc.error})" if j.doc.error else ""))
+    home = cfg.get("_dir") or data_dir()
+    topics, reports = Folder(os.path.join(home, "topics"), "토픽"), Folder(os.path.join(home, "reports"), "보고서")
+    print(f"- 데이터    : {home} · 보관한 토픽 {len(topics.keys())} · 확정한 보고서 {len(reports.keys())}")
+    forms = cfg["report"]["forms"]
+    print(f"- 양식      : {' · '.join(forms)} ({len(forms)}개) · 자료 한도 {cfg['report']['budget_chars']:,}자")
     llm = LLMClient(cfg)
     if not llm.ready:
-        print("- LLM       : 미설정 → 기본 초안(규칙으로 묶기)만. 쓰려면 --setup 또는 --set llm.base_url=… llm.model=…")
-        return rc
+        print("- LLM       : 미설정 → 기본 초안(자료를 그대로 묶기)만. 쓰려면 --setup 또는 --set llm.base_url=… llm.model=…")
+        return 0
     print(f"- LLM 주소  : {llm.endpoint()} · 모델 {llm.model} · 키 {mask_secret((cfg.get('llm') or {}).get('api_key'), cfg.get('_dir'))}")
     t0 = time.time()
     try:
@@ -1677,8 +1864,8 @@ def run_check(cfg: Dict[str, Any], config_path: str) -> int:
             print("    ↳ base_url 끝에 /v1 이 필요한지 확인하세요")
         if e.status in (401, 403):
             print("    ↳ api_key 또는 extra_headers(인증 헤더)를 확인하세요")
-        rc = 1
-    return rc
+        return 1
+    return 0
 
 
 def run_setup(config_path: str, provider: str = "", model: str = "", force: bool = False,
@@ -1724,11 +1911,6 @@ def run_setup(config_path: str, provider: str = "", model: str = "", force: bool
             print(f"- 추가 헤더 : {', '.join(found['extra_headers'])} (값은 표시 안 함)")
         print(f"  → {config_path} 에 저장")
     cfg, _ = load_config(config_path)
-    if not cfg["sources"]["git"]["roots"]:
-        print("- 커밋 폴더 : 미설정")
-        print("\n결과: 확인 필요 (코드 3) · 사용자에게 커밋을 찾을 작업 폴더를 받아 "
-              "--set \"sources.git.roots=C:\\work\" 로 넣고 --check (여러 개는 ; 로)")
-        return 3
     print()
     rc = run_check(cfg, config_path)
     print("\n결과: OK · 다음 → --shortcut on (시작 메뉴, 사용자 동의 후) · python report-1.py" if rc == 0 else
@@ -1736,15 +1918,45 @@ def run_setup(config_path: str, provider: str = "", model: str = "", force: bool
     return rc
 
 
-def print_draft(cfg: Dict[str, Any], config_path: str, kind: str, basic: bool) -> int:
-    """--draft: 창 없이 초안 글만 표준 출력에 (UTF-8). 근거 없는 줄이 있으면 종료 코드 1"""
+def read_input(path: str) -> str:
+    """파일(또는 - = 표준 입력)을 글로 — UTF-8 이 아니면 CP949(한글 Windows)로 읽는다"""
+    if path == "-":
+        data = sys.stdin.buffer.read()
+    else:
+        with open(path, "rb") as f:
+            data = f.read()
+    for enc in ("utf-8-sig", "cp949"):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
+def print_draft(cfg: Dict[str, Any], config_path: str, files: List[str], topic: str, form: str, basic: bool) -> int:
+    """--draft: 창 없이 — 파일 하나 = 자료 하나로 초안 글만 표준 출력에 (UTF-8). 근거 없는 줄이 있으면 종료 코드 1"""
     app = App(cfg, config_path)
-    res = app.draft({"period": kind, "basic": basic})
+    try:
+        if form:
+            app.desk_update({"form": form})
+        app.desk_update({"topic": topic})
+        for path in files or ["-"]:
+            try:
+                res = app.paste({"text": read_input(path)})
+                log(f"자료 {res['added']['id']} · {path} · 조각 {res['added']['frags']}")
+            except ValueError as e:
+                log(f"{path}: {e}")
+        res = app.draft({"basic": basic})
+    except (OSError, ValueError) as e:
+        log(str(e))
+        return 2
     if res["error"]:
         log(res["error"])
     for x in res["lines"]:
         if x["state"] == "err":
             log(f"근거 없는 줄: {x['text']}")
+        elif x["nums"]:
+            log(f"근거에 없는 숫자 {', '.join(x['nums'])}: {x['text']}")
     data = res["text"].encode("utf-8")
     try:
         sys.stdout.buffer.write(data)
@@ -1762,19 +1974,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         sys.stderr.reconfigure(errors="replace")  # type: ignore[attr-defined]
     except Exception:
         pass
-    ap = argparse.ArgumentParser(prog=APP, description="Report-1 · 근거 달린 주간보고 초안")
+    ap = argparse.ArgumentParser(prog=APP, description="Report-1 · 근거 달린 보고서")
     ap.add_argument("--setup", action="store_true", help="설치 도우미: OpenCode 설정에서 LLM 값을 가져오고 점검")
     ap.add_argument("--provider", default="", help="--setup: 쓸 OpenCode provider 이름")
     ap.add_argument("--model", default="", help="--setup: 쓸 모델 이름")
     ap.add_argument("--force", action="store_true", help="--setup: LLM 설정이 있어도 OpenCode 에서 다시 가져오기")
-    ap.add_argument("--check", action="store_true", help="git · 일정 · LLM 점검")
+    ap.add_argument("--check", action="store_true", help="LLM 점검")
     ap.add_argument("--set", action="append", default=[], metavar="키=값", help="config.json 값 바꾸기 (여러 번 가능)")
-    ap.add_argument("--draft", action="store_true", help="창 없이 초안 글만 출력")
-    ap.add_argument("--period", choices=KINDS, default="this", help="--draft: 기간 (기본 this = 이번 주)")
+    ap.add_argument("--draft", nargs="*", metavar="파일", help="창 없이 파일(들)을 자료로 초안 글만 출력 (없거나 - 면 표준 입력)")
+    ap.add_argument("--topic", default="", help="--draft: 토픽 (보고서 제목)")
+    ap.add_argument("--form", default="", help="--draft: 양식 이름 (기본 report.forms 의 첫 양식)")
     ap.add_argument("--basic", action="store_true", help="--draft: LLM 없이 기본 초안")
     ap.add_argument("--shortcut", choices=("on", "off"), help="시작 메뉴 바로가기 만들기/지우기 (Windows)")
     ap.add_argument("--status", action="store_true", help="실행 중인지 확인")
-    ap.add_argument("--stop", action="store_true", help="실행 중인 Report-1 끄기")
+    ap.add_argument("--stop", action="store_true", help="실행 중인 Report-1 끄기 (보관 안 한 자료는 사라짐)")
     ap.add_argument("--port", type=int, help="포트 (기본 config.port)")
     ap.add_argument("--no-window", action="store_true", help="창 자동 열기 끔")
     ap.add_argument("--config", default="", help="설정 파일 경로 (기본 %%LOCALAPPDATA%%\\report-1\\config.json)")
@@ -1800,8 +2013,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         rc = run_check(cfg, config_path)
         print("\n결과: OK" if rc == 0 else "\n결과: 점검 실패 · 위 메시지를 보고 고친 뒤 다시 --check (INSTALL.md '문제 해결')")
         return rc
-    if args.draft:
-        return print_draft(cfg, config_path, args.period, args.basic)
+    if args.draft is not None:
+        return print_draft(cfg, config_path, args.draft, args.topic, args.form, args.basic)
     if args.shortcut:
         return set_shortcut(args.shortcut == "on")
     if args.status:
@@ -1827,7 +2040,7 @@ INDEX_HTML = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="report-token" content="__TOKEN__">
-<title>Report–1 · 주간보고</title>
+<title>Report–1 · 근거 달린 보고서</title>
 <link rel="preload" href="/font/report-1-dos.woff" as="font" type="font/woff" crossorigin>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='4' width='15' height='18' fill='%230b0b0b' stroke='%23f2f2f3' stroke-width='1.4'/%3E%3Crect x='8.5' y='2' width='7' height='4' fill='%231f507a' stroke='%23f2f2f3' stroke-width='1.2'/%3E%3Crect x='8' y='10' width='2' height='2' fill='%23f2f2f3'/%3E%3Crect x='14' y='10' width='2' height='2' fill='%23f2f2f3'/%3E%3Cpath d='M8 16h8' stroke='%236aba23' stroke-width='1.6'/%3E%3C/svg%3E">
 <style>
@@ -1872,13 +2085,13 @@ INDEX_HTML = r"""<!doctype html>
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg) radial-gradient(circle,var(--dot) 1px,transparent 1.4px) 0 0/16px 16px;color:var(--ink);font:16px/24px var(--dos);font-synthesis:none;font-variant-ligatures:none;-webkit-font-smoothing:antialiased;padding:8px;overflow:hidden}
-button,input{font:inherit;color:inherit}
+button,input,textarea{font:inherit;color:inherit}
 b{font-weight:inherit;text-shadow:var(--b)}
-button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,[contenteditable]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 [hidden]{display:none!important}
 
 /* 본체 */
-.device{position:relative;max-width:1060px;height:100%;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;background:var(--panel);border:1px solid var(--line-2);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.device{position:relative;max-width:1180px;height:100%;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;background:var(--panel);border:1px solid var(--line-2);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
 .screw{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--screw);border:1px solid var(--screw-edge);z-index:4;pointer-events:none}
 .screw::after{content:"";position:absolute;left:1px;right:1px;top:50%;height:2px;margin-top:-1px;background:var(--screw-slot);transform:rotate(var(--r,35deg))}
 .s1{top:8px;left:8px}.s2{top:8px;right:8px;--r:-25deg}.s3{bottom:8px;left:8px;--r:75deg}.s4{bottom:8px;right:8px;--r:10deg}
@@ -1888,21 +2101,22 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .logo::after{content:"_";color:var(--accent);animation:caret 1.06s steps(2) infinite}
 .lcd{position:relative;display:flex;align-items:center;gap:10px;padding:4px 12px;background:var(--lcd);color:var(--lcd-ink);border:1px solid var(--lcd-edge);border-radius:10px;box-shadow:inset 0 2px 10px rgba(0,0,0,.75);min-width:0}
 .lcd::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px);pointer-events:none}
-#wk{font-size:28px;line-height:32px;text-shadow:2px 0 0 currentColor;color:var(--k1);white-space:nowrap}
-#range{color:var(--lcd-ink-2);white-space:nowrap}
+#lcd-form{font-size:24px;line-height:32px;text-shadow:2px 0 0 currentColor;color:var(--k1);white-space:nowrap}
+#lcd-meta{color:var(--lcd-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .leds{display:flex;gap:12px;margin-left:auto}
-.led{display:flex;align-items:center;gap:4px;line-height:16px;color:var(--ink-2)}
+.led{display:flex;align-items:center;gap:4px;line-height:16px;color:var(--ink-2);white-space:nowrap}
 .led i{width:8px;height:8px;background:var(--ink-3);opacity:.45}
 .led.ok i{background:var(--ok);opacity:1;box-shadow:0 0 8px var(--accent-glow)}
 .led.err i{background:var(--err);opacity:1}
 .led.busy i{background:var(--accent);opacity:1;animation:blink .8s steps(2) infinite}
-.power{width:32px;height:32px;border-radius:50%;border:1px solid var(--line-2);background:var(--key);cursor:pointer;line-height:30px;color:var(--ink-2)}
+.power{width:32px;height:32px;border-radius:50%;border:1px solid var(--line-2);background:var(--key);cursor:pointer;line-height:30px;color:var(--ink-2);flex:none}
 
 /* 결재판 캐릭터 */
 .mascot{flex:none;width:30px;height:34px}
 .mascot svg{display:block;width:100%;height:100%}
 .mascot.idle svg{animation:bob 2.4s steps(2) infinite}
 .mascot.think svg{animation:bob .45s steps(2) infinite}
+.mascot.eat svg{animation:jump .35s cubic-bezier(.3,1.6,.5,1) 1}
 .mascot.happy svg{animation:jump .7s cubic-bezier(.3,1.6,.5,1) 2}
 .mascot.error svg{animation:shake .45s steps(4) 3}
 .mascot .eye{fill:var(--m-line)}
@@ -1923,54 +2137,68 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .chip.navy{background:var(--prime);color:var(--prime-ink)}
 .chip.err{background:var(--err);color:var(--err-ink);text-shadow:var(--b)}
 .chip.out{border:1px solid var(--line-2);color:var(--ink-2);line-height:14px}
-.ghost{border:1px solid var(--line-2);background:none;padding:0 6px;color:var(--ink-2);cursor:pointer;line-height:20px}
+.chip.gap{border:1px dashed var(--ink-3);color:var(--ink-2);line-height:14px}
+.chip.chk{border:1px solid var(--card-edge);color:var(--ink);line-height:14px}
+.chip.warn{border:1px solid var(--ink);color:var(--ink);line-height:14px;text-shadow:var(--b)}
+.ghost{border:1px solid var(--line-2);background:none;padding:0 6px;color:var(--ink-2);cursor:pointer;line-height:20px;white-space:nowrap}
 .ghost:hover{color:var(--ink);border-color:var(--ink-2)}
 
-/* 01 근거 */
-.jrow{display:flex;align-items:center;gap:8px;margin:6px 0 8px}
-.jrow label{color:var(--accent-ink);text-shadow:var(--b);white-space:nowrap}
-#jin{flex:1;min-width:0;border:0;border-bottom:2px solid var(--ink-2);background:transparent;padding:4px 2px;outline:none;caret-color:var(--accent)}
-#jin::placeholder{color:var(--ink-3)}
-.grp{margin-top:8px}
-.grp-h{display:flex;align-items:center;gap:6px;line-height:16px;color:var(--ink-3);margin-bottom:2px}
-.grp-h b{color:var(--ink-2)}
-.src{display:grid;grid-template-columns:18px 28px 38px minmax(0,1fr) auto;align-items:start;gap:0 6px;padding:1px 4px;line-height:20px;border-radius:4px}
-.src input{margin:3px 0 0;accent-color:var(--accent)}
-.src .id{color:var(--k1)}
-.src .when{color:var(--ink-3)}
-.src .t{overflow-wrap:anywhere}
-.src .w{color:var(--ink-3);font-size:14px;margin-left:6px;white-space:nowrap}
-.src.off .t,.src.off .id{text-decoration:line-through;color:var(--ink-3)}
-.src.hl{background:var(--hl)}
-.src .x{border:0;background:none;color:var(--ink-3);cursor:pointer;padding:0 2px}
-.st{margin-top:10px;line-height:16px;color:var(--ink-3);font-size:14px}
-.st div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.empty{color:var(--ink-3);padding:6px 0}
+/* 01 자료 */
+.trow{display:flex;align-items:center;gap:8px;margin:6px 0 8px}
+.trow label{color:var(--accent-ink);text-shadow:var(--b);white-space:nowrap}
+#topic{flex:1;min-width:0;border:0;border-bottom:2px solid var(--ink-2);background:transparent;padding:4px 2px;outline:none;caret-color:var(--accent)}
+#topic::placeholder,#drop::placeholder{color:var(--ink-3)}
+#drop{display:block;width:100%;height:76px;resize:none;border:1px dashed var(--line-2);border-radius:8px;background:repeating-linear-gradient(135deg,transparent 0 8px,var(--line) 8px 9px);padding:6px 8px;outline:none;line-height:20px;caret-color:var(--accent)}
+#drop:focus,#drop.over{border-color:var(--accent);border-style:solid}
+.meter{display:flex;align-items:center;gap:8px;margin:8px 0 4px;line-height:16px;color:var(--ink-3);font-size:14px}
+.meter .bar2{flex:1;height:8px;border:1px solid var(--line-2);position:relative;overflow:hidden}
+.meter .bar2 i{position:absolute;left:0;top:0;bottom:0;background:var(--k2);width:0;transition:width .2s}
+.meter.over .bar2 i{background:var(--err)}
+.meter.over span{color:var(--ink);text-shadow:var(--b)}
+.card{margin-top:8px;border:1px solid var(--line);border-radius:8px}
+.ph{display:grid;grid-template-columns:18px auto minmax(0,1fr) auto 20px;align-items:center;gap:0 6px;padding:2px 6px;border-bottom:1px solid var(--line);line-height:20px}
+.ph input,.fr input{accent-color:var(--accent);margin:0}
+.ph .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:var(--b)}
+.ph .m{color:var(--ink-3);font-size:14px;white-space:nowrap}
+.x{border:0;background:none;color:var(--ink-3);cursor:pointer;padding:0 2px;line-height:20px}
+.x:hover{color:var(--ink)}
+.fr{display:grid;grid-template-columns:18px 38px minmax(0,1fr);align-items:start;gap:0 6px;padding:2px 6px;line-height:20px;border-radius:4px}
+.fr input{margin-top:3px}
+.fr .id{color:var(--k1)}
+.fr .t{white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.fr.open .t{display:block}
+.fr.off .t,.fr.off .id{text-decoration:line-through;color:var(--ink-3)}
+.fr.hl{background:var(--hl)}
+.skip{color:var(--ink-3);font-size:14px;line-height:16px;padding:2px 30px 4px}
+.hello{color:var(--ink-3);padding:18px 6px;line-height:24px}
+.hello b{color:var(--ink)}
 
-/* 02 초안 */
-.knobvals{display:flex;gap:4px}
+/* 02 보고서 */
+.knobvals{display:flex;gap:4px;min-width:0;overflow:hidden}
 .knobvals span{padding:0 5px;line-height:16px}
 .kv1{background:var(--k1);color:var(--k1-ink)}.kv2{background:var(--k2);color:var(--k2-ink)}.kv3{background:var(--k3);color:var(--k3-ink);box-shadow:inset 0 0 0 1px var(--k3-edge)}.kv4{background:var(--k4);color:var(--k4-ink)}
 .doc{position:relative}
-.sec{margin:6px 0 12px}
+.doc-t{font-size:20px;line-height:28px;text-shadow:var(--b);margin:6px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--line-2);outline:none;overflow-wrap:anywhere}
+.sec{margin:4px 0 12px}
 .sec-h{line-height:20px;text-shadow:var(--b);margin-bottom:4px}
-.sec-h small{color:var(--ink-3);text-shadow:none}
-.ln{display:grid;grid-template-columns:14px minmax(0,1fr) auto 16px;gap:0 6px;align-items:start;padding:1px 4px;border-radius:4px;line-height:22px}
+.ln{display:grid;grid-template-columns:18px minmax(0,1fr) auto 16px;gap:0 6px;align-items:start;padding:1px 4px;border-radius:4px;line-height:22px}
+.ln.l2{padding-left:26px}
 .ln:hover{background:var(--hl)}
 .ln .dash{color:var(--ink-3)}
 .ln .txt{outline:none;min-width:40px;overflow-wrap:anywhere}
 .ln .txt:focus{background:var(--hl);box-shadow:0 2px 0 var(--accent)}
-.ln .meta{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;align-items:center;max-width:280px}
+.ln .txt .n{text-decoration:underline wavy var(--ink);text-underline-offset:4px;text-shadow:var(--b)}
+.ln .txt:empty::before{content:attr(data-ph);color:var(--ink-3)}
+.ln .meta{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;align-items:center;max-width:300px}
 .ref{border:1px solid var(--card-edge);color:var(--ink-2);background:none;padding:0 4px;line-height:16px;cursor:pointer}
 .ref:hover{background:var(--card-edge);color:var(--prime-ink)}
 .ln.err .txt{text-decoration:underline wavy var(--err);text-underline-offset:4px}
+.ln.gap .txt{color:var(--ink-2)}
 .ln .del{border:0;background:none;color:var(--ink-3);cursor:pointer;padding:0 2px;visibility:hidden}
 .ln:hover .del{visibility:visible}
-.add{border:1px dashed var(--line-2);background:none;color:var(--ink-3);cursor:pointer;padding:0 8px;line-height:20px;margin:2px 0 0 24px}
-.blank{color:var(--ink-3);padding:2px 24px}
-.hello{color:var(--ink-3);padding:24px 8px;line-height:24px}
-.hello b{color:var(--ink)}
-.seal{position:absolute;right:150px;top:6px;width:92px;height:92px;border-radius:50%;border:3px solid var(--seal);color:var(--seal);display:grid;place-items:center;font-size:26px;line-height:26px;text-shadow:1.5px 0 0 currentColor;box-shadow:inset 0 0 0 3px var(--panel-2),inset 0 0 0 5px var(--seal);transform:rotate(-14deg);pointer-events:none;animation:stamp .45s cubic-bezier(.2,1.5,.35,1) both}
+.add{border:1px dashed var(--line-2);background:none;color:var(--ink-3);cursor:pointer;padding:0 8px;line-height:20px;margin:2px 0 0 28px}
+.blank{color:var(--ink-3);padding:2px 28px}
+.seal{position:absolute;right:120px;top:0;width:92px;height:92px;border-radius:50%;border:3px solid var(--seal);color:var(--seal);display:grid;place-items:center;font-size:26px;line-height:26px;text-shadow:1.5px 0 0 currentColor;box-shadow:inset 0 0 0 3px var(--panel-2),inset 0 0 0 5px var(--seal);transform:rotate(-14deg);pointer-events:none;animation:stamp .45s cubic-bezier(.2,1.5,.35,1) both}
 :root[data-theme="light"] .seal{mix-blend-mode:multiply}
 
 /* 03 덱 */
@@ -1979,7 +2207,7 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .dial{position:relative;width:44px;height:44px;border-radius:50%;background:var(--kb);box-shadow:0 4px 0 var(--ke),inset 0 1px 0 rgba(255,255,255,.25);flex:none;transition:transform .06s}
 .dial::after{content:"";position:absolute;left:50%;top:5px;width:4px;height:13px;margin-left:-2px;background:var(--ki);transform-origin:2px 17px;transform:rotate(var(--a,0deg));transition:transform .18s cubic-bezier(.3,1.6,.5,1)}
 .knob:active .dial,.knob.pressed .dial{transform:translateY(3px);box-shadow:0 1px 0 var(--ke)}
-.knob .lbl{display:flex;flex-direction:column;line-height:18px}
+.knob .lbl{display:flex;flex-direction:column;line-height:18px;min-width:64px}
 .knob .lbl span{color:var(--ink-3);font-size:14px}
 .k1{--kb:var(--k1);--ki:var(--k1-ink);--ke:var(--k1-edge)}
 .k2{--kb:var(--k2);--ki:var(--k2-ink);--ke:var(--k2-edge)}
@@ -1988,19 +2216,23 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .acts{display:flex;align-items:center;gap:10px;margin-left:auto}
 .btn{height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--btn);color:var(--btn-ink);cursor:pointer;box-shadow:0 4px 0 var(--btn-edge);text-shadow:var(--b);transition:transform .06s,box-shadow .06s;white-space:nowrap}
 .btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--btn-edge)}
-.okb{width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);text-shadow:var(--b);cursor:pointer;box-shadow:0 5px 0 var(--accent-press),0 8px 16px rgba(0,0,0,.25);transition:transform .06s,box-shadow .06s}
+.btn.key{background:var(--key);color:var(--ink);box-shadow:0 4px 0 var(--key-edge),inset 0 0 0 1px var(--line-2)}
+.okb{width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);text-shadow:var(--b);cursor:pointer;box-shadow:0 5px 0 var(--accent-press),0 8px 16px rgba(0,0,0,.25);transition:transform .06s,box-shadow .06s;flex:none}
 .okb:active{transform:translateY(4px);box-shadow:0 1px 0 var(--accent-press)}
 .btn:disabled,.okb:disabled{opacity:.4;cursor:default;transform:none}
-.undo{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:26px;cursor:pointer}
+.undo{border:1px solid var(--line-2);background:none;color:var(--ink-2);border-radius:8px;padding:0 10px;line-height:26px;cursor:pointer;white-space:nowrap}
 .opt{display:flex;align-items:center;gap:4px;color:var(--ink-2);white-space:nowrap}
 .opt input{accent-color:var(--accent)}
 .foot{display:flex;align-items:center;gap:10px;padding:5px 24px 8px;border-top:1px solid var(--line);line-height:16px;color:var(--ink-3);white-space:nowrap}
 .foot > span{overflow:hidden;text-overflow:ellipsis}
 .toast{position:absolute;left:50%;bottom:112px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:4px 12px;line-height:20px;z-index:6;animation:rise .25s ease-out;max-width:90%;text-align:center}
 .drawer{position:absolute;left:12px;right:12px;top:56px;bottom:112px;display:flex;flex-direction:column;background:var(--panel-2);border:2px solid var(--card-edge);border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.45);z-index:5;animation:drop .3s cubic-bezier(.2,1.3,.3,1)}
-.drawer pre{flex:1;margin:0;padding:10px 14px;overflow:auto;font:inherit;white-space:pre-wrap}
-.rep{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:6px 14px;cursor:pointer}
-.rep:hover{background:var(--hl)}
+.drawer pre{margin:0;padding:10px 4px;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
+.shelf-h{margin:10px 0 4px;color:var(--ink-3);line-height:16px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:4px 2px;line-height:20px}
+.row .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .t small{color:var(--ink-3);font-size:14px;margin-left:8px}
+.row .b{display:flex;gap:6px}
 .off-screen{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);color:var(--ink-2);z-index:9}
 
 @keyframes caret{50%{opacity:0}}
@@ -2012,12 +2244,13 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 @keyframes stamp{0%{opacity:0;transform:rotate(-14deg) scale(1.9)}100%{opacity:.92;transform:rotate(-14deg) scale(1)}}
 @keyframes rise{from{opacity:0;transform:translate(-50%,8px)}}
 @keyframes drop{from{opacity:0;transform:translateY(-10px) scaleY(.96)}}
-@media (max-width:820px){
+@media (max-width:900px){
   body{overflow:auto}.device{height:auto;min-height:100%}
-  .bar{flex-wrap:wrap;padding:10px 16px 8px}.lcd{order:3;flex:1 1 100%}#range{overflow:hidden;text-overflow:ellipsis}
+  .bar{flex-wrap:wrap;padding:10px 16px 8px}.lcd{order:3;flex:1 1 100%}
   .main{grid-template-columns:minmax(0,1fr)}.pane{max-height:none}.leds,.knobvals{display:none}
   .deck{padding:10px 16px 8px}.acts{flex-wrap:wrap;margin-left:0;width:100%}.acts .btn{flex:1}
-  .foot{padding:5px 16px 8px}
+  .foot{padding:5px 16px 8px;flex-wrap:wrap}.foot > span:first-child{flex:1 1 100%}
+  .seal{right:12px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -2035,30 +2268,29 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
       </svg>
     </div>
     <div class="logo">REPORT–1</div>
-    <div class="lcd"><span id="wk">W--</span><span id="range">— · —</span></div>
+    <div class="lcd"><span id="lcd-form">—</span><span id="lcd-meta">자료 0</span></div>
     <div class="leds">
-      <span class="led" id="led-git"><i></i>git</span>
-      <span class="led" id="led-cal"><i></i>cal</span>
+      <span class="led" id="led-save" title="라임 = 보관됨 · 흰색 = 보관 안 한 자료 있음"><i></i>보관</span>
       <span class="led" id="led-llm"><i></i>llm</span>
     </div>
-    <button class="power" id="power" title="끄기">⏻</button>
+    <button class="power" id="power" title="끄기 (보관 안 한 자료는 사라집니다)">⏻</button>
   </div>
 
   <div class="main">
     <section class="pane" id="p-src">
-      <div class="pane-h"><span class="num">01</span><span class="name">SOURCES</span><span>근거</span>
-        <span class="chip out" id="src-n">0</span><span class="spacer"></span>
-        <button class="ghost" id="refresh" title="다시 모으기">↻ 다시</button></div>
+      <div class="pane-h"><span class="num">01</span><span class="name">SOURCES</span><span>자료</span>
+        <span class="chip out" id="src-n" title="체크된 조각 / 전체">0</span><span class="spacer"></span></div>
       <div class="pane-b">
-        <div class="jrow"><label for="jin">오늘 한 일 ›</label>
-          <input id="jin" maxlength="300" placeholder="한 줄 적고 Enter — 일지에 남습니다" autocomplete="off"></div>
-        <div id="groups"></div>
-        <div class="st" id="status"></div>
+        <div class="trow"><label for="topic">토픽 ›</label>
+          <input id="topic" maxlength="80" placeholder="무엇에 대한 보고서인가요 — 예: 9월 결제 서버 장애" autocomplete="off"></div>
+        <textarea id="drop" spellcheck="false" placeholder="메일 · 메신저 · 표 · 메모를 여기에 Ctrl+V&#10;화면 어디서든 붙여 넣어도 됩니다&#10;직접 쓴 메모는 적고 Ctrl+Enter"></textarea>
+        <div class="meter" id="meter" title="체크된 조각의 글자 수 / 사내 LLM 에 한 번에 보낼 한도 (report.budget_chars)"><span class="bar2"><i></i></span><span id="meter-t">0 / 0자</span></div>
+        <div id="pastes"></div>
       </div>
     </section>
     <section class="pane" id="p-draft">
-      <div class="pane-h"><span class="num">02</span><span class="name">DRAFT</span><span>초안</span>
-        <span class="chip out" id="mode">—</span><span class="chip err" id="errs" hidden></span>
+      <div class="pane-h"><span class="num">02</span><span class="name">DRAFT</span><span>보고서</span>
+        <span class="chip out" id="mode">—</span><span class="chip err" id="errs" hidden></span><span class="chip warn" id="nums" hidden></span>
         <span class="spacer"></span>
         <span class="knobvals" title="값의 색 = 그 값을 바꾸는 노브의 색"><span class="kv1" id="v1"></span><span class="kv2" id="v2"></span><span class="kv3" id="v3"></span><span class="kv4" id="v4"></span></span></div>
       <div class="pane-b"><div class="doc" id="doc"></div></div>
@@ -2067,19 +2299,20 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 
   <div class="deck">
     <span class="num">03</span>
-    <button class="knob k1" data-k="1" title="Alt+1 · 기간"><span class="dial"></span><span class="lbl"><span>① 기간</span><b id="kl1"></b></span></button>
-    <button class="knob k2" data-k="2" title="Alt+2 · 상세도"><span class="dial"></span><span class="lbl"><span>② 상세도</span><b id="kl2"></b></span></button>
+    <button class="knob k1" data-k="1" title="Alt+1 · 양식"><span class="dial"></span><span class="lbl"><span>① 양식</span><b id="kl1"></b></span></button>
+    <button class="knob k2" data-k="2" title="Alt+2 · 분량"><span class="dial"></span><span class="lbl"><span>② 분량</span><b id="kl2"></b></span></button>
     <button class="knob k3" data-k="3" title="Alt+3 · 어조"><span class="dial"></span><span class="lbl"><span>③ 어조</span><b id="kl3"></b></span></button>
-    <button class="knob k4" data-k="4" title="Alt+4 · 분량"><span class="dial"></span><span class="lbl"><span>④ 분량</span><b id="kl4"></b></span></button>
+    <button class="knob k4" data-k="4" title="Alt+4 · 읽는 사람"><span class="dial"></span><span class="lbl"><span>④ 독자</span><b id="kl4"></b></span></button>
     <div class="acts">
-      <label class="opt"><input type="checkbox" id="withrefs"> 근거 붙이기</label>
+      <label class="opt" title="줄 끝에 [1] 을 붙이고 맨 아래에 근거 목록을 붙입니다"><input type="checkbox" id="withrefs"> 근거 붙이기</label>
       <button class="undo" id="undo" hidden></button>
+      <button class="btn key" id="save" title="Ctrl+S · 붙여 넣은 원문을 이 PC 에 저장">보관</button>
       <button class="btn" id="draft" title="Ctrl+Enter">초안 만들기</button>
-      <button class="okb" id="ok" title="Ctrl+S · 확정하고 복사" disabled>확정</button>
+      <button class="okb" id="ok" title="Ctrl+Shift+Enter · 확정하고 복사" disabled>확정</button>
     </div>
   </div>
-  <div class="foot"><span>로컬 저장 · 체크한 근거만 사내 LLM 으로</span><span class="spacer"></span>
-    <button class="ghost" id="reports">지난 보고서</button><span id="model"></span><span id="ver"></span></div>
+  <div class="foot"><span id="hint">원문은 메모리에만 · 보관을 눌러야 저장 · 체크한 조각만 사내 LLM 으로</span><span class="spacer"></span>
+    <button class="ghost" id="new">새 토픽</button><button class="ghost" id="shelf">보관함</button><span id="model"></span><span id="ver"></span></div>
 </div>
 
 <script>
@@ -2088,17 +2321,18 @@ const BOOT = __BOOT__;
 const TOKEN = document.querySelector('meta[name="report-token"]').content;
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const fmt = (n) => Number(n || 0).toLocaleString("ko-KR");
 
 // 노브 네 개 (docs/DESIGN.md › 원칙 2: 값의 색 = 그 값을 바꾸는 노브의 색)
 const KNOBS = {
-  1: { key: "period", vals: BOOT.kinds.map(k => k.kind), label: (v) => BOOT.kinds.find(k => k.kind === v).label },
-  2: { key: "detail", vals: [1, 2, 3], label: (v) => ["요약", "보통", "자세히"][v - 1] },
+  1: { key: "form", vals: BOOT.forms.map(f => f.name), label: (v) => v },
+  2: { key: "detail", vals: [1, 2, 3], label: (v) => ["짧게", "보통", "자세히"][v - 1] },
   3: { key: "tone", vals: ["brief", "prose"], label: (v) => (v === "brief" ? "개조식" : "서술식") },
-  4: { key: "max_lines", vals: [3, 5, 8, 12], label: (v) => `${v}줄` },
+  4: { key: "audience", vals: ["team", "boss", "exec"], label: (v) => ({ team: "팀 내부", boss: "상사", exec: "임원" })[v] },
 };
 const S = {
-  period: "this", detail: 2, tone: "brief", max_lines: [3, 5, 8, 12].includes(BOOT.max_lines) ? BOOT.max_lines : 8,
-  sources: null, exclude: new Set(), lines: null, mode: "", text: "", confirmed: null, busy: false,
+  form: BOOT.forms[0].name, detail: 2, tone: "brief", audience: "boss",
+  desk: null, title: "", sections: [], lines: null, mode: "", draftForm: "", confirmed: null, busy: false, undoKind: "",
 };
 
 async function api(path, body) {
@@ -2106,35 +2340,38 @@ async function api(path, body) {
   if (body) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
   const r = await fetch(path, opt);
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+  if (!r.ok) { const e = new Error(d.error || `HTTP ${r.status}`); e.status = r.status; throw e; }
   return d;
 }
-
 function mascot(state) {
   const m = $("#mascot"); m.className = "mascot " + state;
-  if (state === "happy" || state === "error") setTimeout(() => { if (m.className.includes(state)) m.className = "mascot idle"; }, 1600);
+  if (["happy", "error", "eat"].includes(state)) setTimeout(() => { if (m.className.includes(state)) m.className = "mascot idle"; }, state === "eat" ? 500 : 1600);
 }
 function toast(msg) {
   document.querySelectorAll(".toast").forEach(t => t.remove());
-  const t = el("div", "toast", msg); $(".device").appendChild(t); setTimeout(() => t.remove(), 2600);
+  const t = el("div", "toast", msg); $(".device").appendChild(t); setTimeout(() => t.remove(), 3000);
 }
 function led(id, state) { const e = $(id); e.classList.remove("ok", "err", "busy"); if (state) e.classList.add(state); }
 
 // ── 노브
 function renderKnobs() {
   for (const n of [1, 2, 3, 4]) {
-    const k = KNOBS[n], v = S[k.key], i = k.vals.indexOf(v);
+    const k = KNOBS[n], v = S[k.key], i = Math.max(0, k.vals.indexOf(v));
     $(`#kl${n}`).textContent = k.label(v);
     $(`#v${n}`).textContent = k.label(v);
     document.querySelector(`.knob[data-k="${n}"] .dial`).style.setProperty("--a", `${-120 + (240 * i) / Math.max(1, k.vals.length - 1)}deg`);
   }
+  $("#lcd-form").textContent = S.form;
 }
-function turn(n, dir) {
+async function turn(n, dir) {
   const k = KNOBS[n], i = k.vals.indexOf(S[k.key]);
   S[k.key] = k.vals[(i + dir + k.vals.length) % k.vals.length];
   const b = document.querySelector(`.knob[data-k="${n}"]`); b.classList.add("pressed"); setTimeout(() => b.classList.remove("pressed"), 120);
   renderKnobs();
-  if (n === 1) { S.lines = null; S.confirmed = null; renderDraft(); loadSources(false); }
+  if (n === 1) {
+    if (S.lines) { S.lines = null; S.confirmed = null; renderDraft(); toast("양식을 바꿔 초안을 비웠습니다 — 다시 초안 만들기"); }
+    try { applyDesk((await api("/api/desk", { form: S.form })).desk); } catch (e) { toast(e.message); }
+  }
 }
 document.querySelectorAll(".knob").forEach(b => {
   b.addEventListener("click", (e) => turn(+b.dataset.k, e.shiftKey ? -1 : 1));
@@ -2142,194 +2379,295 @@ document.querySelectorAll(".knob").forEach(b => {
   b.addEventListener("wheel", (e) => { e.preventDefault(); turn(+b.dataset.k, e.deltaY > 0 ? 1 : -1); }, { passive: false });
 });
 
-// ── 01 근거
-const GROUPS = [["commit", "커밋"], ["event", "일정"], ["note", "일지"], ["plan", "다음 일정"]];
-function md(iso) { const [, m, d] = iso.slice(0, 10).split("-"); return `${+m}/${+d}`; }
-async function loadSources(refresh) {
-  led("#led-git", "busy"); led("#led-cal", "busy");
-  try {
-    const d = await api(`/api/sources?period=${S.period}${refresh ? "&refresh=1" : ""}`);
-    S.sources = d;
-    const known = new Set(d.items.map(x => x.id));
-    S.exclude = new Set([...S.exclude].filter(id => known.has(id)));
-    renderSources();
-  } catch (e) { toast(e.message); }
+// ── 01 자료
+function applyDesk(d) {
+  S.desk = d;
+  if (d.form && d.form !== S.form && KNOBS[1].vals.includes(d.form)) { S.form = d.form; renderKnobs(); }
+  if (document.activeElement !== $("#topic")) $("#topic").value = d.topic || "";
+  renderSources();
 }
 function renderSources() {
-  const d = S.sources; if (!d) return;
-  const p = d.period;
-  $("#wk").textContent = p.label.split(" · ")[0].replace(/^\d{4} /, "");
-  $("#range").textContent = `${p.range} · 다음 ${p.next_range}`;
-  const g = $("#groups"); g.textContent = "";
-  for (const [kind, name] of GROUPS) {
-    const items = d.items.filter(x => x.kind === kind);
-    const box = el("div", "grp");
-    const h = el("div", "grp-h"); h.append(el("b", null, name), el("span", "chip out", String(items.length)));
-    box.appendChild(h);
-    if (!items.length) box.appendChild(el("div", "empty", kind === "note" ? "위 칸에 오늘 한 일을 적어 두면 여기에 쌓입니다" : "—"));
-    for (const x of items) {
-      const row = el("div", "src" + (S.exclude.has(x.id) ? " off" : "")); row.dataset.id = x.id;
-      const cb = el("input"); cb.type = "checkbox"; cb.checked = !S.exclude.has(x.id); cb.title = "체크한 근거만 초안 · LLM 에 씁니다";
-      cb.addEventListener("change", () => { cb.checked ? S.exclude.delete(x.id) : S.exclude.add(x.id); row.classList.toggle("off", !cb.checked); rejudge(); });
-      const t = el("span", "t", x.title);
-      const where = x.kind === "commit" ? `${x.where} ${x.ref}` : x.where;
-      if (where) t.appendChild(el("span", "w", where));
-      row.append(cb, el("span", "id", x.id), el("span", "when", md(x.when)), t);
-      const tail = el("span");
-      if (x.kind === "note") {
-        const del = el("button", "x", "×"); del.title = "일지에서 지우기";
-        del.addEventListener("click", async () => { try { await api(`/api/journal/${x.id}/delete`, {}); await loadSources(true); } catch (e) { toast(e.message); } });
-        tail.appendChild(del);
-      }
-      row.appendChild(tail); box.appendChild(row);
-    }
-    g.appendChild(box);
+  const d = S.desk; if (!d) return;
+  const ex = new Set(d.exclude);
+  const nFr = d.pastes.reduce((a, p) => a + p.frags.length, 0);
+  $("#src-n").textContent = `${nFr - ex.size}/${nFr}`;
+  $("#lcd-meta").textContent = `자료 ${d.pastes.length} · 조각 ${nFr} · ${d.pastes.length ? (d.unsaved ? "보관 안 함" : "보관됨") : "비어 있음"}`;
+  led("#led-save", !d.pastes.length ? "" : (d.unsaved ? "err" : "ok"));
+  const m = $("#meter"), over = d.chars > d.budget;
+  m.classList.toggle("over", over);
+  m.querySelector("i").style.width = `${Math.min(100, (100 * d.chars) / Math.max(1, d.budget))}%`;
+  $("#meter-t").textContent = `${fmt(d.chars)} / ${fmt(d.budget)}자` + (over ? " · 한도 초과 — 체크를 풀어 줄이세요" : "");
+  const box = $("#pastes"); box.textContent = "";
+  if (!d.pastes.length) {
+    const h = el("div", "hello");
+    h.innerHTML = "<b>토픽</b>을 적고, 모아 둔 글을 <b>그냥 붙여 넣으세요</b>.<br>메일 · 메신저 · 회의 메모 · 엑셀 표 — 순서도 형식도 상관없습니다.<br>붙여 넣은 것 하나 = 자료 하나, 조각(p1 p2 …)으로 나뉩니다.<br>원문은 <b>보관</b>을 눌러야 저장됩니다.";
+    box.appendChild(h); return;
   }
-  $("#src-n").textContent = String(d.items.length - S.exclude.size);
-  const st = $("#status"); st.textContent = "";
-  for (const [k, v] of Object.entries(d.status)) st.appendChild(el("div", null, `${k} · ${v}`));
-  led("#led-git", d.status.git.startsWith("OK") ? "ok" : (d.status.git.includes("미설정") ? "" : "err"));
-  led("#led-cal", d.status.calendar.startsWith("OK") ? "ok" : "");
+  for (const p of d.pastes) {
+    const card = el("div", "card"); card.dataset.a = p.id;
+    const h = el("div", "ph");
+    const all = el("input"); all.type = "checkbox"; all.title = "이 자료의 조각 전부";
+    const on = p.frags.filter(f => !ex.has(f.id)).length;
+    all.checked = on > 0; all.indeterminate = on > 0 && on < p.frags.length;
+    all.addEventListener("change", () => setExclude(p.frags.map(f => f.id), !all.checked));
+    const t = el("span", "t", p.title); t.title = p.title;
+    const del = el("button", "x", "×"); del.title = "이 자료 지우기 (20초 안에 되돌리기)";
+    del.addEventListener("click", () => delPaste(p.id));
+    h.append(all, el("span", "chip navy", `자료 ${p.id.slice(1)} · ${p.kind_ko}`), t, el("span", "m", `조각 ${p.frags.length} · ${fmt(p.chars)}자`), del);
+    card.appendChild(h);
+    for (const f of p.frags) {
+      const row = el("div", "fr" + (ex.has(f.id) ? " off" : "")); row.dataset.id = f.id;
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = !ex.has(f.id); cb.title = "체크한 조각만 초안 · LLM 에 씁니다";
+      cb.addEventListener("change", () => setExclude([f.id], !cb.checked));
+      const tx = el("span", "t", f.text); tx.title = "눌러서 펼치기";
+      tx.addEventListener("click", () => row.classList.toggle("open"));
+      row.append(cb, el("span", "id", f.id), tx); card.appendChild(row);
+    }
+    const skip = [];
+    if (p.dups) skip.push(`같은 조각 ${p.dups}개`);
+    if (p.quotes) skip.push(`메일 인용 ${p.quotes}줄`);
+    if (skip.length) card.appendChild(el("div", "skip", `건너뜀: ${skip.join(" · ")}`));
+    box.appendChild(card);
+  }
 }
-$("#refresh").addEventListener("click", () => loadSources(true));
-$("#jin").addEventListener("keydown", async (e) => {
-  if (e.key !== "Enter" || e.isComposing) return;
-  const t = e.target.value.trim(); if (!t) return;
-  try { await api("/api/journal", { text: t }); e.target.value = ""; toast("일지에 적었습니다"); await loadSources(true); rejudge(); }
-  catch (err) { toast(err.message); }
+async function setExclude(ids, off) {
+  const ex = new Set(S.desk.exclude);
+  ids.forEach(id => (off ? ex.add(id) : ex.delete(id)));
+  try { applyDesk((await api("/api/desk", { exclude: [...ex] })).desk); await rejudge(); } catch (e) { toast(e.message); renderSources(); }
+}
+async function addPaste(text, memo) {
+  if (!text || !text.trim()) return;
+  if (text.length > BOOT.max_paste) { toast(`한 번에 ${fmt(BOOT.max_paste)}자까지 — 나눠서 붙여 넣으세요 (지금 ${fmt(text.length)}자)`); return; }
+  try {
+    const d = await api("/api/paste", { text, memo: !!memo });
+    applyDesk(d.desk); mascot("eat");
+    const a = d.added, extra = [];
+    if (a.dups) extra.push(`같은 조각 ${a.dups}개`); if (a.quotes) extra.push(`인용 ${a.quotes}줄`);
+    toast(`자료 ${a.id.slice(1)} · 조각 ${a.frags}개` + (extra.length ? ` · 건너뜀 ${extra.join(" · ")}` : ""));
+    const card = document.querySelector(`.card[data-a="${a.id}"]`); if (card) card.scrollIntoView({ block: "nearest" });
+    if (S.lines) rejudge();
+  } catch (e) { toast(e.message); mascot("error"); }
+}
+async function delPaste(aid) {
+  try { const d = await api(`/api/paste/${aid}/delete`, {}); applyDesk(d.desk); startUndo("paste", d.undo_sec, "자료 지움"); await rejudge(); }
+  catch (e) { toast(e.message); }
+}
+const drop = $("#drop");
+drop.addEventListener("paste", (e) => { e.preventDefault(); e.stopPropagation(); addPaste(e.clipboardData.getData("text/plain")); });
+drop.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); e.stopPropagation(); const t = drop.value; drop.value = ""; addPaste(t, true); }
 });
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); addPaste(e.dataTransfer.getData("text/plain")); });
+document.addEventListener("paste", (e) => {   // 화면 어디서든 붙여 넣기 — 글 칸 · 고치는 줄 안에서는 보통대로
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  e.preventDefault(); addPaste(e.clipboardData.getData("text/plain"));
+});
+$("#topic").addEventListener("change", async (e) => {
+  try { applyDesk((await api("/api/desk", { topic: e.target.value })).desk); if (S.lines && !S.titleEdited) { S.title = S.desk.topic || S.title; renderDraft(); } } catch (err) { toast(err.message); }
+});
+$("#topic").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); e.target.blur(); } });
 
-// ── 02 초안
-function hlSource(id, on) { document.querySelectorAll(`.src[data-id="${id}"]`).forEach(r => { r.classList.toggle("hl", on); if (on) r.scrollIntoView({ block: "nearest" }); }); }
+// ── 02 보고서
+const STATE_CHIP = { err: ["chip err", "ERR 근거 없음"], user: ["chip navy", "직접"], infer: ["chip out", "추론"], check: ["chip chk", "확인"], gap: ["chip gap", "빈칸"] };
+function hlFrag(id, on) {
+  document.querySelectorAll(`.fr[data-id="${id}"]`).forEach(r => { r.classList.toggle("hl", on); if (on) { r.classList.add("open"); r.scrollIntoView({ block: "nearest" }); } });
+}
+function fragText(id) {
+  if (!S.desk) return "";
+  for (const p of S.desk.pastes) for (const f of p.frags) if (f.id === id) return `자료 ${p.id.slice(1)} · ${p.kind_ko} — ${f.text.slice(0, 160)}`;
+  return "";
+}
+function paintText(span, ln) {
+  span.textContent = "";
+  if (!ln.nums || !ln.nums.length || ln.origin === "user") { span.textContent = ln.text; return; }
+  const re = /\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/g, want = new Set(ln.nums);
+  let last = 0, m;
+  const norm = (s) => { s = s.replace(/,/g, ""); if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, ""); const [i, f] = s.split("."); return (i.replace(/^0+/, "") || "0") + (f ? "." + f : ""); };
+  while ((m = re.exec(ln.text))) {
+    if (!want.has(norm(m[0]))) continue;
+    span.append(ln.text.slice(last, m.index));
+    const n = el("span", "n", m[0]); n.title = "근거 조각에 없는 숫자 — 확인하세요"; span.append(n); last = m.index + m[0].length;
+  }
+  span.append(ln.text.slice(last));
+}
 function renderDraft() {
   const doc = $("#doc"); doc.textContent = "";
-  $("#ok").disabled = !S.lines || S.busy;
   $("#mode").textContent = S.mode === "llm" ? "LLM" : (S.mode === "basic" ? "기본" : "—");
   if (!S.lines) {
     const h = el("div", "hello");
-    h.innerHTML = "<b>① 기간</b>을 고르고 <b>초안 만들기</b>(Ctrl+Enter).<br>줄마다 근거가 붙습니다. 근거 없는 실적은 <b>ERR</b> — 확정할 수 없습니다.<br>고친 줄은 <b>직접</b>, 그 줄의 책임은 사람에게.";
-    doc.appendChild(h); $("#errs").hidden = true; return;
+    h.innerHTML = "<b>① 양식</b>을 고르고 <b>초안 만들기</b>(Ctrl+Enter).<br>맨 위는 <b>요약</b>(결론부터), 줄마다 근거 조각이 붙습니다.<br>근거 없는 사실은 <b>ERR</b> — 확정할 수 없습니다. 조각에 없는 숫자는 <b>물결 밑줄</b>.<br><b>추론</b> = 조각을 이은 판단 · <b>확인</b> = 자료끼리 다름 · <b>빈칸</b> = 자료에 없음.";
+    doc.appendChild(h); $("#errs").hidden = true; $("#nums").hidden = true; $("#ok").disabled = true; return;
   }
-  const p = S.sources ? S.sources.period : null;
-  const titles = [
-    [BOOT.sections[0], p ? `${p.range}` : ""], [BOOT.sections[1], p ? `${p.next_range}` : ""], [BOOT.sections[2], ""]];
-  const byId = Object.fromEntries((S.sources ? S.sources.items : []).map(x => [x.id, x]));
-  titles.forEach(([name, rng], si) => {
+  const t = el("div", "doc-t", S.title); t.contentEditable = "true"; t.title = "보고서 제목 — 눌러서 고치기";
+  t.addEventListener("input", () => { S.title = t.textContent.replace(/\s+/g, " ").trim(); S.titleEdited = true; S.confirmed = null; });
+  t.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); t.blur(); } });
+  doc.appendChild(t);
+  S.sections.forEach((name, si) => {
     const sec = el("div", "sec");
-    const h = el("div", "sec-h", `■ ${name} `); if (rng) h.appendChild(el("small", null, `(${rng})`));
-    sec.appendChild(h);
+    sec.appendChild(el("div", "sec-h", `□ ${name}`));
     const rows = S.lines.map((ln, i) => [ln, i]).filter(([ln]) => ln.section === si);
-    if (!rows.length) sec.appendChild(el("div", "blank", "- 없음"));
+    if (!rows.length) sec.appendChild(el("div", "blank", "○ 자료 없음"));
     for (const [ln, i] of rows) {
-      const row = el("div", "ln" + (ln.state === "err" ? " err" : ""));
-      const txt = el("span", "txt", ln.text);
+      const row = el("div", "ln" + (ln.level === 2 ? " l2" : ""));
+      const txt = el("span", "txt"); paintText(txt, ln);
+      txt.dataset.ph = ln.state === "gap" ? "자료 없음 — 눌러서 직접 쓰기" : "";
       try { txt.contentEditable = "plaintext-only"; } catch (e) { /* 지원 안 하는 브라우저 */ }
       if (txt.contentEditable !== "plaintext-only") txt.contentEditable = "true";
-      txt.addEventListener("input", () => { ln.text = txt.textContent; if (ln.origin !== "user") { ln.origin = "user"; ln.state = "user"; paintMeta(row, ln, byId); } S.dirty = true; });
+      txt.addEventListener("input", () => { ln.text = txt.textContent; if (ln.origin !== "user") { ln.origin = "user"; ln.state = "user"; ln.nums = []; paintMeta(row, ln); } S.dirtyLine = true; });
       txt.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); txt.blur(); } });
-      txt.addEventListener("blur", () => { if (S.dirty) { S.dirty = false; rejudge(); } });
+      txt.addEventListener("blur", () => { if (S.dirtyLine) { S.dirtyLine = false; rejudge(); } });
       const meta = el("span", "meta");
       const del = el("button", "del", "×"); del.title = "이 줄 지우기";
       del.addEventListener("click", () => { S.lines.splice(i, 1); rejudge(); renderDraft(); });
-      row.append(el("span", "dash", "-"), txt, meta); meta.dataset.i = String(i);
-      paintMeta(row, ln, byId); row.appendChild(del);
-      sec.appendChild(row);
+      row.append(el("span", "dash", ln.level === 2 ? "-" : "○"), txt, meta, del);
+      paintMeta(row, ln); sec.appendChild(row);
     }
-    const add = el("button", "add", "+ 줄"); add.title = "직접 쓰는 줄 — 근거 없이도 되지만 '직접' 으로 표시됩니다";
-    add.addEventListener("click", () => { S.lines.push({ section: si, text: "", refs: [], origin: "user", state: "user" }); renderDraft();
-      const all = doc.querySelectorAll(".sec")[si].querySelectorAll(".txt"); const last = all[all.length - 1]; if (last) last.focus(); });
-    sec.appendChild(add);
-    doc.appendChild(sec);
+    const add = el("button", "add", "+ 줄"); add.title = "직접 쓰는 줄 — '직접' 으로 표시되고, 그 줄의 책임은 쓴 사람에게";
+    add.addEventListener("click", () => {
+      S.lines.push({ section: si, text: "", refs: [], kind: "fact", level: 1, origin: "user", state: "user", nums: [] }); renderDraft();
+      const all = doc.querySelectorAll(".sec")[si].querySelectorAll(".txt"); const last = all[all.length - 1]; if (last) last.focus();
+    });
+    sec.appendChild(add); doc.appendChild(sec);
   });
   if (S.confirmed) doc.appendChild(el("div", "seal", "확정"));
-  const errs = S.lines.filter(x => x.state === "err").length;
+  const errs = S.lines.filter(x => x.state === "err").length, nums = S.lines.filter(x => x.nums && x.nums.length).length;
   $("#errs").hidden = !errs; $("#errs").textContent = `ERR ${errs}`;
-  $("#ok").disabled = S.busy || !!errs || !!S.confirmed || !S.lines.some(x => x.text.trim());
+  $("#nums").hidden = !nums; $("#nums").textContent = `숫자? ${nums}`;
+  $("#ok").disabled = S.busy || !!errs || !!S.confirmed || !S.lines.some(x => x.text.trim() && x.state !== "gap");
 }
-function paintMeta(row, ln, byId) {
+function paintMeta(row, ln) {
   const meta = row.querySelector(".meta"); meta.textContent = "";
   for (const r of ln.refs) {
-    const s = byId[r]; const b = el("button", "ref", r);
-    b.title = s ? `${s.when.slice(0, 10)} · ${s.title}` : r;
-    b.addEventListener("mouseenter", () => hlSource(r, true)); b.addEventListener("mouseleave", () => hlSource(r, false));
-    b.addEventListener("click", () => hlSource(r, true));
+    const b = el("button", "ref", r); b.title = fragText(r) || r;
+    b.addEventListener("mouseenter", () => hlFrag(r, true)); b.addEventListener("mouseleave", () => hlFrag(r, false));
+    b.addEventListener("click", () => hlFrag(r, true));
     meta.appendChild(b);
   }
-  if (ln.state === "err") meta.appendChild(el("span", "chip err", "ERR 근거 없음"));
-  if (ln.state === "user") meta.appendChild(el("span", "chip navy", "직접"));
-  if (ln.state === "plan") meta.appendChild(el("span", "chip out", "계획"));
-  row.classList.toggle("err", ln.state === "err");
+  if (ln.nums && ln.nums.length && ln.origin !== "user") { const c = el("span", "chip warn", `숫자? ${ln.nums.join(" ")}`); c.title = "근거 조각에 없는 숫자"; meta.appendChild(c); }
+  const chip = STATE_CHIP[ln.state]; if (chip) meta.appendChild(el("span", chip[0], chip[1]));
+  row.classList.toggle("err", ln.state === "err"); row.classList.toggle("gap", ln.state === "gap");
+}
+function draftBody(extra) {
+  return Object.assign({ form: S.draftForm, sections: S.sections, title: S.title, tone: S.tone, with_refs: $("#withrefs").checked,
+    lines: S.lines.filter(x => x.text.trim() || x.state === "gap") }, extra || {});
 }
 async function rejudge() {
-  $("#src-n").textContent = S.sources ? String(S.sources.items.length - S.exclude.size) : "0";
   if (!S.lines) return;
   try {
-    const d = await api("/api/preview", { period: S.period, exclude: [...S.exclude], lines: S.lines.filter(x => x.text.trim()) });
-    const keep = S.lines.filter(x => !x.text.trim());
-    S.lines = d.lines.concat(keep); S.confirmed = null; renderDraft();
+    const d = await api("/api/preview", draftBody());
+    const keep = S.lines.filter(x => !x.text.trim() && x.state !== "gap");
+    S.lines = d.lines.concat(keep); S.sections = d.sections; S.confirmed = null; renderDraft();
   } catch (e) { toast(e.message); }
 }
 async function makeDraft() {
   if (S.busy) return;
-  S.busy = true; mascot("think"); led("#led-llm", "busy"); $("#draft").disabled = true; renderDraft();
+  if (!S.desk || !S.desk.pastes.length) { toast("먼저 자료를 붙여 넣으세요"); drop.focus(); return; }
+  S.busy = true; mascot("think"); led("#led-llm", "busy"); $("#draft").disabled = true; $("#draft").textContent = "쓰는 중…"; renderDraft();
   try {
-    const d = await api("/api/draft", { period: S.period, exclude: [...S.exclude], detail: S.detail, tone: S.tone, max_lines: S.max_lines });
-    S.lines = d.lines; S.mode = d.mode; S.confirmed = null;
+    const d = await api("/api/draft", { detail: S.detail, tone: S.tone, audience: S.audience });
+    Object.assign(S, { lines: d.lines, sections: d.sections, title: d.title, mode: d.mode, draftForm: d.form, confirmed: null, titleEdited: false });
     if (d.error) toast(d.error);
     mascot(d.lines.some(x => x.state === "err") ? "error" : "idle");
   } catch (e) { toast(e.message); mascot("error"); }
-  S.busy = false; $("#draft").disabled = false; renderDraft(); state();
+  S.busy = false; $("#draft").disabled = false; $("#draft").textContent = "초안 만들기"; renderDraft(); state();
 }
 $("#draft").addEventListener("click", makeDraft);
 
-// ── 확정 · 복사 · 되돌리기
+// ── 보관 · 확정 · 복사 · 되돌리기
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch (e) {
     const ta = el("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
     let ok = false; try { ok = document.execCommand("copy"); } catch (e2) { ok = false; } ta.remove(); return ok;
   }
 }
+async function save() {
+  try { const d = await api("/api/save", {}); applyDesk(d.desk); mascot("happy"); toast(`보관했습니다 — topics\\${d.saved}.json`); }
+  catch (e) { toast(e.message); }
+}
 let undoTimer = 0;
+function startUndo(kind, sec, label) {
+  S.undoKind = kind; let left = sec; const u = $("#undo"); u.hidden = false; u.textContent = `${label} · 되돌리기 ${left}`;
+  clearInterval(undoTimer);
+  undoTimer = setInterval(() => { left -= 1; u.textContent = `${label} · 되돌리기 ${left}`; if (left <= 0) { clearInterval(undoTimer); u.hidden = true; S.undoKind = ""; } }, 1000);
+}
 async function confirmDraft() {
   if ($("#ok").disabled) return;
   try {
-    const d = await api("/api/confirm", { period: S.period, exclude: [...S.exclude], lines: S.lines.filter(x => x.text.trim()), with_refs: $("#withrefs").checked });
+    const d = await api("/api/confirm", draftBody());
     S.confirmed = d; renderDraft(); mascot("happy");
-    toast((await copyText(d.text)) ? "확정 · 복사했습니다 — 메일에 붙여 넣으세요" : "확정했습니다 (복사는 지난 보고서에서)");
-    let left = d.undo_sec; const u = $("#undo"); u.hidden = false; u.textContent = `되돌리기 ${left}`;
-    clearInterval(undoTimer);
-    undoTimer = setInterval(() => { left -= 1; u.textContent = `되돌리기 ${left}`; if (left <= 0) { clearInterval(undoTimer); u.hidden = true; } }, 1000);
+    toast((await copyText(d.text)) ? "확정 · 복사했습니다 — 메일에 붙여 넣으세요" : "확정했습니다 (복사는 보관함에서)");
+    startUndo("confirm", d.undo_sec, "확정");
   } catch (e) { toast(e.message); mascot("error"); }
 }
 async function undo() {
-  if (!S.confirmed || $("#undo").hidden) return;
-  try { await api("/api/undo", { key: S.confirmed.key }); S.confirmed = null; clearInterval(undoTimer); $("#undo").hidden = true; renderDraft(); toast("되돌렸습니다"); }
-  catch (e) { toast(e.message); }
+  if ($("#undo").hidden) return;
+  try {
+    const d = await api("/api/undo", {}); clearInterval(undoTimer); $("#undo").hidden = true;
+    applyDesk(d.desk);
+    if (d.undone === "confirm") { S.confirmed = null; renderDraft(); }
+    if (d.undone === "paste") await rejudge();
+    toast("되돌렸습니다");
+  } catch (e) { toast(e.message); $("#undo").hidden = true; }
 }
 $("#ok").addEventListener("click", confirmDraft);
 $("#undo").addEventListener("click", undo);
+$("#save").addEventListener("click", save);
 
-// ── 지난 보고서
-$("#reports").addEventListener("click", async () => {
-  document.querySelectorAll(".drawer").forEach(d => d.remove());
-  const dr = el("div", "drawer"); const h = el("div", "pane-h"); h.append(el("span", "num", "04"), el("span", "name", "지난 보고서"), el("span", "spacer"));
-  const x = el("button", "ghost", "닫기 Esc"); x.addEventListener("click", () => dr.remove()); h.appendChild(x); dr.appendChild(h);
+// ── 새 토픽 · 보관함
+async function withDiscard(path, body) {
+  try { return await api(path, body); } catch (e) {
+    if (e.status !== 409) throw e;
+    if (!window.confirm(`${e.message}\n\n보관하지 않고 버릴까요?`)) return null;
+    return api(path, Object.assign({}, body, { discard: true }));
+  }
+}
+function clearDraft() { Object.assign(S, { lines: null, sections: [], title: "", mode: "", confirmed: null }); renderDraft(); }
+$("#new").addEventListener("click", async () => {
+  try { const d = await withDiscard("/api/desk/new", {}); if (!d) return; applyDesk(d.desk); clearDraft(); $("#topic").value = ""; $("#topic").focus(); }
+  catch (e) { toast(e.message); }
+});
+function closeDrawer() { document.querySelectorAll(".drawer").forEach(d => d.remove()); }
+async function openShelf() {
+  closeDrawer();
+  const dr = el("div", "drawer"); const h = el("div", "pane-h"); h.append(el("span", "num", "04"), el("span", "name", "보관함"), el("span", "spacer"));
+  const x = el("button", "ghost", "닫기 Esc"); x.addEventListener("click", closeDrawer); h.appendChild(x); dr.appendChild(h);
   const body = el("div", "pane-b"); dr.appendChild(body); $(".device").appendChild(dr);
   try {
-    const d = await api("/api/reports");
-    if (!d.reports.length) body.appendChild(el("div", "empty", "아직 확정한 보고서가 없습니다"));
-    for (const r of d.reports) {
-      const b = el("button", "rep", `${r.label}  ·  ${r.confirmed.replace("T", " ").slice(0, 16)}`);
-      b.addEventListener("click", async () => {
-        const full = await api(`/api/reports/${encodeURIComponent(r.key)}`);
-        body.textContent = ""; const pre = el("pre", null, full.text); body.appendChild(pre);
-        const c = el("button", "btn", "복사"); c.addEventListener("click", async () => toast((await copyText(full.text)) ? "복사했습니다" : "복사하지 못했습니다"));
-        h.insertBefore(c, x);
+    const [tp, rp] = await Promise.all([api("/api/topics"), api("/api/reports")]);
+    body.appendChild(el("div", "shelf-h", `보관한 토픽 ${tp.topics.length} · 원문 포함 · %LOCALAPPDATA%\\report-1\\topics`));
+    if (!tp.topics.length) body.appendChild(el("div", "hello", "아직 없습니다 — 자료를 붙여 넣고 보관(Ctrl+S)"));
+    for (const t of tp.topics) {
+      const row = el("div", "row"); const tt = el("span", "t", t.topic || "(토픽 없음)");
+      tt.appendChild(el("small", null, `${t.form} · 자료 ${t.pastes} · 조각 ${t.frags} · ${t.updated.replace("T", " ").slice(0, 16)}`));
+      const b = el("span", "b"), open = el("button", "ghost", "열기"), del = el("button", "ghost", "지우기");
+      open.addEventListener("click", async () => {
+        try { const d = await withDiscard(`/api/topics/${t.id}/open`, {}); if (!d) return; applyDesk(d.desk); clearDraft(); closeDrawer(); toast("토픽을 열었습니다"); }
+        catch (e) { toast(e.message); }
       });
-      body.appendChild(b);
+      del.addEventListener("click", async () => {
+        if (!window.confirm(`'${t.topic || t.id}' 보관본을 지울까요? (20초 안에 되돌리기)`)) return;
+        try { const d = await api(`/api/topics/${t.id}/delete`, {}); applyDesk(d.desk); startUndo("topic", d.undo_sec, "보관본 지움"); openShelf(); }
+        catch (e) { toast(e.message); }
+      });
+      b.append(open, del); row.append(tt, b); body.appendChild(row);
+    }
+    body.appendChild(el("div", "shelf-h", `확정한 보고서 ${rp.reports.length} · 복사한 글 그대로`));
+    if (!rp.reports.length) body.appendChild(el("div", "hello", "아직 없습니다"));
+    for (const r of rp.reports) {
+      const row = el("div", "row"); const tt = el("span", "t", r.title);
+      tt.appendChild(el("small", null, `${r.form} · ${r.confirmed.replace("T", " ").slice(0, 16)}`));
+      const b = el("span", "b"), view = el("button", "ghost", "보기"), cp = el("button", "ghost", "복사");
+      const get = () => api(`/api/reports/${encodeURIComponent(r.key)}`);
+      view.addEventListener("click", async () => { try { const full = await get(); const pre = el("pre", null, full.text); row.after(pre); view.disabled = true; } catch (e) { toast(e.message); } });
+      cp.addEventListener("click", async () => { try { const full = await get(); toast((await copyText(full.text)) ? "복사했습니다" : "복사하지 못했습니다"); } catch (e) { toast(e.message); } });
+      b.append(view, cp); row.append(tt, b); body.appendChild(row);
     }
   } catch (e) { toast(e.message); }
-});
+}
+$("#shelf").addEventListener("click", openShelf);
 
 // ── 상태 · 끄기 · 키
 async function state() {
@@ -2337,24 +2675,29 @@ async function state() {
     const d = await api("/api/state");
     led("#led-llm", !d.llm_ready ? "" : (d.llm_ok === false ? "err" : "ok"));
     $("#model").textContent = d.llm_ready ? d.model : "LLM 없음 · 기본 초안";
-    if (d.journal_error) toast(d.journal_error);
+    if (S.desk && (d.desk.unsaved !== S.desk.unsaved || d.desk.frags !== S.desk.pastes.reduce((a, p) => a + p.frags.length, 0))) load();
   } catch (e) { /* 꺼졌을 수 있다 */ }
 }
+async function load() { try { applyDesk((await api("/api/desk")).desk); } catch (e) { toast(e.message); } }
 $("#power").addEventListener("click", async () => {
+  if (S.desk && S.desk.unsaved && !window.confirm("보관 안 한 자료가 있습니다. 끄면 사라집니다 — 끌까요?")) return;
   try { await api("/api/shutdown", {}); } catch (e) { /* 이미 꺼짐 */ }
-  const o = el("div", "off-screen", "Report–1 을 껐습니다 · 창을 닫아도 됩니다"); document.body.appendChild(o);
+  S.off = true; document.body.appendChild(el("div", "off-screen", "Report–1 을 껐습니다 · 창을 닫아도 됩니다"));
 });
+window.addEventListener("beforeunload", (e) => { if (!S.off && S.desk && S.desk.unsaved) { e.preventDefault(); e.returnValue = ""; } });
 document.addEventListener("keydown", (e) => {
+  const typing = e.target.isContentEditable || e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
   if (e.altKey && ["1", "2", "3", "4"].includes(e.key)) { e.preventDefault(); turn(+e.key, e.shiftKey ? -1 : 1); }
+  else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "Enter") { e.preventDefault(); confirmDraft(); }
   else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); makeDraft(); }
-  else if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) { e.preventDefault(); confirmDraft(); }
-  else if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z") && !$("#undo").hidden && !(e.target.isContentEditable || e.target.tagName === "INPUT")) { e.preventDefault(); undo(); }
-  else if (e.key === "Escape") document.querySelectorAll(".drawer").forEach(d => d.remove());
+  else if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) { e.preventDefault(); save(); }
+  else if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z") && !$("#undo").hidden && !typing) { e.preventDefault(); undo(); }
+  else if (e.key === "Escape") closeDrawer();
 });
 
 $("#ver").textContent = `v${BOOT.version}`;
-renderKnobs(); renderDraft(); state(); loadSources(false);
-setInterval(state, 20000);   // 창이 열려 있다는 신호 — 닫으면 idle_exit_min 뒤 서버가 꺼진다
+renderKnobs(); renderDraft(); state(); load();
+setInterval(state, 20000);   // 창이 열려 있다는 신호 — 닫으면 idle_exit_min 뒤 서버가 꺼진다 (보관 안 한 자료가 있으면 기다린다)
 </script>
 </body>
 </html>

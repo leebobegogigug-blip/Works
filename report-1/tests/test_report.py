@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Report–1 단위 · 통합 테스트 (표준 라이브러리 unittest). git 은 진짜로, 사내 LLM · Secretary–1 은 가짜로."""
+"""Report–1 단위 · 통합 테스트 (표준 라이브러리 unittest). 사내 LLM 은 가짜로 (tests/fake_llm_server.py)."""
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
-from datetime import date, datetime, timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -18,13 +19,10 @@ import importlib.util  # noqa: E402
 
 TMP = tempfile.mkdtemp(prefix="report1-test-")
 os.environ["REPORT_HOME"] = os.path.join(TMP, "home")
-os.environ["GIT_CONFIG_GLOBAL"] = os.path.join(TMP, "gitconfig")   # 이 PC 의 전역 git 설정(이메일)에 흔들리지 않게
-os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
 os.environ["XDG_CONFIG_HOME"] = os.path.join(TMP, "xdg")           # 이 PC 의 OpenCode 설정을 읽지 않게
 os.environ["XDG_DATA_HOME"] = os.path.join(TMP, "xdg-data")
 for k in ("REPORT_BASE_URL", "REPORT_API_KEY", "REPORT_MODEL", "OPENCODE_CONFIG"):
     os.environ.pop(k, None)
-open(os.environ["GIT_CONFIG_GLOBAL"], "w").close()
 
 # report-1.py 는 이름에 '-' 가 있어 import 문으로는 못 부른다 → 파일에서 직접 읽어 'report' 모듈로 등록
 _spec = importlib.util.spec_from_file_location("report", os.path.join(ROOT, "report-1.py"))
@@ -33,54 +31,27 @@ sys.modules["report"] = rp
 _spec.loader.exec_module(rp)
 from fake_llm_server import FakeLLM  # noqa: E402
 
-GIT_OK = shutil.which("git") is not None
+# 지어낸 예시 자료 (사내 정보 아님 · RULES.md › W-12)
+MAIL = """보낸 사람: 김대리 <kim@example.com>
+받는 사람: 운영팀
+제목: 결제 서버 응답 지연 보고
+
+안녕하세요.
+
+9월 12일 14:05부터 14:47까지 결제 서버 응답이 느려졌습니다. 영향 받은 주문은 1,240건입니다.
+원인은 DB 연결 풀 고갈로 보입니다.
+
+> 지난 메일 인용 한 줄
+> 지난 메일 인용 두 줄
+"""
+CHAT = ("[김대리] [오후 2:10] 결제 느린 거 저만 그런가요\n[박과장] [오후 2:11] 저도요 DB 쪽 확인 중\n"
+        "[김대리] [오후 2:15] 풀 크기 늘렸습니다\n[박과장] [오후 2:47] 정상화 확인\n")
+TABLE = "항목\t9월\t10월\n매출\t1,200\t1,350\n지연 건수\t3\t1\n"
+MARK = "비밀표식-QX7Z"   # 디스크에 원문이 남는지 찾는 표식
 
 
 def tearDownModule():
     shutil.rmtree(TMP, ignore_errors=True)
-
-
-def git(repo, *args, when=None, email=None):
-    env = dict(os.environ)
-    if when:
-        env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = when
-    cmd = ["git", "-C", repo]
-    if email:
-        cmd += ["-c", f"user.email={email}", "-c", "user.name=someone"]
-    subprocess.run(cmd + list(args), check=True, capture_output=True, env=env)
-
-
-def make_repo(path, email="me@example.com"):
-    os.makedirs(path)
-    git(path, "init", "-q")
-    if email:
-        git(path, "config", "user.email", email)
-    git(path, "config", "user.name", "Me")
-    return path
-
-
-def commit(repo, msg, when, email=None):
-    with open(os.path.join(repo, "f.txt"), "a", encoding="utf-8") as f:
-        f.write(msg + "\n")
-    git(repo, "add", "f.txt")
-    git(repo, "commit", "-q", "-m", msg, when=when, email=email)
-
-
-def fake_secretary(folder, events, fmt=1, extra=None, raw=None):
-    """Secretary–1 의 공개 명령(--export-events) 흉내 — 받은 기간 안의 일정만 돌려준다"""
-    os.makedirs(folder, exist_ok=True)
-    path = os.path.join(folder, "secretary-1.py")
-    body = raw if raw is not None else (
-        "import json, sys\n"
-        "a = sys.argv\n"
-        "f, t = a[a.index('--from') + 1], a[a.index('--to') + 1]\n"
-        f"evs = {json.dumps(events, ensure_ascii=False)!r}\n"
-        "evs = [e for e in json.loads(evs) if f <= e['start'][:10] <= t]\n"
-        f"out = dict({{'app': 'secretary-1', 'version': '0.6.0', 'format': {fmt}, 'backend': 'local', 'events': evs}}, **{extra or {}!r})\n"
-        "sys.stdout.buffer.write((json.dumps(out, ensure_ascii=False) + '\\n').encode('utf-8'))\n")
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(body)
-    return path
 
 
 def base_cfg(home, **over):
@@ -90,6 +61,21 @@ def base_cfg(home, **over):
     return cfg
 
 
+def files_under(folder):
+    out = []
+    for dp, _, fs in os.walk(folder):
+        out += [os.path.join(dp, f) for f in fs]
+    return out
+
+
+def disk_has(folder, needle):
+    for p in files_under(folder):
+        with open(p, "rb") as f:
+            if needle.encode("utf-8") in f.read():
+                return True
+    return False
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(dir=TMP)
@@ -97,238 +83,223 @@ class Base(unittest.TestCase):
         os.makedirs(self.home)
 
 
-# ─────────────────────────────────────────────────────────────── 기간
+# ─────────────────────────────────────────────────────────────── 자료 → 조각
 
-class Periods(unittest.TestCase):
-    def test_week_kinds(self):
-        sat = date(2026, 9, 26)
-        this = rp.make_period("this", sat)
-        self.assertEqual((this.start, this.end, this.next_start, this.next_end),
-                         (date(2026, 9, 21), date(2026, 9, 27), date(2026, 9, 28), date(2026, 10, 4)))
-        self.assertEqual((this.key, this.label), ("2026-W39", "2026 W39 · 9/21 – 9/27"))
-        last = rp.make_period("last", sat)
-        self.assertEqual((last.start, last.end, last.key), (date(2026, 9, 14), date(2026, 9, 20), "2026-W38"))
-        two = rp.make_period("2w", sat)
-        self.assertEqual((two.start, two.end, two.key), (date(2026, 9, 14), date(2026, 9, 27), "2026-W38+39"))
+class Split(unittest.TestCase):
+    def test_mail_subject_quotes_and_short_greeting(self):
+        sp = rp.split_paste(MAIL)
+        self.assertEqual((sp["kind"], sp["title"], sp["quotes"]), ("mail", "결제 서버 응답 지연 보고", 2))
+        self.assertFalse(any("인용" in f for f in sp["frags"]))                       # > 인용 줄은 건너뛴다
+        self.assertNotIn("안녕하세요.", sp["frags"])                               # 인사 한 줄은 이웃 조각과 묶는다
+        self.assertTrue(any("1,240건" in f for f in sp["frags"]))
 
-    def test_monday_and_month(self):
-        self.assertEqual(rp.make_period("this", date(2026, 9, 21)).start, date(2026, 9, 21))
-        dec = rp.make_period("month", date(2026, 12, 15))
-        self.assertEqual((dec.start, dec.end, dec.key), (date(2026, 12, 1), date(2026, 12, 31), "2026-12"))
-        with self.assertRaises(ValueError):
-            rp.make_period("year")
+    def test_table_rows_keep_their_header(self):
+        sp = rp.split_paste(TABLE)
+        self.assertEqual(sp["kind"], "table")
+        self.assertEqual(sp["frags"], ["항목: 매출 · 9월: 1,200 · 10월: 1,350", "항목: 지연 건수 · 9월: 3 · 10월: 1"])
+        self.assertEqual(rp.split_paste("1\t2\n3\t4\n")["frags"], ["1 · 2", "3 · 4"])   # 숫자뿐인 첫 줄은 머리글이 아니다
 
+    def test_chat_is_detected_and_title_has_no_header(self):
+        sp = rp.split_paste(CHAT)
+        self.assertEqual((sp["kind"], sp["title"]), ("chat", "결제 느린 거 저만 그런가요"))
 
-# ─────────────────────────────────────────────────────────────── 커밋
+    def test_long_text_is_cut_without_losing_words(self):
+        long = "첫 문장입니다. " + ("가나다라마바사 아자차카타파하 " * 80) + "끝."
+        for text in (long, "가" * 1500):
+            frags = rp.split_paste(text)["frags"]
+            self.assertTrue(all(len(f) <= rp.FRAG_MAX for f in frags), [len(f) for f in frags])
+            self.assertEqual("".join("".join(frags).split()), "".join(text.split()))
 
-@unittest.skipUnless(GIT_OK, "git 이 없음")
-class GitSource(Base):
-    def cfg(self, **git_over):
-        return base_cfg(self.home, sources={"git": dict({"roots": [self.dir]}, **git_over)})
-
-    def test_only_my_commits_in_range(self):
-        api = make_repo(os.path.join(self.dir, "api-server"))
-        commit(api, "로그인 토큰 만료 처리", "2026-09-22T10:00:00")
-        commit(api, "남의 커밋", "2026-09-22T11:00:00", email="other@example.com")
-        commit(api, "지난주 커밋", "2026-09-18T11:00:00")   # 맨 위 커밋이 더 옛날 — git --since 만 믿으면 이번 주 커밋까지 사라진다
-        items, st = rp.GitCollector(self.cfg()).collect(date(2026, 9, 21), date(2026, 9, 27))
-        self.assertEqual([c["title"] for c in items], ["로그인 토큰 만료 처리"])
-        self.assertEqual(items[0]["repo"], "api-server")
-        self.assertEqual(items[0]["when"], "2026-09-22T10:00")
-        self.assertTrue(st.startswith("OK · 1건 · 저장소 1개"), st)
-
-    def test_unknown_author_is_skipped_not_guessed(self):
-        """작성자 이메일을 모르면 가져오지 않는다 — 남의 커밋이 내 실적으로 들어가지 않게"""
-        web = make_repo(os.path.join(self.dir, "web"), email=None)
-        commit(web, "대시보드", "2026-09-22T10:00:00", email="me@example.com")
-        items, st = rp.GitCollector(self.cfg()).collect(date(2026, 9, 21), date(2026, 9, 27))
-        self.assertEqual(items, [])
-        self.assertIn("작성자 이메일을 모르는 저장소 1개", st)
-        items, _ = rp.GitCollector(self.cfg(authors=["ME@example.com"])).collect(date(2026, 9, 21), date(2026, 9, 27))
-        self.assertEqual([c["title"] for c in items], ["대시보드"])   # 설정한 이메일 · 대소문자 무시
-
-    def test_branches_depth_and_dedupe(self):
-        deep = make_repo(os.path.join(self.dir, "team", "svc"))
-        commit(deep, "기본 가지", "2026-09-22T09:00:00")
-        git(deep, "checkout", "-q", "-b", "feature")
-        commit(deep, "기능 가지", "2026-09-23T09:00:00")
-        git(deep, "stash", "list")
-        items, _ = rp.GitCollector(self.cfg()).collect(date(2026, 9, 21), date(2026, 9, 27))
-        self.assertEqual([c["title"] for c in items], ["기본 가지", "기능 가지"])
-        items, st = rp.GitCollector(self.cfg(depth=0)).collect(date(2026, 9, 21), date(2026, 9, 27))
-        self.assertEqual((items, st), ([], "저장소를 찾지 못했습니다 (sources.git.roots · depth)"))
-
-    def test_no_roots(self):
-        items, st = rp.GitCollector(base_cfg(self.home)).collect(date(2026, 9, 21), date(2026, 9, 27))
-        self.assertEqual((items, st), ([], "폴더 미설정 → sources.git.roots"))
+    def test_rules_and_blank_lines_split_blocks(self):
+        first = "첫째 문단은 이만큼 길게 써서 다음 문단과 묶이지 않게 합니다. 짧은 조각만 이웃과 묶이니 충분히 길어야 합니다."
+        self.assertGreaterEqual(len(first), rp.FRAG_MIN)
+        self.assertEqual(rp.split_paste(first + "\n-----\n둘째 문단\n\n\n")["frags"], [first, "둘째 문단"])
+        self.assertEqual(rp.split_paste("짧은 머리\n\n" + first)["frags"], ["짧은 머리\n" + first])
 
 
-# ─────────────────────────────────────────────────────────────── 일정 (Secretary–1 공개 명령)
-
-EVENTS = [{"id": "L1", "title": "주간회의", "start": "2026-09-21T10:00", "end": "2026-09-21T11:00", "location": "3A"},
-          {"id": "L2", "title": "분기 계획 리뷰", "start": "2026-09-29T15:00", "end": "2026-09-29T16:00", "location": ""}]
-
-
-class CalendarSource(Base):
-    def collector(self, path):
-        return rp.CalendarCollector(base_cfg(self.home, sources={"calendar": {"secretary": path}}))
-
-    def test_reads_public_command(self):
-        path = fake_secretary(self.dir, EVENTS)
-        evs, st = self.collector(path).collect(date(2026, 9, 21), date(2026, 10, 4))
-        self.assertEqual([e["title"] for e in evs], ["주간회의", "분기 계획 리뷰"])
-        self.assertTrue(st.startswith("OK · 2건 · Secretary–1 0.6.0"), st)
-
-    def test_missing_unknown_format_error_and_garbage(self):
-        d0, d1 = date(2026, 9, 21), date(2026, 9, 27)
-        self.assertEqual(self.collector(os.path.join(self.dir, "none.py")).collect(d0, d1),
-                         ([], "Secretary–1 이 없습니다 → 일정 없이"))
-        evs, st = self.collector(fake_secretary(os.path.join(self.dir, "v2"), EVENTS, fmt=2)).collect(d0, d1)
-        self.assertEqual(evs, [])
-        self.assertIn("형식(2)을 모릅니다", st)
-        evs, st = self.collector(fake_secretary(os.path.join(self.dir, "err"), [], extra={"error": "캘린더 연결 실패"})).collect(d0, d1)
-        self.assertEqual((evs, st), ([], "Secretary–1: 캘린더 연결 실패"))
-        evs, st = self.collector(fake_secretary(os.path.join(self.dir, "junk"), [], raw="print('hello')\n")).collect(d0, d1)
-        self.assertEqual(evs, [])
-        self.assertIn("답을 읽지 못했습니다", st)
-
-    def test_default_is_sibling_secretary(self):
-        self.assertEqual(rp.CalendarCollector.default_path(),
-                         os.path.join(os.path.dirname(ROOT), "secretary-1", "secretary-1.py"))
-
-
-# ─────────────────────────────────────────────────────────────── 일지 · 저장
-
-class JournalStore(Base):
-    def test_add_between_remove(self):
-        j = rp.Journal(os.path.join(self.home, "journal.json"))
-        a = j.add("  온보딩 문서\n초안 작성  ", date(2026, 9, 22))
-        b = j.add("회의록 정리", date(2026, 9, 29))
-        self.assertEqual((a["id"], a["text"], b["id"]), ("n1", "온보딩 문서 초안 작성", "n2"))
-        self.assertEqual([x["id"] for x in j.between(date(2026, 9, 21), date(2026, 9, 27))], ["n1"])
-        j.remove("n1")
-        self.assertEqual([x["id"] for x in j.all()], ["n2"])
-        self.assertEqual(j.add("다음", date(2026, 9, 30))["id"], "n3")
-        with self.assertRaises(ValueError):
-            j.add("   ")
-        with self.assertRaises(ValueError):
-            j.add("가" * 301)
+class DeskTest(unittest.TestCase):
+    def test_ids_dedupe_delete_and_restore(self):
+        d = rp.Desk("이슈 보고")
+        a1 = d.add(MAIL)
+        self.assertEqual((a1.id, a1.frags[0]), ("a1", "p1"))
+        with self.assertRaisesRegex(ValueError, "이미 붙여 넣은 조각뿐"):
+            d.add(MAIL)                                               # 같은 메일을 두 번 붙이면
+        a2 = d.add(MAIL + "\n새로 붙은 답장 한 줄입니다.")
+        self.assertEqual((a2.id, a2.dups, len(a2.frags)), ("a2", len(a1.frags), 1))   # 같은 조각은 건너뛴다
+        d.exclude.add(a2.frags[0])
+        snap = d.remove("a1")
+        self.assertNotIn("p1", d.frags)
+        d.restore(snap)
+        self.assertEqual([p.id for p in d.pastes], ["a1", "a2"])
+        self.assertEqual(list(d.frags)[0], "p1")
+        self.assertIn(a2.frags[0], d.exclude)
+        d.remove("a2")
+        a3 = d.add("완전히 다른 새 자료입니다. 지운 자료의 번호를 다시 쓰지 않습니다.")
+        self.assertEqual(a3.id, "a3")                                            # 지운 자료 · 조각의 id 는 다시 쓰지 않는다
+        self.assertNotIn(a3.frags[0], a2.frags)
         with self.assertRaises(KeyError):
-            j.remove("n99")
+            d.remove("a9")
 
-    def test_broken_file_is_backed_up(self):
-        path = os.path.join(self.home, "journal.json")
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("{깨짐")
-        j = rp.Journal(path)
-        self.assertEqual(j.all(), [])
-        self.assertIn("새로 시작합니다", j.doc.error)
-        self.assertTrue(os.path.exists(path + ".broken"))
-        j.add("다시 시작")
-        with open(path, encoding="utf-8") as f:
-            self.assertEqual(json.load(f)["version"], 1)
+    def test_limits_and_empty(self):
+        d = rp.Desk("이슈 보고")
+        with self.assertRaisesRegex(ValueError, "비어 있습니다"):
+            d.add("  \n ")
+        with self.assertRaisesRegex(ValueError, "나눠서"):
+            d.add("가" * (rp.MAX_PASTE + 1))
+        with self.assertRaisesRegex(ValueError, "쓸 수 있는 글이 없습니다"):
+            d.add("-----\n=====\n")
 
-    def test_newer_version_is_read_only(self):
-        path = os.path.join(self.home, "journal.json")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"version": 99, "entries": [{"id": "n1", "date": "2026-09-22", "text": "미래"}]}, f)
-        j = rp.Journal(path)
-        self.assertEqual([x["text"] for x in j.all()], ["미래"])
-        with self.assertRaises(OSError):
-            j.add("덮어쓰기")
-        with open(path, encoding="utf-8") as f:
-            self.assertEqual(json.load(f)["version"], 99)
-
-    def test_report_store_save_restore(self):
-        st = rp.ReportStore(os.path.join(self.home, "reports"))
-        self.assertIsNone(st.save("2026-W39", {"label": "첫", "confirmed": "a"}))
-        before = st.save("2026-W39", {"label": "둘", "confirmed": "b"})
-        self.assertEqual(before["label"], "첫")
-        st.restore("2026-W39", before)
-        self.assertEqual(st.get("2026-W39")["label"], "첫")
-        st.restore("2026-W39", None)
-        self.assertIsNone(st.get("2026-W39"))
-        with self.assertRaises(ValueError):
-            st.path("../x")
+    def test_known_chars_unsaved_and_doc_roundtrip(self):
+        d = rp.Desk("회의 결과")
+        self.assertFalse(d.unsaved())
+        d.topic = "결제 지연"
+        d.add(MAIL)
+        d.add(TABLE)
+        d.exclude = {"p1"}
+        self.assertTrue(d.unsaved())
+        self.assertNotIn("p1", d.known())
+        self.assertEqual(d.chars(), d.chars(False) - len(d.frags["p1"].text))
+        back = rp.Desk.from_doc(json.loads(json.dumps(d.to_doc())), rp.DEFAULT_CONFIG["report"]["forms"], "현황 보고")
+        self.assertEqual((back.topic, back.form, back.exclude), ("결제 지연", "회의 결과", {"p1"}))
+        self.assertEqual({k: f.text for k, f in back.frags.items()}, {k: f.text for k, f in d.frags.items()})
+        self.assertEqual((back.next_a, back.next_p), (d.next_a, d.next_p))
+        self.assertEqual(rp.Desk.from_doc({"form": "없는 양식", "pastes": [{"id": "x"}, 3]}, {"A": []}, "A").form, "A")
 
 
-# ─────────────────────────────────────────────────────────────── 근거 검사 · 초안
+# ─────────────────────────────────────────────────────────────── 근거 판정 · 초안 · 글
 
-def known():
-    S = rp.Source
-    return {s.id: s for s in [S("c1", "commit", "토큰 만료 처리", "2026-09-22T10:00", "api-server", "a1b2c3d"),
-                              S("c2", "commit", "로그 정리", "2026-09-23T10:00", "api-server", "b2c3d4e"),
-                              S("e1", "event", "주간회의", "2026-09-21T10:00", "3A", "L1"),
-                              S("n3", "note", "온보딩 문서 초안", "2026-09-22T00:00"),
-                              S("f1", "plan", "분기 계획 리뷰", "2026-09-29T15:00", "", "L2")]}
+def frags(*texts):
+    return {f"p{i + 1}": rp.Frag(f"p{i + 1}", "a1", t) for i, t in enumerate(texts)}
 
 
 class Judge(unittest.TestCase):
     def test_states(self):
-        k, L = known(), rp.Line
-        self.assertEqual(rp.judge(L(0, "처리", ["c1", "C2", "zz"]), k).refs, ["c1", "c2"])
-        self.assertEqual(rp.judge(L(0, "지어낸 성과", []), k).state, "err")
-        self.assertEqual(rp.judge(L(0, "다음 주 일을 실적으로", ["f1"]), k).state, "err")   # 실적엔 이번 기간 근거만
-        self.assertEqual(rp.judge(L(1, "다음 주 계획", ["f1"]), k).state, "ok")
-        self.assertEqual(rp.judge(L(1, "근거 없는 계획", []), k).state, "plan")
-        self.assertEqual(rp.judge(L(2, "근거 없는 이슈", []), k).state, "err")
-        self.assertEqual(rp.judge(L(0, "사람이 쓴 줄", [], "user"), k).state, "user")
+        known = frags("주문 1,240건 영향", "14:05부터 14:47까지")
+        j = lambda **kw: rp.judge(rp.Line(**dict({"section": 1, "text": "x"}, **kw)), known)  # noqa: E731
+        self.assertEqual(j(refs=[]).state, "err")
+        self.assertEqual(j(refs=["p9", "P1", "[p1]"]).refs, ["p1"])            # 모르는 id 는 버리고, 모양은 고친다
+        self.assertEqual(j(refs=["p9"]).state, "err")
+        self.assertEqual(j(refs=["p2"], kind="infer").state, "infer")
+        self.assertEqual(j(refs=["p1", "p2"], kind="check").state, "check")
+        self.assertEqual(j(refs=[], kind="check").state, "err")
+        self.assertEqual((j(refs=["p1"], kind="gap").state, j(refs=["p1"], kind="gap").refs), ("gap", []))
+        self.assertEqual(j(refs=[], origin="user").state, "user")
+        self.assertEqual(j(refs=["p1"], kind="이상한값").state, "ok")
+        self.assertEqual(rp.judge(rp.Line(1, "x", ["p1"]), {}).state, "err")    # 체크를 푼 조각은 근거가 아니다
 
-    def test_basic_draft_every_line_has_refs(self):
-        lines = rp.basic_draft(known(), 8)
-        self.assertEqual([(x.section, x.text, x.refs) for x in lines], [
-            (0, "온보딩 문서 초안", ["n3"]), (0, "api-server: 로그 정리 외 1건", ["c1", "c2"]),
-            (0, "주간회의", ["e1"]), (1, "분기 계획 리뷰 (9/29)", ["f1"])])
-        self.assertTrue(all(x.state == "ok" for x in lines))
-        self.assertEqual(len(rp.basic_draft(known(), 1)), 2)   # 칸마다 max_lines
+    def test_numbers_must_come_from_cited_fragments(self):
+        known = frags("영향 주문 1240건, 14:05부터 14:47까지", "매출 3.50억")
+        line = lambda t, r: rp.judge(rp.Line(1, t, r), known).nums  # noqa: E731
+        self.assertEqual(line("영향 주문 1,240건 · 14시 05분", ["p1"]), [])
+        self.assertEqual(line("복구 97분 · 3건 · 30% 감소", ["p1"]), ["97", "30"])   # 한 자리 정수(센 숫자)는 세지 않는다
+        self.assertEqual(line("매출 3.5억", ["p2"]), [])
+        self.assertEqual(line("매출 3.5억", ["p1"]), ["3.5"])                       # 다른 조각에 있어도 근거로 단 조각에 없으면
+        self.assertEqual(rp.judge(rp.Line(1, "복구 97분", ["p1"], origin="user"), known).nums, [])
+        self.assertEqual(rp.numbers("1,240 · 09 · 3.50 · 10.0 · 2026-09-12 · 0.5"),
+                         ["1240", "9", "3.5", "10", "2026", "9", "12", "0.5"])
 
-    def test_parse_draft_shapes(self):
-        good = '{"sections": [{"lines": [{"text": "토큰 처리", "refs": ["c1"]}]}, {"lines": []}, {"lines": []}]}'
-        self.assertEqual([(x.section, x.text, x.refs) for x in rp.parse_draft(good, 8)], [(0, "토큰 처리", ["c1"])])
-        fenced = "정리했습니다.\n```json\n" + good + "\n```\n확인 부탁드립니다."
-        self.assertEqual(len(rp.parse_draft("<think>음</think>" + fenced, 8)), 1)
-        alt = '{"done": [{"text": "a", "refs": "c1, c2"}], "next": ["b"], "issues": []}'
-        self.assertEqual([(x.section, x.refs) for x in rp.parse_draft(alt, 8)], [(0, ["c1", "c2"]), (1, [])])
-        for bad in ("이번 주에는 많은 일을 하셨네요", '{"foo": 1}', "{깨진"):
+    def test_parse_shapes(self):
+        secs = ["요약", "현상", "원인"]
+        good = json.dumps({"title": "T", "sections": [
+            {"name": "요약", "lines": [{"text": "a", "refs": ["p1"], "kind": "추론"}] * 5},
+            {"name": "원인", "lines": [{"text": "원인 글 [p2, p3]", "kind": "fact", "level": 2}]},
+            {"name": "현상", "lines": ["그냥 글", {"text": "", "kind": "gap"}, 3]}]}, ensure_ascii=False)
+        for wrapped in (good, f"<think>음</think>설명\n```json\n{good}\n```\n끝"):
+            title, names, lines = rp.parse_draft(wrapped, secs, False, 6)
+            self.assertEqual((title, names), ("T", secs))
+            self.assertEqual(len([x for x in lines if x.section == 0]), rp.SUMMARY_MAX)
+            self.assertEqual(lines[0].kind, "infer")
+            cause = next(x for x in lines if x.section == 2)
+            self.assertEqual((cause.text, cause.refs, cause.level), ("원인 글", ["p2", "p3"], 2))   # 글 속 [p2] 는 근거로
+            self.assertEqual([(x.text, x.kind) for x in lines if x.section == 1], [("그냥 글", "fact"), ("", "gap")])
+        _, _, pos = rp.parse_draft('{"sections": [{"lines": ["x"]}, {"lines": ["y"]}, {"lines": ["z"]}, {"lines": ["w"]}]}',
+                                   secs, False, 6)
+        self.assertEqual([x.section for x in pos], [0, 1, 2, 2])                  # 이름이 없으면 순서대로
+        _, names, _ = rp.parse_draft('{"sections": [{"name": "요약", "lines": []}, {"name": "배경", "lines": ["b"]},'
+                                     ' {"name": "할 일", "lines": ["c"]}]}', ["요약"], True, 6)
+        self.assertEqual(names, ["요약", "배경", "할 일"])                          # 자유 구성은 LLM 이 칸 이름을 정한다
+        for bad in ("그냥 말", "[1, 2]", '{"title": "x"}'):
             with self.assertRaises(ValueError):
-                rp.parse_draft(bad, 8)
+                rp.parse_draft(bad, secs, False, 6)
 
-    def test_render_text(self):
-        p = rp.make_period("this", date(2026, 9, 26))
-        lines = [rp.Line(0, "토큰 처리", ["c1"], "llm", "ok"), rp.Line(1, "리뷰 준비", ["f1"], "llm", "ok")]
-        text = rp.render_text(p, ["금주 실적", "차주 계획", "이슈"], lines, known())
-        self.assertEqual(text, "■ 금주 실적 (9/21 – 9/27)\n - 토큰 처리\n\n■ 차주 계획 (9/28 – 10/4)\n - 리뷰 준비\n\n■ 이슈\n - 없음\n")
-        with_refs = rp.render_text(p, ["금주 실적", "차주 계획", "이슈"], lines, known(), with_refs=True)
-        self.assertIn(" - 토큰 처리 (api-server a1b2c3d)", with_refs)
-        self.assertIn(" - 리뷰 준비 (다음 일정 9/29)", with_refs)
+    def test_render_brief_prose_and_refs(self):
+        known = frags("영향 주문 1,240건", "원인은 DB 연결 풀 고갈")
+        pastes = {"a1": rp.Paste("a1", "mail", "지연 보고", "")}
+        lines = [rp.judge(x, known) for x in (
+            rp.Line(0, "조치 완료로 보임", ["p1", "p2"], "infer"), rp.Line(1, "주문 1,240건 영향", ["p1"]),
+            rp.Line(1, "세부", ["p2"], level=2), rp.Line(1, "시각 표기 다름", ["p1", "p2"], "check"),
+            rp.Line(2, "담당자", [], "gap"))]
+        text = rp.render_text("결제 지연", ["요약", "현상", "원인", "조치"], lines, known, pastes)
+        self.assertEqual(text, "결제 지연\n\n□ 요약\n  ○ 조치 완료로 보임\n\n□ 현상\n  ○ 주문 1,240건 영향\n    - 세부\n"
+                               "  ○ 시각 표기 다름 (확인 필요)\n\n□ 원인\n  ○ 담당자 — 자료 없음 (확인 필요)\n\n□ 조치\n  ○ 자료 없음\n")
+        refd = rp.render_text("결제 지연", ["요약", "현상", "원인"], lines, known, pastes, "prose", True)
+        self.assertIn("  조치 완료로 보임[1][2]\n", refd)
+        self.assertIn("    세부[2]\n", refd)
+        self.assertTrue(refd.endswith("※ 근거\n[1] 메일 「지연 보고」: 영향 주문 1,240건\n[2] 메일 「지연 보고」: 원인은 DB 연결 풀 고갈\n"))
 
-    def test_prompt_keeps_rules_and_only_given_sources(self):
-        p = rp.make_period("this", date(2026, 9, 26))
-        k = known()
-        del k["c2"]
-        msgs = rp.build_messages(p, k, ["금주 실적", "차주 계획", "이슈"], 1, "brief", 5, "김개발")
-        self.assertIn("지어내지 않는다", msgs[0]["content"])
-        self.assertIn("[c1] 2026-09-22 커밋 · api-server · 토큰 만료 처리", msgs[1]["content"])
-        self.assertNotIn("로그 정리", msgs[1]["content"])
+    def test_prompt_sends_only_checked_fragments(self):
+        d = rp.Desk("이슈 보고")
+        d.add(MAIL)
+        d.add("다른 자료 " + MARK)
+        mark_id = next(k for k, f in d.frags.items() if MARK in f.text)
+        d.exclude = {mark_id}
+        secs, free = rp.sections_of(base_cfg(TMP), "이슈 보고")
+        msgs = rp.build_messages("결제 지연", "이슈 보고", secs, free, d.known(), d.paste_of(), 2, "brief", "exec")
+        allm = json.dumps(msgs, ensure_ascii=False)
+        self.assertNotIn(MARK, allm)
+        self.assertIn("자료 밖의 지식", msgs[0]["content"])
+        self.assertIn("'요약' · '현상' · '원인' · '영향' · '조치' · '요청 사항' — 이 순서", msgs[0]["content"])
+        self.assertIn("임원", msgs[0]["content"])
+        self.assertIn("[p1] (자료 1 · 메일) ", msgs[1]["content"])
+        self.assertEqual(rp.sections_of(base_cfg(TMP), "자유 구성"), (["요약"], True))
+        self.assertEqual(rp.sections_of(base_cfg(TMP, report={"summary": False}), "회의 결과")[0][0], "회의 개요")
+
+    def test_basic_draft_cites_every_fact(self):
+        d = rp.Desk("이슈 보고")
+        d.add(MAIL)
+        d.add(CHAT)
+        secs, _ = rp.sections_of(base_cfg(TMP), "이슈 보고")
+        lines = rp.basic_draft(d.known(), d.paste_of(), secs, 6, True)
+        self.assertTrue(all(x.refs for x in lines if x.kind == "fact"))
+        self.assertTrue(all(x.state in ("ok", "gap") for x in lines))
+        self.assertEqual({x.section for x in lines if x.kind == "gap"}, {0, 2, 3, 4, 5})
 
 
-# ─────────────────────────────────────────────────────────────── 앱 (HTTP)
+# ─────────────────────────────────────────────────────────────── 저장 (W-05 · W-06)
 
-class Http(Base):
+class Storage(Base):
+    def test_folder_broken_newer_and_bad_names(self):
+        f = rp.Folder(os.path.join(self.home, "topics"), "토픽")
+        k = f.new_key("t")
+        f.save(k, {"topic": "a"})
+        self.assertEqual(f.get(k)["version"], 1)
+        self.assertNotEqual(f.new_key("t"), k)
+        with open(f.path(k), "w", encoding="utf-8") as fh:
+            fh.write("{broken")
+        self.assertIsNone(f.get(k))
+        self.assertTrue(os.path.exists(f.path(k) + ".broken"))
+        with open(f.path(k), "w", encoding="utf-8") as fh:
+            json.dump({"version": 99, "topic": "future"}, fh)
+        self.assertTrue(f.get(k)["readonly"])
+        with self.assertRaises(OSError):
+            f.save(k, {"topic": "overwrite"})                  # 더 새 버전이 쓴 파일은 덮어쓰지 않는다
+        for bad in ("../x", "a/b", "..", ""):
+            with self.assertRaises(ValueError):
+                f.path(bad)
+
+
+# ─────────────────────────────────────────────────────────────── 로컬 서버
+
+class HttpBase(Base):
+    MODE = "good"
+
     def setUp(self):
         super().setUp()
-        self.llm = FakeLLM()
-        mon = date.today() - timedelta(days=date.today().weekday())
-        evs = [{"id": "L1", "title": "주간회의", "start": f"{mon}T10:00", "end": f"{mon}T11:00", "location": "3A"},
-               {"id": "L2", "title": "분기 계획 리뷰", "start": f"{mon + timedelta(days=8)}T15:00", "end": "", "location": ""}]
-        sec = fake_secretary(os.path.join(self.dir, "sec"), evs)
-        self.cfg = base_cfg(self.home, llm={"base_url": self.llm.url, "model": "fake-model"},
-                            sources={"calendar": {"secretary": sec}}, idle_exit_min=0)
+        self.llm = FakeLLM(mode=self.MODE)
+        self.cfg = base_cfg(self.home, llm={"base_url": self.llm.url, "model": "fake-model"}, idle_exit_min=0)
         self.app = rp.App(self.cfg, os.path.join(self.home, "config.json"))
-        self.app.journal.add("온보딩 문서 초안 작성")
         self.app.httpd, self.app.port = rp.bind_server(0, rp.make_handler(self.app))
         self.app.allowed_hosts = {f"127.0.0.1:{self.app.port}", f"localhost:{self.app.port}"}
-        import threading
         threading.Thread(target=self.app.httpd.serve_forever, daemon=True).start()
 
     def tearDown(self):
@@ -336,8 +307,8 @@ class Http(Base):
         self.app.httpd.server_close()
         self.llm.close()
 
-    def call(self, path, body=None, token=True, host=None, ctype="application/json"):
-        data = json.dumps(body).encode("utf-8") if body is not None else None
+    def call(self, path, body=None, token=True, host=None, ctype="application/json", raw=None):
+        data = raw if raw is not None else (json.dumps(body).encode("utf-8") if body is not None else None)
         req = urllib.request.Request(self.app.url.rstrip("/") + path, data=data, method="POST" if data is not None else "GET")
         if token:
             req.add_header("X-Report-Token", self.app.token)
@@ -352,87 +323,209 @@ class Http(Base):
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read().decode("utf-8"))
 
+    def fill(self, *texts, topic="결제 지연", form="이슈 보고"):
+        self.assertEqual(self.call("/api/desk", {"topic": topic, "form": form})[0], 200)
+        for t in texts:
+            code, d = self.call("/api/paste", {"text": t})
+            self.assertEqual(code, 200, d)
+        return d["desk"]
+
+    def body(self, draft, **over):
+        return dict({"form": draft["form"], "sections": draft["sections"], "title": draft["title"],
+                     "lines": draft["lines"]}, **over)
+
+
+class Http(HttpBase):
     def test_binds_localhost_and_guards(self):
         self.assertEqual(self.app.httpd.server_address[0], "127.0.0.1")
         self.assertEqual(self.call("/api/state", token=False)[0], 401)
         self.assertEqual(self.call("/api/state", host="evil.example:80")[0], 403)
-        self.assertEqual(self.call("/api/draft", {"period": "this"}, ctype="text/plain")[0], 415)
+        self.assertEqual(self.call("/api/paste", {"text": "x"}, ctype="text/plain")[0], 415)
         self.assertEqual(self.call("/api/ping", token=False), (200, {"app": "report-1", "version": rp.VERSION}))
+        self.assertEqual(self.call("/api/topics/..%2Fx/open", {})[0], 404)
+        keep = rp.MAX_PASTE
+        rp.MAX_PASTE = 100          # 요청 크기 한도 = MAX_PASTE × 8 바이트
+        try:
+            code, d = self.call("/api/paste", {"text": "가" * 400})
+        finally:
+            rp.MAX_PASTE = keep
+        self.assertEqual(code, 413, d)
 
-    def test_sources_draft_confirm_undo(self):
-        code, src = self.call("/api/sources?period=this")
-        self.assertEqual(code, 200)
-        kinds = sorted(x["kind"] for x in src["items"])
-        self.assertEqual(kinds, ["event", "note", "plan"])
-        code, d = self.call("/api/draft", {"period": "this"})
-        self.assertEqual((code, d["mode"], d["error"]), (200, "llm", ""))
-        self.assertTrue(all(x["state"] == "ok" for x in d["lines"]), d["lines"])
-        self.assertIn("온보딩 문서 초안 작성 완료", d["text"])
-        code, c = self.call("/api/confirm", {"period": "this", "lines": d["lines"]})
+    def test_paste_draft_confirm_undo(self):
+        desk = self.fill(MAIL, CHAT, TABLE)
+        self.assertEqual([p["kind"] for p in desk["pastes"]], ["mail", "chat", "table"])
+        code, d = self.call("/api/draft", {"detail": 2, "tone": "brief", "audience": "boss"})
+        self.assertEqual((code, d["mode"], d["title"]), (200, "llm", "결제 지연"), d)
+        self.assertEqual(d["sections"][:2], ["요약", "현상"])
+        states = {x["state"] for x in d["lines"]}
+        self.assertTrue({"ok", "infer", "check", "gap"} <= states, states)
+        self.assertNotIn("err", states)
+        code, c = self.call("/api/confirm", self.body(d, with_refs=True))
         self.assertEqual(code, 200, c)
+        self.assertIn("※ 근거\n[1] 메일 「결제 서버 응답 지연 보고」", c["text"])
+        path = os.path.join(self.home, "reports", c["key"] + ".json")
+        with open(path, encoding="utf-8") as f:
+            saved = json.load(f)
+        self.assertEqual((saved["text"], saved["title"]), (c["text"], "결제 지연"))
+        self.assertNotIn("frags", saved)
         self.assertEqual(self.call("/api/reports")[1]["reports"][0]["key"], c["key"])
         self.assertEqual(self.call(f"/api/reports/{c['key']}")[1]["text"], c["text"])
-        self.assertEqual(self.call("/api/undo", {"key": c["key"]})[0], 200)
-        self.assertEqual(self.call("/api/reports")[1]["reports"], [])
-        self.assertEqual(self.call("/api/undo", {"key": c["key"]})[0], 400)   # 두 번은 안 됨
+        code, u = self.call("/api/undo", {})
+        self.assertEqual((code, u["undone"]), (200, "confirm"))
+        self.assertFalse(os.path.exists(path))
+        self.assertEqual(self.call("/api/undo", {})[0], 400)                      # 두 번은 안 된다
 
-    def test_invented_achievement_blocks_confirm_until_a_person_owns_it(self):
-        self.llm.mode = "lie"
-        code, d = self.call("/api/draft", {"period": "this"})
+    def test_raw_text_reaches_disk_only_when_saved(self):
+        """W-05 — 붙여 넣은 원문은 '보관' 을 누르기 전에는 디스크 어디에도 없다"""
+        self.fill(MAIL, "기록 " + MARK + " 끝")
+        code, d = self.call("/api/draft", {})
+        self.assertEqual(code, 200)
+        self.assertEqual(self.call("/api/preview", self.body(d))[0], 200)
+        self.assertFalse(disk_has(self.home, MARK))
+        self.assertFalse(os.path.isdir(os.path.join(self.home, "topics")))
+        code, s = self.call("/api/save", {})
+        self.assertEqual((code, s["desk"]["unsaved"]), (200, False))
+        self.assertTrue(disk_has(os.path.join(self.home, "topics"), MARK))
+        self.assertEqual(self.call("/api/topics")[1]["topics"][0]["id"], s["saved"])
+        self.assertEqual(self.call("/api/save", {})[1]["saved"], s["saved"])        # 다시 보관하면 같은 파일에
+
+    def test_unsaved_desk_is_guarded(self):
+        self.fill(MAIL)
+        code, d = self.call("/api/desk/new", {})
+        self.assertEqual(code, 409, d)
+        self.assertIn("보관 안 한 자료 1개", d["error"])
+        key = self.call("/api/save", {})[1]["saved"]
+        self.call("/api/paste", {"text": CHAT})
+        self.assertEqual(self.call("/api/desk/new", {})[0], 409)                   # 보관 뒤에 더 붙인 것도
+        code, d = self.call("/api/desk/new", {"discard": True})
+        self.assertEqual((code, d["desk"]["pastes"]), (200, []))
+        code, d = self.call(f"/api/topics/{key}/open", {})
+        self.assertEqual((code, d["desk"]["topic"], d["desk"]["saved_id"], d["desk"]["unsaved"]), (200, "결제 지연", key, False))
+        self.assertEqual(len(d["desk"]["pastes"]), 1)                             # 보관한 때의 자료만
+        code, d = self.call(f"/api/topics/{key}/delete", {})
+        self.assertEqual((code, d["topics"], d["desk"]["unsaved"]), (200, [], True))
+        self.assertEqual(self.call("/api/undo", {})[0], 200)
+        self.assertEqual(self.call("/api/topics")[1]["topics"][0]["id"], key)
+        self.assertEqual(self.call("/api/desk")[1]["desk"]["saved_id"], key)
+
+    def test_idle_exit_waits_for_unsaved(self):
+        self.app.cfg["idle_exit_min"] = 1
+        later = time.time() + 3600
+        self.assertTrue(self.app.idle_should_exit(later))
+        self.fill(MAIL)
+        self.assertFalse(self.app.idle_should_exit(later))                         # 원문이 사라지지 않게 기다린다
+        self.call("/api/save", {})
+        self.assertTrue(self.app.idle_should_exit(later))
+        self.assertFalse(self.app.idle_should_exit(time.time()))
+
+    def test_excluded_fragments_are_not_sent_or_citable(self):
+        desk = self.fill(MAIL, "기록 " + MARK + " 끝")
+        mark_id = desk["pastes"][1]["frags"][0]["id"]
+        code, d = self.call("/api/draft", {})
+        self.assertTrue(any(mark_id in x["refs"] for x in d["lines"]))
+        self.call("/api/desk", {"exclude": [mark_id, "p999"]})
+        self.assertEqual(self.call("/api/desk")[1]["desk"]["exclude"], [mark_id])
+        code, pv = self.call("/api/preview", self.body(d))
+        self.assertTrue(all(mark_id not in x["refs"] for x in pv["lines"]))
+        self.llm.requests.clear()
+        self.call("/api/draft", {})
+        self.assertNotIn(MARK, json.dumps(self.llm.requests, ensure_ascii=False))
+
+    def test_budget_blocks_llm_but_not_basic(self):
+        self.app.budget = 1000
+        self.fill(" ".join(f"{i}번째 문장은 서로 다른 내용입니다." for i in range(120)))
+        code, d = self.call("/api/draft", {})
+        self.assertEqual(code, 400)
+        self.assertIn("한도보다 깁니다", d["error"])
+        self.assertEqual(self.llm.requests, [])
+        code, d = self.call("/api/draft", {"basic": True})
+        self.assertEqual((code, d["mode"]), (200, "basic"))
+
+    def test_paste_delete_and_undo(self):
+        self.fill(MAIL, CHAT)
+        code, d = self.call("/api/paste/a1/delete", {})
+        self.assertEqual(([p["id"] for p in d["desk"]["pastes"]], d["undo_sec"]), (["a2"], rp.App.UNDO_SEC))
+        code, u = self.call("/api/undo", {})
+        self.assertEqual(([p["id"] for p in u["desk"]["pastes"]], u["undone"]), (["a1", "a2"], "paste"))
+        self.assertEqual(self.call("/api/paste/a9/delete", {})[0], 404)
+        self.assertEqual(self.call("/api/paste", {"text": "   "})[0], 400)
+
+    def test_forged_client_state_is_rejudged(self):
+        self.fill(MAIL, CHAT, TABLE)
+        code, d = self.call("/api/draft", {})
+        forged = [dict(x, state="ok", refs=["p77"]) for x in d["lines"] if x["kind"] == "fact"]
+        self.assertGreaterEqual(len(forged), 3)
+        forged[0]["kind"] = "gap"
+        code, pv = self.call("/api/preview", self.body(d, lines=forged))
+        self.assertEqual(pv["lines"][0]["state"], "gap")
+        self.assertTrue(all(x["state"] == "err" for x in pv["lines"][1:]))
+        code, c = self.call("/api/confirm", self.body(d, lines=forged))
+        self.assertEqual(code, 400)
+        self.assertIn("근거 없는 줄이", c["error"])
+        self.assertEqual(self.call("/api/confirm", self.body(d, form="없는 양식"))[0], 400)
+
+
+class HttpLie(HttpBase):
+    MODE = "lie"
+
+    def test_invented_fact_blocks_confirm_until_a_person_owns_it(self):
+        self.fill(MAIL)
+        code, d = self.call("/api/draft", {})
         bad = [x for x in d["lines"] if x["state"] == "err"]
         self.assertEqual([x["text"] for x in bad], ["성과 30% 향상"])
-        code, c = self.call("/api/confirm", {"period": "this", "lines": d["lines"]})
+        code, c = self.call("/api/confirm", self.body(d))
         self.assertEqual(code, 400)
-        self.assertIn("근거 없는 줄이 1개", c["error"])
-        forged = [dict(x, state="ok") for x in d["lines"]]   # 화면이 상태를 바꿔 보내도 서버가 다시 판정한다
-        self.assertEqual(self.call("/api/confirm", {"period": "this", "lines": forged})[0], 400)
-        owned = [dict(x, origin="user") if x["state"] == "err" else x for x in d["lines"]]
-        code, c = self.call("/api/confirm", {"period": "this", "lines": owned})
+        owned = [dict(x, origin="user", text="성과 측정은 다음 주") if x["state"] == "err" else x for x in d["lines"]]
+        code, c = self.call("/api/confirm", self.body(d, lines=owned))
         self.assertEqual(code, 200, c)
+        self.assertIn("성과 측정은 다음 주", c["text"])
 
-    def test_excluded_sources_are_not_sent_or_citable(self):
-        _, src = self.call("/api/sources?period=this")
-        note = next(x for x in src["items"] if x["kind"] == "note")
-        _, d = self.call("/api/draft", {"period": "this", "exclude": [note["id"]]})
-        sent = json.dumps(self.llm.requests[-1], ensure_ascii=False)
-        self.assertNotIn(note["title"], sent)
-        self.assertNotIn(note["id"], [r for x in d["lines"] for r in x["refs"]])
-        _, pv = self.call("/api/preview", {"period": "this", "exclude": [note["id"]],
-                                           "lines": [{"section": 0, "text": "일지 인용", "refs": [note["id"]], "origin": "llm"}]})
-        self.assertEqual(pv["lines"][0]["state"], "err")
 
-    def test_llm_retry_and_fallback(self):
-        self.llm.mode = "garbage"
-        _, d = self.call("/api/draft", {"period": "this"})
-        self.assertEqual((d["mode"], len(self.llm.requests)), ("llm", 2))
-        self.llm.mode = "fence"
-        self.assertEqual(self.call("/api/draft", {"period": "this"})[1]["mode"], "llm")
-        self.llm.mode = "error"
-        _, d = self.call("/api/draft", {"period": "this"})
+class HttpModes(Base):
+    def run_mode(self, mode):
+        llm = FakeLLM(mode=mode)
+        try:
+            app = rp.App(base_cfg(self.home, llm={"base_url": llm.url, "model": "m"}), os.path.join(self.home, "c.json"))
+            app.desk_update({"form": "자유 구성"})
+            app.paste({"text": MAIL})
+            app.paste({"text": CHAT})
+            return app.draft({}), llm
+        finally:
+            llm.close()
+
+    def test_numbers_inline_fence_retry_length_error(self):
+        d, _ = self.run_mode("number")
+        self.assertEqual([x["nums"] for x in d["lines"] if x["nums"]], [["97"]])
+        d, _ = self.run_mode("inline")
+        self.assertTrue(all(x["refs"] and "[p" not in x["text"] for x in d["lines"] if x["kind"] == "fact"))
+        d, _ = self.run_mode("fence")
+        self.assertEqual((d["mode"], d["sections"]), ("llm", ["요약", "내용"]))
+        d, llm = self.run_mode("garbage")
+        self.assertEqual((d["mode"], len(llm.requests)), ("llm", 2))              # 한 번 다시 묻는다
+        d, llm = self.run_mode("length")
+        self.assertEqual((d["mode"], len(llm.requests)), ("basic", 1))            # 잘린 답은 다시 묻지 않는다
+        self.assertIn("llm.max_tokens", d["error"])
+        d, _ = self.run_mode("error")
         self.assertEqual(d["mode"], "basic")
-        self.assertIn("LLM 초안 실패 → 기본 초안으로", d["error"])
-        self.assertTrue(d["lines"] and all(x["state"] == "ok" for x in d["lines"]))
-
-    def test_journal_api(self):
-        code, j = self.call("/api/journal", {"text": "회의록 정리"})
-        self.assertEqual((code, j["item"]["text"]), (200, "회의록 정리"))
-        _, src = self.call("/api/sources?period=this")
-        self.assertIn("회의록 정리", [x["title"] for x in src["items"]])
-        self.assertEqual(self.call(f"/api/journal/{j['item']['id']}/delete", {})[0], 200)
-        self.assertEqual(self.call("/api/journal", {"text": ""})[0], 400)
+        self.assertIn("500", d["error"])
 
 
-# ─────────────────────────────────────────────────────────────── 설정 · 명령
+# ─────────────────────────────────────────────────────────────── 명령줄
 
-def run_cli(*args, env=None):
+def run_cli(*args, env=None, stdin=None):
     e = dict(os.environ, PYTHONIOENCODING="utf-8", **(env or {}))
-    r = subprocess.run([sys.executable, os.path.join(ROOT, "report-1.py"), *args], capture_output=True, timeout=120, env=e)
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "report-1.py"), *args], capture_output=True, timeout=120,
+                       env=e, input=stdin)
     return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
 
 
 class Cli(Base):
     def env(self):
         return {"REPORT_HOME": self.home}
+
+    def saved(self):
+        with open(os.path.join(self.home, "config.json"), encoding="utf-8") as f:
+            return json.load(f)
 
     def test_version_and_data_dir(self):
         code, out, _ = run_cli("--version")
@@ -444,53 +537,78 @@ class Cli(Base):
         self.assertEqual(code, 2)
         self.assertIn("API 키는 --set 으로 넣지 않습니다", out)
         self.assertNotIn("sk-plain-value-000", out)
-        code, out, _ = run_cli("--set", "llm.api_key={env:CORP_KEY}", "--set", 'sources.git.roots=["C:/work"]', env=self.env())
+        code, out, _ = run_cli("--set", "llm.api_key={env:CORP_KEY}", "--set", "report.budget_chars=12000", env=self.env())
         self.assertEqual(code, 0, out)
         self.assertIn("{env:CORP_KEY} 참조", out)
         self.assertEqual(run_cli("--set", "nope.key=1", env=self.env())[0], 2)
-        code, out, _ = run_cli("--set", "report.sections=[\"하나\"]", env=self.env())
+        code, out, _ = run_cli("--set", "theme=purple", env=self.env())
         self.assertEqual(code, 2)
         self.assertIn("되돌렸습니다", out)
-        with open(os.path.join(self.home, "config.json"), encoding="utf-8") as f:
-            saved = json.load(f)
-        self.assertEqual(saved["sources"]["git"]["roots"], ["C:/work"])
-        code, out, _ = run_cli("--set", "sources.git.roots=C:\\work; D:\\proj", "--set", "sources.git.authors=Me@Example.com",
-                               env=self.env())   # 셸마다 따옴표가 달라서 목록 칸은 ; 로 나눈 글도 받는다
-        self.assertEqual(code, 0, out)
-        with open(os.path.join(self.home, "config.json"), encoding="utf-8") as f:
-            git = json.load(f)["sources"]["git"]
-        self.assertEqual((git["roots"], git["authors"]), (["C:\\work", "D:\\proj"], ["Me@Example.com"]))
-        self.assertEqual(run_cli("--set", "sources.git.roots=", env=self.env())[0], 0)
-        self.assertEqual(saved["report"]["sections"], rp.DEFAULT_CONFIG["report"]["sections"])
+        self.assertEqual((self.saved()["report"]["budget_chars"], self.saved()["theme"]), (12000, "dark"))
+        self.assertEqual(run_cli("--set", "llm.models=a; b", env=self.env())[0], 0)   # 목록 칸은 ; 로 나눈 글도
+        self.assertEqual(self.saved()["llm"]["models"], ["a", "b"])
 
-    def test_draft_basic_to_stdout(self):
-        rp.Journal(os.path.join(self.home, "journal.json")).add("주간보고 양식 정리")
-        code, out, err = run_cli("--draft", "--basic", env=dict(self.env(), REPORT_HOME=self.home))
+    def test_set_forms_add_change_remove(self):
+        code, out, _ = run_cli("--set", "report.forms.주간 점검=현황; 이슈 ;계획", env=self.env())
+        self.assertEqual(code, 0, out)
+        forms = self.saved()["report"]["forms"]
+        self.assertEqual(forms["주간 점검"], ["현황", "이슈", "계획"])
+        self.assertEqual(list(forms)[:5], list(rp.DEFAULT_CONFIG["report"]["forms"]))   # 기본 양식은 그대로 남는다
+        self.assertEqual(run_cli("--set", "report.forms.현황 보고=", env=self.env())[0], 0)
+        cfg, _ = rp.load_config(os.path.join(self.home, "config.json"))
+        self.assertNotIn("현황 보고", cfg["report"]["forms"])                     # 지운 양식이 기본값에서 되살아나지 않는다
+        self.assertEqual(run_cli("--set", "report.forms.없는 양식=", env=self.env())[0], 2)
+        code, out, _ = run_cli("--set", "report.forms.중복=가;가", env=self.env())
+        self.assertEqual(code, 2)
+        self.assertIn("같은 칸 이름", out)
+        self.assertEqual(run_cli("--set", "report.forms.자유2=[]", env=self.env())[0], 0)
+        self.assertEqual(self.saved()["report"]["forms"]["자유2"], [])
+
+    def test_draft_files_and_stdin_to_stdout(self):
+        a, b = os.path.join(self.dir, "a.txt"), os.path.join(self.dir, "b.txt")
+        with open(a, "w", encoding="utf-8") as f:
+            f.write(MAIL)
+        with open(b, "wb") as f:
+            f.write(CHAT.encode("cp949"))                                         # 한글 Windows 메모장 파일
+        code, out, err = run_cli("--draft", a, b, "--basic", "--topic", "결제 지연", "--form", "회의 결과", env=self.env())
         self.assertEqual(code, 0, err)
-        self.assertTrue(out.startswith("■ 금주 실적 ("), out)
-        self.assertIn(" - 주간보고 양식 정리\n", out)
-        self.assertNotIn("[", out.splitlines()[1])   # 로그는 표준 오류로
+        self.assertTrue(out.startswith("결제 지연\n\n□ 요약\n"), out)
+        self.assertIn("□ 논의 내용\n", out)
+        self.assertIn("결제 느린 거 저만 그런가요", out)
+        self.assertIn("자료 a2", err)                                             # 로그는 표준 오류로
+        code, out, err = run_cli("--draft", "-", "--basic", env=self.env(), stdin=TABLE.encode("utf-8"))
+        self.assertEqual(code, 0, err)
+        self.assertIn("항목: 매출", out)
+        self.assertEqual(run_cli("--draft", a, "--form", "없는 양식", env=self.env())[0], 2)
+        self.assertFalse(os.path.isdir(os.path.join(self.home, "topics")))        # 명령줄은 아무것도 보관하지 않는다
 
     def test_check_without_llm_is_ok(self):
         code, out, _ = run_cli("--check", env=self.env())
         self.assertEqual(code, 0, out)
         self.assertIn("LLM       : 미설정 → 기본 초안", out)
+        self.assertIn("양식      : 현황 보고 · 이슈 보고", out)
         self.assertEqual(out.strip().splitlines()[-1], "결과: OK")
 
-    def test_setup_reads_opencode_and_asks_for_roots(self):
-        oc = os.path.join(self.dir, "oc")
-        os.makedirs(oc)
-        with open(os.path.join(oc, "opencode.jsonc"), "w", encoding="utf-8") as f:
-            f.write('{\n // 사내\n "provider": {"corp": {"npm": "@ai-sdk/openai-compatible", '
-                    '"options": {"baseURL": "https://llm.corp.local/v1", "apiKey": "{env:CORP_KEY}"}, '
-                    '"models": {"qwen3": {}}}},\n}\n')
-        code, out, _ = run_cli("--setup", env=dict(self.env(), OPENCODE_CONFIG=os.path.join(oc, "opencode.jsonc")))
-        self.assertEqual(code, 3, out)
+    def test_setup_reads_opencode_and_checks(self):
+        llm = FakeLLM()
+        try:
+            oc = os.path.join(self.dir, "oc")
+            os.makedirs(oc)
+            with open(os.path.join(oc, "opencode.jsonc"), "w", encoding="utf-8") as f:
+                f.write('{\n // 사내\n "provider": {"corp": {"npm": "@ai-sdk/openai-compatible", '
+                        '"options": {"baseURL": "' + llm.url + '", "apiKey": "{env:CORP_KEY}"}, '
+                        '"models": {"qwen3": {}}}},\n}\n')
+            code, out, _ = run_cli("--setup", env=dict(self.env(), OPENCODE_CONFIG=os.path.join(oc, "opencode.jsonc"),
+                                                       CORP_KEY="k-value-never-printed"))
+        finally:
+            llm.close()
+        self.assertEqual(code, 0, out)
         self.assertIn("provider 'corp'", out)
-        self.assertIn("커밋을 찾을 작업 폴더", out.splitlines()[-1])
-        with open(os.path.join(self.home, "config.json"), encoding="utf-8") as f:
-            llm = json.load(f)["llm"]
-        self.assertEqual((llm["base_url"], llm["model"], llm["api_key"]), ("https://llm.corp.local/v1", "qwen3", "{env:CORP_KEY}"))
+        self.assertIn("기본 응답 OK", out)
+        self.assertTrue(out.strip().splitlines()[-1].startswith("결과: OK"))
+        self.assertNotIn("k-value-never-printed", out)
+        llm_cfg = self.saved()["llm"]
+        self.assertEqual((llm_cfg["base_url"], llm_cfg["model"], llm_cfg["api_key"]), (llm.url, "qwen3", "{env:CORP_KEY}"))
 
     def test_setup_needs_choice(self):
         oc = os.path.join(self.dir, "oc2")
@@ -523,6 +641,13 @@ class Cli(Base):
         finally:
             del os.environ["REPORT_TEST_KEY"]
             os.environ.pop("REPORT_API_KEY", None)
+
+    def test_bad_forms_config_is_refused(self):
+        for bad in ({}, {"": ["a"]}, {"A": "a;b"}, {"A": [f"칸{i}" for i in range(9)]}, {"A": ["가" * 21]}, [["a"]]):
+            cfg = rp.deep_merge(rp.DEFAULT_CONFIG, {})
+            cfg["report"]["forms"] = bad
+            with self.assertRaises(rp.ConfigError, msg=repr(bad)):
+                rp.validate_config(cfg)
 
 
 if __name__ == "__main__":

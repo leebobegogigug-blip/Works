@@ -11,31 +11,40 @@
     "proxy": null,
     "ca_file": ""
   },
-  "sources": {
-    "git": {
-      "roots": [],
-      "authors": [],
-      "depth": 2
-    },
-    "calendar": {
-      "enabled": true,
-      "secretary": ""
-    },
-    "journal": {
-      "enabled": true
-    }
-  },
   "report": {
-    "sections": [
-      "금주 실적",
-      "차주 계획",
-      "이슈 · 협조 요청"
-    ],
-    "max_lines": 8
+    "forms": {
+      "현황 보고": [
+        "개요",
+        "현황",
+        "문제점",
+        "향후 계획"
+      ],
+      "이슈 보고": [
+        "현상",
+        "원인",
+        "영향",
+        "조치",
+        "요청 사항"
+      ],
+      "검토 보고": [
+        "검토 배경",
+        "검토 내용",
+        "대안",
+        "검토 의견"
+      ],
+      "회의 결과": [
+        "회의 개요",
+        "논의 내용",
+        "결정 사항",
+        "후속 조치"
+      ],
+      "자유 구성": []
+    },
+    "summary": true,
+    "budget_chars": 20000
   },
   "theme": "dark",
   "port": 8775,
   "open_window": true,
-  "idle_exit_min": 30,
-  "user_name": ""
+  "idle_exit_min": 30
 }
