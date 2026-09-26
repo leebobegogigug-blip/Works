@@ -657,6 +657,9 @@ def check_registry(repo: Repo) -> List[Finding]:
     for r in reg:
         if "운영" in str(r["state"]) and r["app"] not in repo.apps:
             out.append(Finding("S-06", "", reg_path, f"대장에는 운영인데 폴더가 없습니다: {r['app']}", int(r["line"])))
+        if "예정" in str(r["state"]) and r["app"] in repo.apps:
+            out.append(Finding("S-06", r["app"], reg_path, f"폴더가 생겼는데 대장에는 아직 예정입니다 → 운영: {r['app']}",
+                               int(r["line"])))
     for i, a in enumerate(reg):
         for b in reg[i + 1:]:
             pa, pb = a["ports"], b["ports"]

@@ -214,12 +214,16 @@ class Violations(Base):
                "other-2/README.md": "x", "demo-1/.gitattributes": None})
         findings, _ = wc.run_checks(repo, run_tests=True)
         got = {(f.rule, f.msg.split(" ")[0]) for f in findings}
-        for rule in ("W-01", "W-02", "W-03", "W-04", "W-08", "W-10", "W-11", "W-12", "S-06", "S-07"):
+        rules = ["W-01", "W-02", "W-03", "W-04", "W-08", "W-10", "W-11", "W-12", "S-06", "S-07"]
+        if not hasattr(sys, "stdlib_module_names"):
+            rules.remove("W-02")            # import 검사는 3.10+ 에서만 (CI 는 3.12)
+        for rule in rules:
             self.assertIn(rule, rules_of(findings), rule)
         self.assertTrue(any(f.rule == "W-11" and "7" in f.msg and "1" in f.msg for f in findings), got)
         self.assertTrue(any(f.rule == "W-10" and "#E03030" in f.msg for f in findings))
         self.assertTrue(any(f.rule == "W-10" and "'팔레트'" in f.msg for f in findings))
-        self.assertTrue(any(f.rule == "W-02" and "requests" in f.msg for f in findings))
+        if "W-02" in rules:
+            self.assertTrue(any(f.rule == "W-02" and "requests" in f.msg for f in findings))
         self.assertFalse(any("win32com" in f.msg for f in findings), "함수 안 import 는 선택 기능")
 
     def test_secret_command_line_options(self):
@@ -305,6 +309,16 @@ class Violations(Base):
         self.assertTrue(any("포트 대역이 겹칩니다" in m for m in msgs), msgs)
         self.assertTrue(any("전역 단축키가 같습니다" in m for m in msgs), msgs)
         self.assertTrue(any("등록되지 않은" in m for m in msgs), msgs)
+
+    def test_registry_state_must_match_folder(self):
+        """예정인데 폴더가 있거나, 운영인데 폴더가 없으면 잡는다"""
+        rows = ("| `demo-1` | 데모–1 | 예정 | 8775–8784 | Ctrl+Alt+K |\n"
+                "| `demo-2` | 데모–2 | 운영 | 8785–8794 | — |")
+        repo = make_repo(self.root, rows=rows)
+        msgs = [f.msg for f in wc.check_registry(repo)]
+        self.assertEqual(len(msgs), 2, msgs)
+        self.assertTrue(any("아직 예정" in m and "demo-1" in m for m in msgs), msgs)
+        self.assertTrue(any("운영인데 폴더가 없습니다: demo-2" in m for m in msgs), msgs)
 
     def test_agents_summary_must_match_rules(self):
         repo = make_repo(self.root, **{"AGENTS.md": AGENTS.replace("의존성 0", "의존성 없음")})
