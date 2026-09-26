@@ -59,7 +59,7 @@ TOKEN QUEST · 채널마다 펫 한 마리 · -PETNAME<br>
 미니게임 네 가지 · 장비 +10 강화 · 방 꾸미기<br>
 메인 스토리 12챕터 · 매주 한 장 · 커밋 조각 12개<br>
 은퇴 · 명예의 전당 · 다음 세대<br>
-테스트 123 · WINDOWS + UBUNTU CI
+테스트 125 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -206,7 +206,7 @@ Terminal–1 은 works 시스템의 한 부품입니다.<br>
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="../docs/page/system-dark.jpg">
-    <img src="../docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST 를 나란히">
+    <img src="../docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST, Report–1 을 나란히">
   </picture>
 </p>
 
@@ -232,7 +232,7 @@ TOKEN QUEST 7장 「야근의 탑」의 챕터 보스는 크런치 타임 거인
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="../docs/page/parts-dark.jpg">
-    <img src="../docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
+    <img src="../docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫 · Report–1 근거 달린 보고서">
   </picture>
 </p>
 
@@ -256,7 +256,7 @@ TOKEN QUEST 7장 「야근의 탑」의 챕터 보스는 크런치 타임 거인
 <tr><td>보안</td><td>서버 비밀번호는 명령줄 대신 파일로 · compose 로 보낸 글은 디스크에 남기지 않음</td></tr>
 <tr><td>저장</td><td><code>%LOCALAPPDATA%\terminal-1\</code> — <code>instances.json</code> · <code>pet-*.json</code> · <code>raid-*.json</code> · <code>poll-*.json</code></td></tr>
 <tr><td>화면</td><td>Terminal-1 Black 색 테마 · GNU Unifont 15.1.01 추천 · 폭 1칸 아이콘만</td></tr>
-<tr><td>테스트</td><td>unittest 123 · <code>terminal-1.ps1</code> 실제 실행(pwsh · 가짜 wt) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
+<tr><td>테스트</td><td>unittest 125 · <code>terminal-1.ps1</code> 실제 실행(pwsh · 가짜 wt) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>

@@ -14,6 +14,7 @@ t1_term.py - Terminal–1 공용 터미널 유틸 + 디자인 시스템 (Python 
   - 한글(동아시아 wide) 폭 계산: vlen / clip / pad / wrap
   - 키 입력: Windows(msvcrt) / POSIX(termios) 공통 토큰화, 한글 자판 → 영문 키 정규화
 """
+import json
 import os
 import re
 import shutil
@@ -74,6 +75,29 @@ def data_dir():
     """레지스트리 · 펫 저장 · 로그 폴더: %LOCALAPPDATA%\\terminal-1 (Windows 밖에선 ~/.local/share/terminal-1)"""
     base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), ".local", "share")
     return os.path.join(base, APP)
+
+
+_COMPANY = {"mtime": None, "name": ""}
+
+
+def company():
+    """overview 머리줄에 작게 넣는 회사 이름 — 데이터 폴더의 settings.json (terminal-1 company "이름" 이 쓴다).
+    저장소에는 넣지 않고 이 PC 에만 둔다. 제어 문자(ANSI 등)는 지우고 24자까지. 없으면 "" """
+    path = os.path.join(data_dir(), "settings.json")
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return ""
+    if _COMPANY["mtime"] != mtime:
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                d = json.load(f)
+            name = d.get("company") if isinstance(d, dict) else ""
+            name = re.sub(r"[\x00-\x1f\x7f]", "", name).strip()[:24] if isinstance(name, str) else ""
+        except (OSError, ValueError):
+            name = ""
+        _COMPANY.update(mtime=mtime, name=name)
+    return _COMPANY["name"]
 
 
 # ---------------------------------------------------------------- palette: NAVY / LIME / GRAY

@@ -32,7 +32,7 @@
 | 앱 | 남기는 것 | 되돌리기 |
 |---|---|---|
 | `secretary-1` | 프로그램 폴더 안의 `config.json` · `secretary-1.db` · 학습 규칙 · 위키 · `secretary-1.bat` · 시작 프로그램 `secretary-1.lnk` (`--autostart on` 일 때) | `--stop` · `--autostart off` · 설정 · 데이터 파일 지우기 ([INSTALL.md › 제거](../secretary-1/INSTALL.md#제거)) |
-| `terminal-1` | 사용자 PATH · Windows Terminal 색 테마 `Terminal-1 Black` (조각 파일) · (선택) 글꼴 Unifont 와 HKCU 글꼴 등록 · Windows Terminal `settings.json` 글꼴 설정 · 펫 저장 · 채널 목록 `%LOCALAPPDATA%\terminal-1` · headless opencode 서버 | [INSTALL.md › 제거](../terminal-1/INSTALL.md#제거) — 채널 `rm` · PATH · 색 테마 · 글꼴 · 데이터 순서 |
+| `terminal-1` | 사용자 PATH · Windows Terminal 색 테마 `Terminal-1 Black` (조각 파일) · (선택) 글꼴 Unifont 와 HKCU 글꼴 등록 · Windows Terminal `settings.json` 글꼴 설정 · 펫 저장 · 채널 목록 · 회사 이름(`settings.json`) `%LOCALAPPDATA%\terminal-1` · headless opencode 서버 | [INSTALL.md › 제거](../terminal-1/INSTALL.md#제거) — 채널 `rm` · PATH · 색 테마 · 글꼴 · 데이터 순서 |
 | `report-1` | `%LOCALAPPDATA%\report-1` 의 `config.json` · `topics\`(보관한 토픽 — 붙여 넣은 원문) · `reports\`(확정한 글) · (선택) 시작 메뉴 바로가기 `Report-1.lnk` | `--stop` · `--shortcut off` · 데이터 폴더 지우기 ([INSTALL.md › 제거](../report-1/INSTALL.md#제거)) |
 
 ## 예외 대장

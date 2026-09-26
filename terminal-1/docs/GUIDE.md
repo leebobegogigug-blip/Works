@@ -39,6 +39,7 @@ Screenshots: [channel tab](images/channel-tab.png) · [overview tab](images/over
 | `terminal-1 rm api` | unregister (stops a headless server; the pet's save stays) |
 | `terminal-1 prune` | drop offline channels |
 | `terminal-1 setup` | install the `Terminal-1 Black` color scheme |
+| `terminal-1 company "Name"` | company name shown small in the overview header (this PC only; `-` clears) |
 | `terminal-1 version` | print the version (`VERSION` in `t1_term.py`) |
 
 ```
@@ -297,7 +298,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 123 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 125 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `terminal-1.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `terminal-1.ps1` with Windows PowerShell 5.1
 - works rules check (repo root): `python tools/works_check.py` — see [RULES.md](../../RULES.md)

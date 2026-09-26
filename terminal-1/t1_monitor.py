@@ -38,7 +38,7 @@ from t1_term import (  # noqa: E402
     RST, B, RED, GRN, BLU, MAG, CYN, HOME, CLR_EOL, CLR_EOS, HIDE, SHOW, PALETTE, P3, fix_color,
     rgb, bg, term_size, cw, vlen, clip, pad, read_keys_windows, poll_keys, RawInput,
     chip, keycap, module, segbar, spinner, seg_lines, seg_width, sect, navbar, title_end, cells, readouts,
-    ENC, ICON, enc_dot, sysline, Canvas, canvas_from_lines, guide_draw, boot_draw, data_dir, VERSION,
+    ENC, ICON, enc_dot, sysline, Canvas, canvas_from_lines, guide_draw, boot_draw, data_dir, VERSION, company,
 )
 
 # 팔레트 (네이비 = 구조, 라임 = 강조/켜짐, 그레이 = 글자, 흰색 = 경고)
@@ -827,8 +827,9 @@ def render_status(inst, show_idle_sub, W, H, logf=None, anchors=None):
 def render_overview(insts, sink, W, H, logf=None, anchors=None):
     L = []
     online = sum(1 for i in insts if i.connected)
-    left = (f" {chip('TERMINAL–1', 'white', 'navy2')} {G4}{B}OVERVIEW{RST}  {G1}INST{RST} {G4}{len(insts)}{RST}  "
-            f"{G1}ONLINE{RST} {LIME}{B}{online}{RST}")
+    co = company()   # 회사 이름 (terminal-1 company) — 없으면 머리줄 그대로
+    left = (f" {chip('TERMINAL–1', 'white', 'navy2')}" + (f" {G2}{co}{RST}" if co else "")
+            + f" {G4}{B}OVERVIEW{RST}  {G1}INST{RST} {G4}{len(insts)}{RST}  {G1}ONLINE{RST} {LIME}{B}{online}{RST}")
     sse = sum(1 for i in insts if i.sse_ok)
     rtt = [i.rtt_ms for i in insts if i.connected and i.rtt_ms]
     sysp = [("sse", f"{sse}/{len(insts)}"), ("rtt", f"{(sum(rtt) / len(rtt)) if rtt else 0:.0f}ms"), ("reg", "instances.json")]

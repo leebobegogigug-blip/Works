@@ -1,5 +1,5 @@
 """t1_monitor 회귀 테스트 (서버 없이 돌아가는 부분)"""
-import argparse, os, sys, tempfile, threading, unittest
+import argparse, json, os, re, sys, tempfile, threading, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))  # 저장소 루트
 TMP = tempfile.mkdtemp()
 os.environ["LOCALAPPDATA"] = TMP
@@ -231,6 +231,27 @@ class DataDir(unittest.TestCase):
             os.makedirs(os.path.join(base, "ocmux"))                         # 예전 이름의 폴더가 남아 있어도 쓰지 않는다
             self.assertEqual(M.data_dir(), os.path.join(base, "terminal-1"))
             self.assertEqual(M.registry_path(), os.path.join(base, "terminal-1", "instances.json"))
+        finally:
+            os.environ["LOCALAPPDATA"] = TMP
+
+    def test_company_name_in_overview_header(self):
+        base = tempfile.mkdtemp()
+        os.environ["LOCALAPPDATA"] = base
+        try:
+            strip = lambda s: re.sub(r"\x1b\[[0-9;]*m", "", s)  # noqa: E731
+            head = lambda: strip(M.render_overview([], [], 100, 20)[0])  # noqa: E731
+            self.assertEqual(M.company(), "")                                   # 설정이 없으면 머리줄 그대로
+            self.assertNotIn("Acme", head())
+            os.makedirs(os.path.join(base, "terminal-1"))
+            path = os.path.join(base, "terminal-1", "settings.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"version": 1, "company": " Acme\x1b[31m Co " + "x" * 30}, f)
+            self.assertEqual(M.company(), ("Acme[31m Co " + "x" * 30)[:24])      # 제어 문자는 지우고 24자까지
+            self.assertIn("TERMINAL–1  Acme[31m Co", head())
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("{broken")
+            os.utime(path, (1, 1))
+            self.assertEqual(M.company(), "")                                   # 깨진 파일이면 없는 것으로
         finally:
             os.environ["LOCALAPPDATA"] = TMP
 

@@ -20,15 +20,16 @@
   terminal-1 rm api                       # unregister (and stop headless server)
   terminal-1 prune                        # drop offline instances
   terminal-1 setup                        # install 'Terminal-1 Black' color scheme (auto on first run)
+  terminal-1 company "Name"               # company name shown small in the overview header (this PC only; '-' clears)
   terminal-1 version                      # print the version (VERSION in t1_term.py)
 #>
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('add', 'overview', 'ls', 'focus', 'rm', 'prune', 'setup', 'version', 'help')]
+    [ValidateSet('add', 'overview', 'ls', 'focus', 'rm', 'prune', 'setup', 'company', 'version', 'help')]
     [string]$Cmd = 'add',
     [Parameter(Position = 1)]
-    [string]$Target,                 # add: folder / focus,rm: name or port
+    [string]$Target,                 # add: folder / focus,rm: name or port / company: name ('-' clears)
     [string]$Name,
     [int]$Port = 0,
     [int]$BasePort = 4096,
@@ -367,6 +368,23 @@ switch ($Cmd) {
 }
 
 'setup' { Install-Scheme; Say 'SCHEME' "'$Scheme' ready" }
+
+'company' {
+    # shown small next to TERMINAL-1 in the overview header (t1_term.company). Kept only in this PC's data folder
+    $file = Join-Path $DataDir 'settings.json'
+    if (-not $Target) {
+        $cur = ''
+        if (Test-Path -LiteralPath $file) { try { $cur = [string](Get-Content -LiteralPath $file -Raw -Encoding UTF8 | ConvertFrom-Json).company } catch { } }
+        Say 'COMPANY' $(if ($cur) { $cur } else { '(none)' }) "terminal-1 company `"Name`" to set, terminal-1 company - to clear" 'Gray'
+        return
+    }
+    $name = if ($Target -eq '-') { '' } else { $Target.Trim() }
+    if ($name.Length -gt 24 -or $name -match '[\x00-\x1f\x7f]') { throw 'company: up to 24 characters, no control characters' }
+    $json = ConvertTo-Json -InputObject ([ordered]@{ version = 1; company = $name })
+    [System.IO.File]::WriteAllText("$file.tmp", $json, (New-Object System.Text.UTF8Encoding($false)))
+    Move-Item -LiteralPath "$file.tmp" -Destination $file -Force   # write whole or not at all
+    Say 'COMPANY' $(if ($name) { $name } else { '(none)' }) 'shown in the overview header' 'Gray'
+}
 
 'version' { "Terminal-1 $(Get-Version)" }
 

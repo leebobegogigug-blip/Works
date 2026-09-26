@@ -126,7 +126,7 @@ if (Get-Command py -ErrorAction SilentlyContinue) { $py = 'py'; $pa = @('-3') } 
 & $py @pa -m unittest discover -s tests 2>&1 | Select-Object -Last 3
 ```
 
-**확인:** 마지막 줄이 `OK`이다. 테스트는 123개 전후.
+**확인:** 마지막 줄이 `OK`이다. 테스트는 125개 전후.
 
 **실패하면**
 - 실패한 테스트 이름과 에러 마지막 20줄을 보고에 넣는다.
@@ -165,6 +165,8 @@ $T1 = 'D:\OPENCODE\terminal-1'
 ```
 
 **확인:** 출력에 `SCHEME`과 `ready`가 보인다.
+
+**[질문]** "overview 화면 머리줄에 회사 이름을 작게 넣을까요?" → 넣는다면 `& (Join-Path $T1 'terminal-1.cmd') company "<회사 이름>"` (24자까지 · 이 PC 의 `%LOCALAPPDATA%\terminal-1\settings.json` 에만 저장 · 지울 때는 `company -`)
 
 **실패하면**
 - 실행 정책 오류라면 `terminal-1.cmd`(이미 Bypass로 실행함)를 썼는지 다시 본다.
@@ -306,7 +308,7 @@ Copy-Item "<백업 경로>" $s -Force
 위치        : D:\OPENCODE\terminal-1  (바꿨다면 이유)
 Python      : 3.x.x (py -3 | python)
 버전        : (terminal-1.cmd version 결과)
-테스트      : OK 123 / 실패 n개 (이름)
+테스트      : OK 125 / 실패 n개 (이름)
 PATH        : 추가됨 | 이미 있음
 색 테마     : 설치됨
 화면 점검   : exit=0

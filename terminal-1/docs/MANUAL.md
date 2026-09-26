@@ -166,6 +166,7 @@ terminal-1 add            # 현재 폴더 → 새 채널 (첫 add 때는 00 over
 | `terminal-1 rm api` | 등록 해제 (headless 서버는 종료, 펫 저장은 남음) |
 | `terminal-1 prune` | 꺼진 채널 정리 |
 | `terminal-1 setup` | `Terminal-1 Black` 색 테마 설치 |
+| `terminal-1 company "이름"` | overview 머리줄에 작게 넣는 회사 이름 (24자까지 · 이 PC 의 `settings.json` 에만 · `-` 로 지움 · 이름 없이 부르면 지금 값) |
 | `terminal-1 version` | 버전 (`t1_term.py` 의 `VERSION` 하나) |
 | `terminal-1 help` | 도움말 |
 
@@ -284,7 +285,7 @@ terminal-1/
 ├─ t1_pet_ui.py    TOKEN QUEST 화면 (7개 모드 · 오버레이 · 대화 · 연출)
 ├─ t1_pet_run.py   펫 창 실행 루프 · opencode 이벤트 → 게임 신호 · 목장
 ├─ docs/           GUIDE.md (상세 매뉴얼, 영문) · images/
-└─ tests/          unittest 123개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
+└─ tests/          unittest 125개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
 ```
 
 ```
@@ -306,7 +307,7 @@ t1_monitor.py ──HTTP──▶ opencode (127.0.0.1:4096)
 ## 09 개발
 
 ```powershell
-# 테스트 123개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
+# 테스트 125개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
 py -3 -m unittest discover -s tests
 # CI(.github/workflows/terminal-1.yml): Windows + Ubuntu × Python 3.8·3.13, Windows PowerShell 5.1 문법 검사 · terminal-1.cmd ls · version
 

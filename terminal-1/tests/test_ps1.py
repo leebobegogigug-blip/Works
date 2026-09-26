@@ -114,6 +114,18 @@ class Ps1(unittest.TestCase):
         palette = ["#3F77A6", "#A5AAAE", "#75A1C7", "#6ABA23", "#B8CEE0", "#81888D", "#95D85A", "#45741B"]
         self.assertEqual(self.registry()[0]["color"], palette[sum(b"#EC4899") % len(palette)])
 
+    def test_company_name_setting(self):
+        path = os.path.join(self.appdata, "terminal-1", "settings.json")
+        r = self.run_ps("company", "Acme Co")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        with open(path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f), {"version": 1, "company": "Acme Co"})
+        self.assertIn("Acme Co", self.run_ps("company").stdout)                # 이름 없이 부르면 지금 값
+        self.assertNotEqual(self.run_ps("company", "x" * 25).returncode, 0)     # 24자까지
+        self.assertEqual(self.run_ps("company", "-").returncode, 0)             # - 로 지운다
+        with open(path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["company"], "")
+
     def test_rejects_bad_name_and_headless_percent_folder(self):
         r = self.run_ps("add", self.project("p"), "-Name", 'x"y')
         self.assertNotEqual(r.returncode, 0)
