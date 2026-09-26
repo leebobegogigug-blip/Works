@@ -192,6 +192,21 @@ class TestConfig(unittest.TestCase):
                 with self.assertRaises(sec.ConfigError, msg=repr(bad)):
                     sec.load_config(path)
 
+    def test_env_key_never_leaks_into_defaults_or_new_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.environ["SECRETARY_API_KEY"] = "leak-me"
+            try:
+                a = os.path.join(d, "a.json")
+                with open(a, "w", encoding="utf-8") as f:
+                    json.dump({"theme": "dark"}, f)                          # llm 칸이 없는 설정 파일
+                self.assertEqual(sec.load_config(a)[0]["llm"]["api_key"], "leak-me")
+                self.assertEqual(sec.DEFAULT_CONFIG["llm"]["api_key"], "")    # 기본값에 섞이지 않고
+                sec.load_config(os.path.join(d, "b.json"))
+                with open(os.path.join(d, "b.json"), encoding="utf-8") as f:
+                    self.assertNotIn("leak-me", f.read())                     # 새로 만드는 설정 파일로 새지 않는다
+            finally:
+                os.environ.pop("SECRETARY_API_KEY", None)
+
     def test_env_override(self):
         with tempfile.TemporaryDirectory() as d:
             os.environ["JABA_API_KEY"] = "secret-from-old-env"   # 예전 이름의 환경 변수는 더 읽지 않는다

@@ -64,6 +64,7 @@ from __future__ import annotations
 import argparse
 import base64
 import contextlib
+import copy
 import json
 import os
 import re
@@ -151,12 +152,13 @@ class ConfigError(Exception):
 
 
 def deep_merge(base: Dict[str, Any], over: Dict[str, Any]) -> Dict[str, Any]:
-    out = dict(base)
+    """깊은 복사로 합친다 — 결과를 고쳐도 DEFAULT_CONFIG 가 바뀌지 않게 (환경 변수의 키가 기본값에 섞여 새 설정 파일로 새지 않게)"""
+    out = copy.deepcopy(base)
     for k, v in (over or {}).items():
         if isinstance(v, dict) and isinstance(out.get(k), dict):
             out[k] = deep_merge(out[k], v)
         else:
-            out[k] = v
+            out[k] = copy.deepcopy(v)
     return out
 
 
