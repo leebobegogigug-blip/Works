@@ -352,5 +352,5 @@ switch ($Cmd) {
 
 'setup' { Install-Scheme; Say 'SCHEME' "'$Scheme' ready" }
 
-'help' { Get-Help $MyInvocation.MyCommand.Path -Detailed }
+'help' { Get-Help $PSCommandPath -Detailed | Out-String -Width 120 }  # Out-String: with redirected output pwsh 7 printed only blank lines
 }

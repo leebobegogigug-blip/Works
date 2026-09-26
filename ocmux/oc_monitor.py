@@ -1089,6 +1089,14 @@ def run_logs(a):
     lf = make_follower(a) or LogFollower(a.log_dir, a.file, a.since, a.all, a.level, a.grep)
     tag = rgb(a.color) + (a.tag or "logs") + RST
     print(f"{chip('LOGS', 'white', 'navy2')} {tag}  {G1}{lf.describe()}  ({' | '.join(lf.dirs)}){RST}")
+    if a.once:                               # 한 장 찍기(점검용): N초 동안 모은 줄만 찍고 끝낸다
+        end, got = time.time() + a.once, []
+        while time.time() < end:
+            got += lf.poll()
+            time.sleep(0.1)
+        for ln in got[-max(1, (a.rows or 24) - 1):]:
+            print(ln)
+        return
     while True:
         new = lf.poll()
         for ln in new:
@@ -1733,6 +1741,15 @@ def run_compose(a):
     status, status_until = "", 0.0
     flash = None          # (색, 끝나는 시각, 키) — 누른 조작 키의 색으로 테두리가 잠깐 켜진다
     sent = 0
+    if a.once:                               # 한 장 찍기(스크린샷·점검용): 빈 입력창 한 프레임 (키 입력 없이)
+        W, H = size(a)
+        anchors = []
+        lines = render_compose(ed, inst, "", W, H, None, anchors, sent)
+        if getattr(a, "guide", False):
+            MON["guide"] = True
+            lines = guide_overlay(lines, W, H, anchors)
+        paint(lines, W, H, True)
+        return
     t0 = time.time()
     with RawInput() as fd:
         sys.stdout.write(HIDE + "\x1b[2J")

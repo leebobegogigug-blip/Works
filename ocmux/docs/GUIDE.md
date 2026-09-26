@@ -308,7 +308,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 115 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 117 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `ocmux.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `ocmux.ps1` with Windows PowerShell 5.1
 - one-frame snapshot of any pane, for screenshots or checks without a live terminal:

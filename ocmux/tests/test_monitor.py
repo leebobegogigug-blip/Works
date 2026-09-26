@@ -171,6 +171,24 @@ class SharedPolling(unittest.TestCase):
         self.assertIsNone(M.Instance("c", "http://127.0.0.1:7004", share=False).share)
 
 
+class OnceFlag(unittest.TestCase):
+    """--once (한 장 찍고 끝내기) 는 모든 칸에서 통해야 한다 — 설치 점검 · 스크린샷이 쓰는 경로.
+    compose 는 키 입력(원시 모드) 없이, logs 는 계속 따라가지 않고 끝나야 한다"""
+
+    def run_mode(self, *args):
+        import subprocess
+        env = dict(os.environ, LOCALAPPDATA=TMP, PYTHONUTF8="1")
+        return subprocess.run([sys.executable, os.path.join(os.path.dirname(M.__file__), "oc_monitor.py"), *args,
+                               "--url", "http://127.0.0.1:9", "--name", "once", "--once", "0.2", "--cols", "80", "--rows", "14"],
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
+
+    def test_compose_and_logs_exit(self):
+        for mode, extra, word in (("compose", [], "COMPOSE"), ("compose", ["--guide"], "GUIDE"), ("logs", [], "LOGS")):
+            r = self.run_mode(mode, *extra)
+            self.assertEqual(r.returncode, 0, (mode, r.stderr[-400:]))
+            self.assertIn(word, r.stdout, mode)
+
+
 class RegDir(unittest.TestCase):
     def test_status_pane_reads_folder_from_registry(self):
         reg = M.registry_path()

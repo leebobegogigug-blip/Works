@@ -80,6 +80,11 @@ class OcmuxPs1(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual([x["name"] for x in self.registry()], ["web"])
 
+    def test_help(self):
+        r = self.run_ps("help")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("ocmux add", r.stdout)   # 예전엔 pwsh 7 에서 출력을 받으면 빈 줄만 나왔다
+
     def test_no_pet(self):
         r = self.run_ps("add", self.project("mon"), "-NoPet")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
