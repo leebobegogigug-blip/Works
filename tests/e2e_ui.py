@@ -177,8 +177,9 @@ def check_mode(mode, tmp):
 
 
 NAVY, LIME, GREY = "rgb(0, 35, 65)", "rgb(106, 186, 35)", "rgb(165, 170, 174)"
-PRIME, PRIME_INK = "rgb(31, 80, 122)", "rgb(242, 242, 238)"  # TE v2: 네이비 주색 · 라임 강조
-BLACK_PANEL, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(239, 238, 233)"
+PRIME, PRIME_INK = "rgb(31, 80, 122)", "rgb(242, 242, 243)"  # TE v2: 네이비 주색 · 라임 강조
+ENC1 = "rgb(117, 161, 199)"  # 노브 ① = ocmux 인코더 ① 파랑
+BLACK_PANEL, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(242, 242, 243)"
 
 
 def css(page, sel, prop):
@@ -236,7 +237,7 @@ def ui_run(tmp):
             assert css(p, ".device", "backgroundColor") == BLACK_PANEL
             assert css(p, ".send", "backgroundColor") == PRIME  # 주 버튼은 네이비
             cap = "(s) => getComputedStyle(document.querySelector(s), '::before').backgroundColor"
-            assert p.evaluate(cap, ".key.k1 .dial") == PRIME and p.evaluate(cap, ".key.k2 .dial") == GREY  # 노브 캡
+            assert p.evaluate(cap, ".key.k1 .dial") == ENC1 and p.evaluate(cap, ".key.k2 .dial") == LIME  # 노브 캡 = ①파랑 ②라임 ③흰색 ④회색
             assert css(p, ".lbl b", "backgroundColor") == PRIME and p.locator(".lbl").count() == 4  # 01~04 번호 라벨
             assert p.locator("#next-count svg.seg").count() == 1 and p.locator("#clock-time svg.seg").count() == 1
             assert p.locator("#mascot svg .ms").count() == 1 and p.locator("#mascot svg .mled").count() == 1  # JB-1
@@ -403,7 +404,10 @@ def ui_run(tmp):
             stacks += [fake2, app2]
             lt = new_page(url2, "light")
             assert css(lt, ".device", "backgroundColor") == LIGHT_PANEL
+            assert css(lt, ".send", "backgroundColor") == PRIME and css(lt, ".lbl b", "backgroundColor") == PRIME  # 라이트도 네이비 주색
+            assert css(lt, "#next-count .seg .on", "fill") == PRIME_INK  # 화면(LCD) 숫자는 라이트에서도 흰색
             stamp_flow(lt)
+            assert css(lt, ".card.done .seal", "borderTopColor") == PRIME  # 라이트의 확정 도장은 네이비
             lt.screenshot(path=os.path.join(OUT, "jaba-light.png"))
             assert css(new_page(url2, "dark"), ".device", "backgroundColor") == BLACK_PANEL
             fake3, app3, url3, _, _ = start_stack("native", tmp, theme="light")

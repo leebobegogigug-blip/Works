@@ -3,6 +3,7 @@
     "base_url": "",
     "api_key": "",
     "model": "",
+    "models": [],
     "tool_mode": "auto",
     "temperature": 0.2,
     "max_tokens": 2048,
