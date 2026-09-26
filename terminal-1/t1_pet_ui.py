@@ -2271,12 +2271,13 @@ class PetUI:
         self._modbox(cv, x0, y, W, h, "02", "TELEGRAPH", right=f"{WH}{B}{gi['name']}{RST}",
                      foot_l=f"안 누르면 자동 대응 {int(tl['auto_p'] * 100)}%", foot_r=f"{left:.1f}s", color=WH)
         inner, iw = h - 2, W - 4
-        body = wrap(tl["text"], iw - 9)[:2]
+        body = wrap(tl["text"], iw - vlen(title) - 2)[:2]
         one = "   ".join(f"{keycap(k.upper())} {G4}{label}{RST}" for k, label in tl["opts"])
         opt_rows = [one] if vlen(one) <= iw else [f"{keycap(k.upper())} {G4}{label}{RST}" for k, label in tl["opts"]]
-        rows = [(title + " " if i == 0 else " " * 9) + f"{WH}{B}{ln}{RST}" for i, ln in enumerate(body)] + opt_rows
+        pad_ = " " * (vlen(title) + 1)
+        rows = [(title + " " if i == 0 else pad_) + f"{WH}{B}{ln}{RST}" for i, ln in enumerate(body)] + opt_rows
         if tl.get("hint") and len(rows) < inner:
-            rows.insert(len(body), " " * 9 + f"{G1}› {tl['hint']}{RST}")
+            rows.insert(len(body), pad_ + f"{G1}› {tl['hint']}{RST}")
         if len(rows) < inner:
             rows.append(segbar(left, span, max(6, min(40, iw)), on=P3["white"], off=P3["navy2"]))
         for i, r in enumerate(rows[:inner]):
