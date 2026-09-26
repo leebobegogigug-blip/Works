@@ -49,11 +49,29 @@ REGISTRY = """# works 대장
 |---|---|---|---|---|
 {rows}
 
+## 공개 명령
+
+| 앱 | 명령 | 내주는 것 | 형식 | 쓰는 앱 |
+|---|---|---|---|---|
+{commands}
+
 ## 예외 대장
 
 | 앱 | 조항 | 파일 | 내용 | 기한 |
 |---|---|---|---|---|
 {waivers}
+"""
+
+SPEC_LLM = """# LLM 설정 규격
+
+## 01 설정 키
+
+| 키 | 기본값 | 뜻 |
+|---|---|---|
+| `base_url` | `""` | 주소 |
+| `api_key` | `""` | 키 |
+| `model` | `""` | 모델 |
+| `tool_mode` | `"auto"` | *도구 호출을 쓰는 앱만* |
 """
 
 README = """<p>데모–1</p>
@@ -127,12 +145,13 @@ def write(root, rel, text):
         f.write(text)
 
 
-def make_repo(root, app="demo-1", rows=None, waivers="", **files):
+def make_repo(root, app="demo-1", rows=None, waivers="", commands="", **files):
     """규칙을 모두 지키는 앱 하나짜리 저장소. files 로 파일을 바꾸거나 더한다 (None = 지우기)"""
     base = {
         "README.md": "# works\n", "RULES.md": RULES, "AGENTS.md": AGENTS, "docs/DESIGN.md": DESIGN,
         "docs/REGISTRY.md": REGISTRY.format(
-            rows=rows or f"| `{app}` | 데모–1 | 운영 | 8775–8784 | Ctrl+Alt+K |", waivers=waivers),
+            rows=rows or f"| `{app}` | 데모–1 | 운영 | 8775–8784 | Ctrl+Alt+K |", waivers=waivers, commands=commands),
+        "docs/SPEC-llm.md": SPEC_LLM,
         f"{app}/README.md": README, f"{app}/INSTALL.md": INSTALL, f"{app}/docs/MANUAL.md": MANUAL,
         f"{app}/{app}.py": APP_PY, f"{app}/tests/test_demo.py": TEST_PY,
         f"{app}/.gitignore": "config.json\n", f"{app}/.gitattributes": "* text=auto eol=lf\n",
@@ -143,6 +162,8 @@ def make_repo(root, app="demo-1", rows=None, waivers="", **files):
     for rel, text in base.items():
         if text is not None:
             write(root, rel, text)
+        elif os.path.exists(os.path.join(root, *rel.split("/"))):
+            os.remove(os.path.join(root, *rel.split("/")))
     return wc.Repo(root)
 
 
@@ -216,6 +237,52 @@ class Violations(Base):
             "docs/templates/app/README.md": '<img src="docs/page/hero.png">\n'})
         msgs = sorted(f.msg for f in wc.check_docs(repo) if "없는 파일" in f.msg)
         self.assertEqual(msgs, ["없는 파일을 가리킵니다: ../docs/page/gone-dark.png", "없는 파일을 가리킵니다: docs/page/none.png"])
+
+    def two_apps(self, commands="", provider_manual=MANUAL, consumer_py=""):
+        rows = "| `demo-1` | 데모–1 | 운영 | 8775–8784 | Ctrl+Alt+K |\n| `demo-2` | 데모–2 | 운영 | 8785–8794 | — |"
+        files = {k.replace("demo-1", "demo-2"): v for k, v in {
+            "demo-1/README.md": README, "demo-1/INSTALL.md": INSTALL, "demo-1/docs/MANUAL.md": MANUAL,
+            "demo-1/demo-1.py": APP_PY + consumer_py, "demo-1/tests/test_demo.py": TEST_PY,
+            "demo-1/.gitignore": "x\n", "demo-1/.gitattributes": "* text=auto\n",
+            ".github/workflows/demo-1.yml": WORKFLOW.replace("demo-1", "demo-2")}.items()}
+        files["demo-1/docs/MANUAL.md"] = provider_manual
+        files["demo-1/demo-1.py"] = APP_PY + 'import sys\nif "--export-things" in sys.argv:\n    print("{}")\n'
+        return make_repo(self.root, rows=rows, commands=commands, **files)
+
+    COMMAND = "| `demo-1` | `demo-1.py --export-things` | 물건 목록 | 1 | `demo-2` |"
+
+    def test_reference_to_other_app_needs_public_command(self):
+        consumer = 'PEER = os.path.join("..", "demo-1", "demo-1.py")\n'
+        repo = self.two_apps(consumer_py=consumer)
+        msgs = [(f.app, f.msg) for f in wc.check_cross_refs(repo)]
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertEqual(msgs[0][0], "demo-2")
+        self.assertIn("공개 명령", msgs[0][1])
+        repo = self.two_apps(commands=self.COMMAND, consumer_py=consumer,
+                             provider_manual=MANUAL + "\n## 공개 명령\n`--export-things`\n")
+        self.assertEqual(wc.check_cross_refs(repo), [])
+        self.assertEqual(wc.check_public_commands(repo), [])
+
+    def test_public_command_must_be_documented_and_versioned(self):
+        repo = self.two_apps(commands=self.COMMAND.replace("| 1 |", "| 하나 |"))
+        msgs = sorted(f.msg for f in wc.check_public_commands(repo))
+        self.assertEqual(len(msgs), 2, msgs)
+        self.assertIn("MANUAL에 없습니다", msgs[0])
+        self.assertIn("형식 버전이 숫자가 아닙니다", msgs[1])
+        repo = self.two_apps(commands=self.COMMAND.replace("`demo-2` |", "`demo-9` |"),
+                             provider_manual=MANUAL + "\n## 공개 명령\n`--export-things`\n")
+        self.assertEqual([f.msg for f in wc.check_public_commands(repo)], ["공개 명령을 쓰는 앱 demo-9 가 앱 대장에 없습니다"])
+
+    def test_llm_config_follows_spec(self):
+        ok = '{"llm": {"base_url": "", "api_key": "", "model": ""}}'
+        repo = make_repo(self.root, **{"demo-1/config.example.json": ok})
+        self.assertEqual(wc.check_llm_spec(repo), [])
+        repo = make_repo(self.root, **{"demo-1/config.example.json": '{"llm": {"base_url": "", "model": "", "mode": 1}}'})
+        self.assertEqual([f.msg for f in wc.check_llm_spec(repo)],
+                         ["LLM 설정 키가 docs/SPEC-llm.md 와 다릅니다: 빠짐 api_key · 모름 mode"])
+        repo = make_repo(self.root, **{"demo-1/config.example.json": None,
+                                      "demo-1/demo-1.py": APP_PY + 'URL = "/chat/completions"\n'})
+        self.assertIn("llm 설정이 없습니다", wc.check_llm_spec(repo)[0].msg)
 
     def test_missing_min_python_in_ci(self):
         repo = make_repo(self.root, **{".github/workflows/demo-1.yml": WORKFLOW.replace('"3.8", ', "")})

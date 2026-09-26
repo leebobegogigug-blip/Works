@@ -4,7 +4,8 @@ works 저장소의 모든 앱이 따르는 규칙의 **정본**이다. 규칙은
 다른 문서는 이 파일을 링크하고, 내용을 옮겨 적지 않는다 (옮겨 적은 규칙은 반드시 갈라진다).
 
 - 디자인 규격 → [docs/DESIGN.md](docs/DESIGN.md)
-- 앱 대장 · 예외 대장 → [docs/REGISTRY.md](docs/REGISTRY.md)
+- 앱 대장 · 공개 명령 · 예외 대장 → [docs/REGISTRY.md](docs/REGISTRY.md)
+- LLM 설정 규격 → [docs/SPEC-llm.md](docs/SPEC-llm.md)
 - 문서 뼈대 → [docs/templates/](docs/templates/)
 - 에이전트용 요약 → [AGENTS.md](AGENTS.md) (opencode) · [CLAUDE.md](CLAUDE.md) (Claude Code)
 
@@ -23,10 +24,12 @@ works 저장소의 모든 앱이 따르는 규칙의 **정본**이다. 규칙은
 
 ### W-01 폴더 = 앱 = 명령
 - 앱은 저장소 루트의 `<name>-<n>/` 폴더 하나에 완결된다. 폴더 이름이 곧 명령 이름이다.
-- 다른 앱 폴더의 코드를 import · 실행 · 경로로 참조하지 않는다. 앱끼리는 **규격**(docs/DESIGN.md)만 공유하고 **코드**는 공유하지 않는다.
+- 다른 앱 폴더의 코드를 import 하거나, 그 앱의 설정 · 데이터 파일을 직접 읽지 않는다. 앱끼리는 **규격**(docs/DESIGN.md · docs/SPEC-*.md)만 공유하고 **코드**는 공유하지 않는다.
+- 다른 앱의 기능이 필요하면 **공개 명령**으로만 주고받는다: 그 앱이 [대장 › 공개 명령](docs/REGISTRY.md#공개-명령)에 올리고 MANUAL 에 적은 **읽기 전용** 명령을 실행해, 표준 출력의 JSON(`format` 으로 형식 버전을 밝힘)을 읽는다.
+- 공개 명령을 바꾸는 앱이 `format` 을 올린다. 부르는 앱은 명령이 없거나 · 실패하거나 · 모르는 `format` 이면 그 기능만 끄고 계속 돈다.
 - 필수 구성: `README.md` · `INSTALL.md` · `docs/MANUAL.md` · `tests/` · `.gitignore` · `.gitattributes` · `.github/workflows/<name>-<n>.yml`
 
-왜: 한 앱을 고쳐도 다른 앱이 깨지지 않게. 폴더를 지우면 제거가 끝나게.
+왜: 한 앱을 고쳐도 다른 앱이 깨지지 않게. 연결이 필요하면 그 연결이 대장에 보이게.
 
 ### W-02 의존성 0
 - 실행에는 Python 3.8+ 표준 라이브러리만 쓴다. `pip install` 없이 받아서 바로 돈다.
@@ -95,6 +98,7 @@ works 저장소의 모든 앱이 따르는 규칙의 **정본**이다. 규칙은
 | S-06 | **대장 먼저.** 새 앱은 코드보다 먼저 [대장](docs/REGISTRY.md)에 이름 · 폴더 · 포트 대역 · 전역 단축키 · 데이터 폴더 · 환경 변수 · 캐릭터를 등록한다 |
 | S-07 | **문서.** [뼈대](docs/templates/)에서 시작한다. 앱 README 는 루트 README 만 링크하고(`explore ›`), 형제 앱으로 직접 링크하지 않는다. 시스템 공용 이미지(system · parts · palette · colophon)는 루트 `docs/page/` 에만 둔다. 앱 문서 이미지는 앱당 3 MB 까지 |
 | S-08 | **커밋.** 한국어로, `<name>-<n>: 무엇 · 무엇` (저장소 전체는 `works: …`). 한 커밋에서 앱 두 개를 고치지 않는다 |
+| S-09 | **LLM.** 사내 LLM 을 쓰는 앱은 [docs/SPEC-llm.md](docs/SPEC-llm.md) 의 설정 키 · 명령(`--setup` · `--check` · `--set`) · 출력을 따른다 |
 
 ---
 
@@ -122,3 +126,4 @@ python tools/works_check.py --no-tests 테스트 수 확인(테스트 불러오�
 
 - 헌법은 12조를 넘기지 않는다. 새 조항은 실제로 일어난 문제나 두 앱 이상에서 되풀이된 패턴이 근거일 때만 넣는다.
 - 조항을 바꾸는 PR 은 그 조항만 바꾼다. 검사기 · AGENTS.md 요약 · 예외 대장도 같은 PR 에서 맞춘다.
+- 고친 기록: W-01 에 공개 명령 추가 · S-09 추가 (Report–1 이 Secretary–1 의 일정을 읽어야 해서).

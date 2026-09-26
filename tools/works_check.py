@@ -8,7 +8,7 @@ works_check.py - works 규칙 검사기 (정본은 RULES.md · 표준 라이브�
   python tools/works_check.py --no-tests  테스트 수 확인(테스트 불러오기)을 건너뜀
 
 [검사하는 것] 검사기가 못 보는 조항(W-05 · W-06 · W-07 · W-09)은 리뷰에서 본다
-  W-01 필수 파일 · 앱 워크플로 · 다른 앱 코드 참조
+  W-01 필수 파일 · 앱 워크플로 · 대장의 공개 명령 없이 다른 앱을 가리키는 코드 · 공개 명령이 코드와 MANUAL 에 있는지
   W-02 실행 코드가 불러오자마자 import 하는 표준 라이브러리 밖 모듈 (Python 3.10+ 에서만)
   W-03 0.0.0.0 바인딩 · 웹 UI 의 외부 리소스(CDN · 웹 폰트)
   W-04 키 · 토큰처럼 보이는 문자열 · 비밀 값을 받는 명령줄 옵션(--password · [string]$Token 등)
@@ -16,7 +16,7 @@ works_check.py - works 규칙 검사기 (정본은 RULES.md · 표준 라이브�
   W-10 네이비 · 라임 밖의 유채색 · 빨강 계열 콘솔 색 · 옮겨 적은 디자인 원칙 · 팔레트 표
   W-11 워크플로의 OS · 경로 필터 · 약속한 최소 Python · 문서의 테스트 수 · 없는 워크플로 언급
   W-12 영감 고지문 · 내장 폰트 라이선스 · 사설 IP 주소
-  S-02 VERSION 상수   S-06 대장 등록 · 포트 대역 · 전역 단축키 겹침
+  S-02 VERSION 상수   S-06 대장 등록 · 포트 대역 · 전역 단축키 겹침   S-09 LLM 설정 키가 docs/SPEC-llm.md 와 같은지
   S-07 형제 앱 직접 링크 · 다른 앱과 같은 이미지 · 문서 이미지 3 MB · 남은 {{자리표시자}} · 깨진 상대 링크
   RULES AGENTS.md 요약 · 예외 대장이 RULES.md 와 맞는지
 
@@ -213,23 +213,64 @@ def modules_of(repo: Repo, app: str) -> Set[str]:
     return {os.path.splitext(os.path.basename(f))[0] for f in repo.app_files(app, (".py",))}
 
 
+def public_commands(repo: Repo) -> List[Dict[str, object]]:
+    """대장의 공개 명령 표 → [{app, command, format, users, line}]"""
+    out = []
+    for ln, cells in section_rows(repo.text("docs/REGISTRY.md"), "공개 명령")[1:]:
+        if len(cells) < 5:
+            continue
+        users = [unquote(u) for u in re.split(r"[,·]", cells[4]) if unquote(u)]
+        out.append({"app": unquote(cells[0]), "command": unquote(cells[1]), "format": cells[3].strip(),
+                    "users": users, "line": ln})
+    return out
+
+
 def check_cross_refs(repo: Repo) -> List[Finding]:
+    """다른 앱의 이름 · 경로가 코드에 나오면 대장의 공개 명령으로 이어진 사이여야 한다. 다른 앱 모듈 import 는 언제나 위반"""
     out = []
     mods = {app: modules_of(repo, app) for app in repo.apps}
+    linked = {(str(c["app"]), str(u)) for c in public_commands(repo) for u in c["users"]}   # (내주는 앱, 쓰는 앱)
     for app in repo.apps:
         others = [o for o in repo.apps if o != app]
         foreign = {m: o for o in others for m in mods[o]} if others else {}
         for rel in repo.app_files(app, CODE_EXT):
             text = repo.text(rel)
             for o in others:
-                m = re.search(r"(?:\.\.[\\/]+|[\\/])" + re.escape(o) + r"(?=[\\/\"'])", text)
+                if (o, app) in linked:
+                    continue
+                m = re.search(r"(?<![\w-])" + re.escape(o) + r"(?![\w-])", text)
                 if m:
-                    out.append(Finding("W-01", app, rel, f"다른 앱 폴더({o})를 경로로 참조합니다", line_of(text, m.start())))
+                    out.append(Finding("W-01", app, rel, f"다른 앱({o})을 가리킵니다 — 앱끼리는 대장에 올린 공개 명령으로만",
+                                       line_of(text, m.start())))
             if rel.endswith(".py") and foreign:
                 tree = parse_py(repo, rel)
                 for name, ln in (py_imports(tree, top_only=False) if tree else []):
                     if name in foreign and name not in mods[app]:
                         out.append(Finding("W-01", app, rel, f"다른 앱({foreign[name]})의 모듈 {name} 을 import 합니다", ln))
+    return out
+
+
+def check_public_commands(repo: Repo) -> List[Finding]:
+    """공개 명령은 내주는 앱의 코드와 MANUAL 에 실제로 있어야 하고, 형식 버전 · 쓰는 앱이 분명해야 한다"""
+    out, reg = [], "docs/REGISTRY.md"
+    registered = {str(r["app"]) for r in registry_apps(repo)}
+    for c in public_commands(repo):
+        app, ln = str(c["app"]), int(c["line"])
+        if app not in repo.apps:
+            out.append(Finding("W-01", "", reg, f"공개 명령을 내주는 앱 폴더가 없습니다: {app}", ln))
+            continue
+        flags = re.findall(r"--[a-z][\w-]*", str(c["command"]))
+        manual = repo.text(f"{app}/docs/MANUAL.md")
+        code = "\n".join(repo.text(f) for f in repo.app_files(app, (".py", ".ps1"), dev=False))
+        for where, text in (("MANUAL", manual), ("코드", code)):
+            missing = [f for f in flags if f not in text]
+            if missing:
+                out.append(Finding("W-01", app, reg, f"공개 명령 {' '.join(missing)} 가 {where}에 없습니다", ln))
+        if not re.fullmatch(r"\d+", str(c["format"])):
+            out.append(Finding("W-01", app, reg, f"공개 명령의 형식 버전이 숫자가 아닙니다: {c['format']}", ln))
+        for u in c["users"]:
+            if u not in registered:
+                out.append(Finding("W-01", app, reg, f"공개 명령을 쓰는 앱 {u} 가 앱 대장에 없습니다", ln))
     return out
 
 
@@ -527,6 +568,44 @@ def broken_links(repo: Repo, rel: str) -> List[Tuple[str, int]]:
     return out
 
 
+def llm_spec_keys(repo: Repo) -> Tuple[Set[str], Set[str]]:
+    """(꼭 있어야 하는 키, 있어도 되는 키) — docs/SPEC-llm.md › 01 설정 키 표에서 읽는다 ('…앱만' 은 선택)"""
+    need, maybe = set(), set()
+    for _, cells in section_rows(repo.text("docs/SPEC-llm.md"), "01 설정 키")[1:]:
+        if len(cells) >= 3 and cells[0].startswith("`"):
+            (maybe if "앱만" in cells[2] else need).add(unquote(cells[0]))
+    return need, maybe
+
+
+def check_llm_spec(repo: Repo) -> List[Finding]:
+    need, maybe = llm_spec_keys(repo)
+    if not need:
+        return []
+    out = []
+    for app in repo.apps:
+        rel = f"{app}/config.example.json"
+        uses_llm = any("chat/completions" in repo.text(f) for f in repo.app_files(app, (".py",), dev=False))
+        llm = None
+        if repo.exists(rel):
+            try:
+                data = json.loads(repo.text(rel))
+                llm = data.get("llm") if isinstance(data, dict) else None
+            except ValueError:
+                out.append(Finding("S-09", app, rel, "config.example.json 이 JSON 이 아닙니다"))
+                continue
+        if not isinstance(llm, dict):
+            if uses_llm:
+                out.append(Finding("S-09", app, rel, "사내 LLM 을 부르는데 config.example.json 에 llm 설정이 없습니다"))
+            continue
+        missing = sorted(need - set(llm))
+        unknown = sorted(set(llm) - need - maybe)
+        if missing or unknown:
+            out.append(Finding("S-09", app, rel, "LLM 설정 키가 docs/SPEC-llm.md 와 다릅니다: "
+                               + " · ".join((["빠짐 " + ", ".join(missing)] if missing else [])
+                                            + (["모름 " + ", ".join(unknown)] if unknown else []))))
+    return out
+
+
 def check_version(repo: Repo) -> List[Finding]:
     out = []
     for app in repo.apps:
@@ -685,8 +764,8 @@ def waiver_covers(w: Waiver, f: Finding) -> bool:
 def run_checks(repo: Repo, run_tests: bool = True) -> Tuple[List[Finding], List[Waiver]]:
     waivers = load_waivers(repo)
     findings: List[Finding] = []
-    for check in (check_structure, check_cross_refs, check_imports, check_network, check_secrets, check_install,
-                  check_design, check_public, check_version, check_registry, check_docs):
+    for check in (check_structure, check_cross_refs, check_public_commands, check_imports, check_network, check_secrets,
+                  check_install, check_design, check_public, check_version, check_llm_spec, check_registry, check_docs):
         findings += check(repo)
     findings += check_ci(repo, run_tests)
     findings += check_meta(repo, waivers)
