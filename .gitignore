@@ -2,14 +2,20 @@
 # API 키
 config.json
 # 일정 (local 백엔드)
-jaba.db
-jaba.db-journal
+secretary-1.db
+secretary-1.db-journal
 # 학습한 규칙 · 일정 위키
-jaba_rules.json
-jaba_wiki.json
+secretary-1-rules.json
+secretary-1-wiki.json
 *.broken
 *.tmp
 # PC마다 파이썬 경로가 다름 (실행하면 자동 생성)
+secretary-1.bat
+# 이름을 바꾸기 전(jaba) 파일 — 처음 실행할 때 새 이름으로 옮겨지지만, 남아 있어도 커밋되지 않게
+jaba.db
+jaba.db-journal
+jaba_rules.json
+jaba_wiki.json
 jaba.bat
 
 # ── Python

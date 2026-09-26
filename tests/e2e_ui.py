@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""브라우저 E2E: 가짜 LLM 서버 + jaba 실제 프로세스 + Chromium. 스크린샷도 남긴다."""
+"""브라우저 E2E: 가짜 LLM 서버 + Secretary–1 실제 프로세스 + Chromium. 스크린샷도 남긴다."""
 import json
 import os
 import re
@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 def pick_tz():
     """시험 일정을 '지금 ±4시간'에 심으므로 현지 시각이 한낮이어야 전부 오늘 안에 들어간다.
     한국이 낮(08~17시)이면 한국 시간, 아니면 지금이 오전 11시쯤인 고정 오프셋 시간대 (Etc/GMT±N · 부호가 반대).
-    jaba · 가짜 LLM · 브라우저가 모두 같은 시간대를 쓴다. Windows 는 PC 시간대를 그대로 쓴다."""
+    비서 · 가짜 LLM · 브라우저가 모두 같은 시간대를 쓴다. Windows 는 PC 시간대를 그대로 쓴다."""
     if not hasattr(time, "tzset"):
         return None
     now = datetime.now(timezone.utc)
@@ -34,7 +34,11 @@ if TZ:
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
-import jaba  # noqa: E402
+import importlib.util  # noqa: E402
+_spec = importlib.util.spec_from_file_location("secretary", os.path.join(ROOT, "secretary-1.py"))
+sec = importlib.util.module_from_spec(_spec)
+sys.modules["secretary"] = sec  # dataclass 가 모듈을 찾을 수 있게
+_spec.loader.exec_module(sec)
 from playwright.sync_api import sync_playwright  # noqa: E402
 
 OUT = os.environ.get("SHOT_DIR", os.path.join(ROOT, "shots"))
@@ -54,10 +58,10 @@ def free_port():
 
 
 def seed(db, ongoing=False, alert_soon=False):
-    cal = jaba.LocalCalendar(db)
+    cal = sec.LocalCalendar(db)
     now = datetime.now()
     base = now.replace(minute=0 if now.minute < 30 else 30, second=0, microsecond=0)
-    today = jaba.start_of_day(now)
+    today = sec.start_of_day(now)
 
     def add(title, start, minutes, loc=""):
         cal.create_event(title, start, start + timedelta(minutes=minutes), loc)
@@ -97,29 +101,29 @@ def start_stack(mode, tmp, theme=None, ongoing=False, alert_soon=False):
     with open(cfg_path, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False)
     logf = open(os.path.join(tmp, f"{mode}-{app_port}.log"), "w")
-    app = subprocess.Popen([sys.executable, os.path.join(ROOT, "jaba.py"), "--config", cfg_path, "--no-window"],
+    app = subprocess.Popen([sys.executable, os.path.join(ROOT, "secretary-1.py"), "--config", cfg_path, "--no-window"],
                            env=ENV, stdout=logf, stderr=subprocess.STDOUT)
     url = f"http://127.0.0.1:{app_port}/"
     for _ in range(100):
         try:
             with LOCAL.open(url + "api/ping", timeout=0.5) as r:
-                if json.loads(r.read())["app"] == "jaba":
+                if json.loads(r.read())["app"] == "secretary-1":
                     break
         except Exception:
             time.sleep(0.1)
     else:
-        raise SystemExit("jaba 가 뜨지 않음: " + open(os.path.join(tmp, f"{mode}-{app_port}.log")).read())
+        raise SystemExit("Secretary-1 이 뜨지 않음: " + open(os.path.join(tmp, f"{mode}-{app_port}.log")).read())
     return fake, app, url, cfg_path, llm_port
 
 
 def api_client(url):
     html = LOCAL.open(url, timeout=5).read().decode()
-    token = re.search(r'name="jaba-token" content="([^"]+)"', html).group(1)
+    token = re.search(r'name="secretary-token" content="([^"]+)"', html).group(1)
 
     def call(path, body=None):
         req = urllib.request.Request(url.rstrip("/") + path, method="POST" if body is not None else "GET",
                                      data=json.dumps(body).encode() if body is not None else None)
-        req.add_header("X-Jaba-Token", token)
+        req.add_header("X-Secretary-Token", token)
         if body is not None:
             req.add_header("Content-Type", "application/json")
         with LOCAL.open(req, timeout=20) as r:
@@ -159,7 +163,7 @@ def check_mode(mode, tmp):
         api("/api/chat", {"message": "내일 일정 알려줘"})
         stats = llm_stats(llm_port)
         assert stats["rules_in_prompt"] and "스크럼은 항상 15분" in stats["last_rules"], stats
-        check = subprocess.run([sys.executable, os.path.join(ROOT, "jaba.py"), "--config", cfg_path, "--check"],
+        check = subprocess.run([sys.executable, os.path.join(ROOT, "secretary-1.py"), "--config", cfg_path, "--check"],
                                env=ENV, capture_output=True, text=True, timeout=60)
         assert "학습 규칙 : 1개" in check.stdout and "일정 위키 : 1개" in check.stdout, check.stdout
         # 모델 드롭다운: 서버 목록 → 바꾸기 → 다음 요청부터 그 모델 · config.json 에 저장
@@ -177,8 +181,9 @@ def check_mode(mode, tmp):
 
 
 NAVY, LIME, GREY = "rgb(0, 35, 65)", "rgb(106, 186, 35)", "rgb(165, 170, 174)"
-PRIME, PRIME_INK = "rgb(31, 80, 122)", "rgb(242, 242, 238)"  # TE v2: 네이비 주색 · 라임 강조
-BLACK_PANEL, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(239, 238, 233)"
+PRIME, PRIME_INK = "rgb(31, 80, 122)", "rgb(242, 242, 243)"  # TE v2: 네이비 주색 · 라임 강조
+ENC1 = "rgb(117, 161, 199)"  # 노브 ① = Terminal–1 인코더 ① 파랑
+BLACK_PANEL, LIGHT_PANEL = "rgb(11, 11, 11)", "rgb(242, 242, 243)"
 
 
 def css(page, sel, prop):
@@ -236,15 +241,15 @@ def ui_run(tmp):
             assert css(p, ".device", "backgroundColor") == BLACK_PANEL
             assert css(p, ".send", "backgroundColor") == PRIME  # 주 버튼은 네이비
             cap = "(s) => getComputedStyle(document.querySelector(s), '::before').backgroundColor"
-            assert p.evaluate(cap, ".key.k1 .dial") == PRIME and p.evaluate(cap, ".key.k2 .dial") == GREY  # 노브 캡
+            assert p.evaluate(cap, ".key.k1 .dial") == ENC1 and p.evaluate(cap, ".key.k2 .dial") == LIME  # 노브 캡 = ①파랑 ②라임 ③흰색 ④회색
             assert css(p, ".lbl b", "backgroundColor") == PRIME and p.locator(".lbl").count() == 4  # 01~04 번호 라벨
             assert p.locator("#next-count svg.seg").count() == 1 and p.locator("#clock-time svg.seg").count() == 1
-            assert p.locator("#mascot svg .ms").count() == 1 and p.locator("#mascot svg .mled").count() == 1  # JB-1
+            assert p.locator("#mascot svg .ms").count() == 1 and p.locator("#mascot svg .mled").count() == 1  # 마스코트
             assert p.locator(".track .ev").count() >= 6 and p.locator(".track .nowline").count() == 1
             assert p.inner_text("#next-title") != "self-test"
             # 도스 픽셀 폰트: 내장 WOFF 가 실제로 로드되고 전체에 쓰인다
-            assert p.evaluate("[...document.fonts].some(f => f.family.replace(/\"/g, '') === 'JabaDOS' && f.status === 'loaded')")
-            assert css(p, "body", "fontFamily").startswith(("JabaDOS", '"JabaDOS"'))
+            assert p.evaluate("[...document.fonts].some(f => f.family.replace(/\"/g, '') === 'Secretary1DOS' && f.status === 'loaded')")
+            assert css(p, "body", "fontFamily").startswith(("Secretary1DOS", '"Secretary1DOS"'))
             assert css(p, "#msg", "fontFamily") == css(p, ".key.k1", "fontFamily") == css(p, "body", "fontFamily")
             stamp_flow(p)
             p.wait_for_function("!document.querySelector('.bit')")  # 도장 파편이 다 사라진 뒤에
@@ -261,7 +266,7 @@ def ui_run(tmp):
             say(p, "내일 일정 알려줘")
             assert llm_stats(llm_port)["last_model"] == "qwen3-32b"
             assert css(p, ".card.done .seal", "borderTopColor") == LIME
-            p.screenshot(path=os.path.join(OUT, "jaba-compact.png"))
+            p.screenshot(path=os.path.join(OUT, "secretary-1-compact.png"))
 
             # 오늘 일정 서랍
             p.click("#day-count")
@@ -270,7 +275,7 @@ def ui_run(tmp):
             assert p.locator("#day-drawer .chip").count() == 1
             assert p.locator("#daylist .row").count() >= 6
             p.wait_for_timeout(500)
-            p.screenshot(path=os.path.join(OUT, "jaba-day.png"))
+            p.screenshot(path=os.path.join(OUT, "secretary-1-day.png"))
             p.click("#next")
             p.wait_for_function("document.querySelector('#day-label').textContent === 'tomorrow'")
             p.keyboard.press("Escape")
@@ -296,7 +301,7 @@ def ui_run(tmp):
             p.wait_for_function("document.querySelectorAll('#rules .rule').length === 3")
             p.wait_for_selector(".plus1")
             p.wait_for_timeout(250)
-            p.screenshot(path=os.path.join(OUT, "jaba-learn.png"))
+            p.screenshot(path=os.path.join(OUT, "secretary-1-learn.png"))
             p.click("#rules .rule >> nth=0 >> .x")
             p.wait_for_function("document.querySelectorAll('#rules .rule').length === 2")
             assert p.inner_text("#mem-count") == "2"
@@ -314,7 +319,7 @@ def ui_run(tmp):
             body = p.inner_text("#wiki-body")
             assert "노트북" in body and "분기 목표 점검" in body and "원문 기록 1개" in body, body
             p.wait_for_timeout(450)
-            p.screenshot(path=os.path.join(OUT, "jaba-wiki.png"))
+            p.screenshot(path=os.path.join(OUT, "secretary-1-wiki.png"))
             p.click("#wiki-body summary")  # 원문 기록 펼치기 → 지우기 (정리된 내용은 그대로)
             p.once("dialog", lambda d: d.accept())
             p.click("#wiki-body .clr")
@@ -345,7 +350,7 @@ def ui_run(tmp):
             p.wait_for_selector(".card.pending")
             assert css(p, ".card.pending .okb", "color") == PRIME_INK and css(p, ".card.pending .okb", "backgroundColor") == PRIME
             p.wait_for_timeout(750)
-            p.screenshot(path=os.path.join(OUT, "jaba-pending.png"))
+            p.screenshot(path=os.path.join(OUT, "secretary-1-pending.png"))
             p.keyboard.press("Escape")
             p.wait_for_selector(".card.cancelled")
             done0 = p.locator(".card.done").count()  # 앞에서 확정한 카드 (일정 · 학습 · 위키)
@@ -372,7 +377,7 @@ def ui_run(tmp):
             assert "알림 테스트" in p.inner_text("#toast-text")
             assert p.locator(".act.alert").count() >= 1
             p.wait_for_timeout(500)
-            p.screenshot(path=os.path.join(OUT, "jaba-alert.png"))
+            p.screenshot(path=os.path.join(OUT, "secretary-1-alert.png"))
 
             # 넓은 창에서도 본체는 컴팩트하게 가운데
             wide = new_page(url, "dark", 1100, 760)
@@ -387,7 +392,7 @@ def ui_run(tmp):
             assert css(s, ".track .ev.past", "opacity") == "1"
             assert s.inner_text("#next-k").lower() == "now", s.inner_text("#next-k")  # 화면엔 대문자로
             s.wait_for_timeout(400)
-            s.screenshot(path=os.path.join(OUT, "jaba-now.png"))
+            s.screenshot(path=os.path.join(OUT, "secretary-1-now.png"))
 
             # ── E. 실제 알림 타이밍: 장소 없는 일정 5분 전
             fake5, app5, url5, _, _ = start_stack("native", tmp, alert_soon=True)
@@ -403,8 +408,11 @@ def ui_run(tmp):
             stacks += [fake2, app2]
             lt = new_page(url2, "light")
             assert css(lt, ".device", "backgroundColor") == LIGHT_PANEL
+            assert css(lt, ".send", "backgroundColor") == PRIME and css(lt, ".lbl b", "backgroundColor") == PRIME  # 라이트도 네이비 주색
+            assert css(lt, "#next-count .seg .on", "fill") == PRIME_INK  # 화면(LCD) 숫자는 라이트에서도 흰색
             stamp_flow(lt)
-            lt.screenshot(path=os.path.join(OUT, "jaba-light.png"))
+            assert css(lt, ".card.done .seal", "borderTopColor") == PRIME  # 라이트의 확정 도장은 네이비
+            lt.screenshot(path=os.path.join(OUT, "secretary-1-light.png"))
             assert css(new_page(url2, "dark"), ".device", "backgroundColor") == BLACK_PANEL
             fake3, app3, url3, _, _ = start_stack("native", tmp, theme="light")
             stacks += [fake3, app3]

@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory() as tmp:
             p.click("#power"); p.wait_for_timeout(1900)
             video = p.video.path()
             ctx.close(); b.close()
-            shutil.copy(video, os.path.join(out_dir, "jaba-demo.webm"))
-            print("saved", os.path.join(out_dir, "jaba-demo.webm"), os.path.getsize(os.path.join(out_dir, "jaba-demo.webm")))
+            shutil.copy(video, os.path.join(out_dir, "secretary-1-demo.webm"))
+            print("saved", os.path.join(out_dir, "secretary-1-demo.webm"), os.path.getsize(os.path.join(out_dir, "secretary-1-demo.webm")))
     finally:
         app.terminate(); fake.terminate()

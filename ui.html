@@ -3,91 +3,76 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="jaba-token" content="__TOKEN__">
-<title>jaba · 일정 비서</title>
-<link rel="preload" href="/font/jaba-dos.woff" as="font" type="font/woff" crossorigin>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='6.5' width='15' height='12.5' fill='%230b0b0b' stroke='%23f2f2ee' stroke-width='1.4'/%3E%3Crect x='6.5' y='8.5' width='11' height='7.5' fill='%231f507a'/%3E%3Crect x='8.7' y='10.7' width='1.8' height='1.8' fill='%23f2f2ee'/%3E%3Crect x='13.5' y='10.7' width='1.8' height='1.8' fill='%23f2f2ee'/%3E%3Cpath d='M8 6.5V3' stroke='%23f2f2ee' stroke-width='1.4'/%3E%3Crect x='7' y='1' width='2' height='2' fill='%236aba23'/%3E%3C/svg%3E">
+<meta name="secretary-token" content="__TOKEN__">
+<title>Secretary–1 · 일정 비서</title>
+<link rel="preload" href="/font/secretary-1-dos.woff" as="font" type="font/woff" crossorigin>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='6.5' width='15' height='12.5' fill='%230b0b0b' stroke='%23f2f2f3' stroke-width='1.4'/%3E%3Crect x='6.5' y='8.5' width='11' height='7.5' fill='%231f507a'/%3E%3Crect x='8.7' y='10.7' width='1.8' height='1.8' fill='%23f2f2f3'/%3E%3Crect x='13.5' y='10.7' width='1.8' height='1.8' fill='%23f2f2f3'/%3E%3Cpath d='M8 6.5V3' stroke='%23f2f2f3' stroke-width='1.4'/%3E%3Crect x='7' y='1' width='2' height='2' fill='%236aba23'/%3E%3C/svg%3E">
 <style>
-@font-face{font-family:"JabaDOS";src:url(/font/jaba-dos.woff) format("woff");font-display:block}
+@font-face{font-family:"Secretary1DOS";src:url(/font/secretary-1-dos.woff) format("woff");font-display:block}
 :root{
-  /* 기본 다크: 검정 바탕 + 라임 #6ABA23 · 네이비 #002341 · 그레이 #A5AAAE */
+  /* 팔레트 = Terminal–1 과 같은 세 기준색: 네이비 #002341 · 라임 #6ABA23 · 그레이 #A5AAAE (+ 같은 색상의 밝기 단계)
+     네이비가 주색(뼈대 · 버튼 · 라벨), 라임은 강조(지금 · 켜짐 · 대기)만. 빨강은 없다 — 경고는 가장 밝은 글자색 */
   --bg:#000;--dot:rgba(255,255,255,.075);--panel:#0b0b0b;--panel-2:#131313;--lcd:#030303;--lcd-edge:#2a2a2a;--track:#161616;
-  --ink:#f2f2ee;--ink-2:#a5aaae;--ink-3:#858a8f;--lcd-ink:#f2f2ee;--lcd-ink-2:#a5aaae;
-  --line:rgba(242,242,238,.09);--line-2:rgba(242,242,238,.2);
-  --accent:#6aba23;--accent-press:#3f7412;--accent-glow:rgba(106,186,35,.35);--on-accent:#0b0b0b;
-  --ok:#6aba23;--err:#ff6b5e;--warn:#ffc24b;--seal:#6aba23;
+  --ink:#f2f2f3;--ink-2:#a5aaae;--ink-3:#81888d;--lcd-ink:#f2f2f3;--lcd-ink-2:#a5aaae;
+  --line:rgba(242,242,243,.09);--line-2:rgba(242,242,243,.2);--drop:#000;
+  --accent:#6aba23;--accent-ink:#6aba23;--accent-press:#45741b;--accent-glow:rgba(106,186,35,.35);--on-accent:#0b0b0b;
+  --ok:#6aba23;--err:#f2f2f3;--warn:#95d85a;--seal:#6aba23;
   --key:#1c1c1c;--key-edge:#000;
-  --ev:#a5aaae;--ev-ink:#0b0b0b;--ev-now:#6aba23;--ev-now-ink:#0b0b0b;--ev-now-bar:transparent;
-  --ev-past:rgba(242,242,238,.07);--ev-past-ink:#858a8f;--ev-past-edge:rgba(242,242,238,.16);--ev-past-op:1;
-  --bubble:#a5aaae;--bubble-ink:#0b0b0b;--btn:#6aba23;--btn-ink:#0b0b0b;--btn-edge:#3f7412;
-  --card-edge:#a5aaae;--tag-del:#002341;--tag-del-ink:#f2f2ee;--switch:#262626;--toast-x:rgba(0,0,0,.15);
-  --seg-on:#6aba23;--seg-off:rgba(106,186,35,.09);--seg-glow:rgba(106,186,35,.5);
-  --k1:#6aba23;--k1-ink:#0b0b0b;--k1-edge:#3f7412;
-  --k2:#a5aaae;--k2-ink:#0b0b0b;--k2-edge:#5e6266;
-  --k3:#002341;--k3-ink:#f2f2ee;--k3-edge:#000;
-  --k4:#f2f2ee;--k4-ink:#0b0b0b;--k4-edge:#8f8f8a;
-  --k5:#1c1c1c;--k5-ink:#f2f2ee;--k5-edge:#000;
+  --prime:#1f507a;--prime-2:#3f77a6;--prime-deep:#002341;--prime-ink:#f2f2f3;--grid:rgba(63,119,166,.2);
+  --ev:#1f507a;--ev-ink:#f2f2f3;--ev-now:#6aba23;--ev-now-ink:#0b0b0b;--ev-now-bar:transparent;
+  --ev-past:rgba(242,242,243,.07);--ev-past-ink:#81888d;--ev-past-edge:rgba(242,242,243,.16);--ev-past-op:1;
+  --bubble:#a5aaae;--bubble-ink:#0b0b0b;--btn:#1f507a;--btn-ink:#f2f2f3;--btn-edge:#002341;
+  --card-edge:#3f77a6;--tag-del:#002341;--tag-del-ink:#f2f2f3;--switch:#262626;--toast-x:rgba(0,0,0,.15);
+  --seg-on:#f2f2f3;--seg-off:rgba(63,119,166,.16);--seg-glow:rgba(242,242,243,.16);
+  /* 노브 = Terminal–1 인코더와 같은 색 순서: ①파랑 ②라임 ③흰색 ④회색 */
+  --k1:#75a1c7;--k1-ink:#0b0b0b;--k1-edge:#3f77a6;
+  --k2:#6aba23;--k2-ink:#0b0b0b;--k2-edge:#45741b;
+  --k3:#f2f2f3;--k3-ink:#002341;--k3-edge:#81888d;
+  --k4:#a5aaae;--k4-ink:#0b0b0b;--k4-edge:#5c6166;
+  --k5:#0e1620;--k5-ink:#f2f2f3;--k5-edge:#000;--dial:#101820;
   --screw:#1a1a1a;--screw-edge:#333;--screw-slot:#050505;
-  --m-ring:#a5aaae;--m-top:#6aba23;--m-body:#f2f2ee;--m-ink:#0b0b0b;--m-cheek:#8fd14f;
-  --dos:"JabaDOS","Cascadia Mono",Consolas,"D2Coding","GulimChe","굴림체",monospace;
+  --m-body:#0b0b0b;--m-line:#f2f2f3;--m-screen:#1f507a;--m-face:#f2f2f3;--m-led:#6aba23;--m-led-off:#35383b;
+  --dos:"Secretary1DOS","Cascadia Mono",Consolas,"D2Coding","GulimChe","굴림체",monospace;
   --b:1px 0 0 currentColor; /* 도스식 굵게: 1px 옆에 한 번 더 찍기 (합성 볼드보다 선명) */
-  /* TE v2: 네이비가 주색(뼈대 · 버튼), 라임은 강조(지금 · 켜짐 · 대기 · 알림)만 */
-  --prime:#1f507a;--prime-2:#3f77a6;--prime-deep:#002341;--prime-ink:#f2f2ee;--grid:rgba(63,119,166,.2);
-  --seg-on:#f2f2ee;--seg-off:rgba(63,119,166,.16);--seg-glow:rgba(242,242,238,.16);
-  --btn:#1f507a;--btn-ink:#f2f2ee;--btn-edge:#002341;--card-edge:#3f77a6;
-  --ev:#1f507a;--ev-ink:#f2f2ee;
-  --k1:#1f507a;--k1-ink:#f2f2ee;--k1-edge:#002341;
-  --k3:#f2f2ee;--k3-ink:#002341;--k3-edge:#8f8f8a;
-  --k4:#0b0b0b;--k4-ink:#6aba23;--k4-edge:#000;
-  --k5:#0e1620;--k5-ink:#f2f2ee;--k5-edge:#000;--dial:#101820;
-  --m-body:#0b0b0b;--m-line:#f2f2ee;--m-screen:#1f507a;--m-face:#f2f2ee;--m-led:#6aba23;--m-led-off:#3a3f44;
   color-scheme:dark;
 }
-/* "light": 밝은 본체 + 주황 · "system": OS 라이트면 라이트, 다크면 기본 다크 */
+/* "light": 밝은 회색 본체 + 같은 네이비 · 라임 (화면(LCD)은 테마와 상관없이 검정) · "system": OS 설정을 따름 */
 :root[data-theme="light"]{
-  --bg:#d5d4ce;--dot:rgba(22,22,22,.08);--panel:#efeee9;--panel-2:#f8f7f3;--lcd:#161616;--lcd-edge:#000;--track:#e2e1db;
-  --ink:#161616;--ink-2:#5a5954;--ink-3:#8f8d86;--lcd-ink:#f3f2ed;--lcd-ink-2:#a9a79f;
-  --line:rgba(22,22,22,.12);--line-2:rgba(22,22,22,.30);
-  --accent:#ff4f00;--accent-press:#c23c00;--accent-glow:rgba(255,79,0,.22);--on-accent:#fff;
-  --ok:#1e9e57;--err:#d7322b;--warn:#b35f00;--seal:#d9261c;
-  --key:#e2e1db;--key-edge:#b4b3ac;
-  --ev:#161616;--ev-ink:#f3f2ed;--ev-now:#ff4f00;--ev-now-ink:#fff;--ev-now-bar:transparent;
-  --ev-past:#161616;--ev-past-ink:#f3f2ed;--ev-past-edge:transparent;--ev-past-op:.3;
-  --bubble:#161616;--bubble-ink:#efeee9;--btn:#161616;--btn-ink:#efeee9;--btn-edge:#8f8d86;
-  --card-edge:#161616;--tag-del:#161616;--tag-del-ink:#efeee9;--switch:#161616;--toast-x:rgba(255,255,255,.22);
-  --seg-on:#ff4f00;--seg-off:rgba(255,79,0,.12);--seg-glow:rgba(255,79,0,.5);
-  --k1:#ff4f00;--k1-ink:#fff;--k1-edge:#c23c00;
-  --k2:#e2e1db;--k2-ink:#161616;--k2-edge:#b4b3ac;
-  --k3:#161616;--k3-ink:#efeee9;--k3-edge:#000;
-  --k4:#fff;--k4-ink:#161616;--k4-edge:#c9c8c2;
-  --k5:#e2e1db;--k5-ink:#161616;--k5-edge:#b4b3ac;
-  --screw:#dcdbd5;--screw-edge:#b4b3ac;--screw-slot:#9d9c96;
-  --m-ring:#8f8d86;--m-top:#ff4f00;--m-body:#fff;--m-ink:#161616;--m-cheek:#ffb199;
-  --prime:#161616;--prime-2:#5a5954;--prime-deep:#161616;--prime-ink:#f3f2ed;--grid:rgba(22,22,22,.07);--dial:#d5d4ce;
-  --m-body:#fff;--m-line:#161616;--m-screen:#4a4945;--m-face:#fff;--m-led:#ff4f00;--m-led-off:#8f8d86;
+  --bg:#d4d6d8;--dot:rgba(0,35,65,.09);--panel:#f2f2f3;--panel-2:#fafafb;--lcd:#050709;--lcd-edge:#002341;--track:#e4e6e8;
+  --ink:#0b0b0b;--ink-2:#4c5156;--ink-3:#81888d;--lcd-ink:#f2f2f3;--lcd-ink-2:#a5aaae;
+  --line:rgba(0,35,65,.14);--line-2:rgba(0,35,65,.34);--drop:#a5aaae;
+  --accent:#6aba23;--accent-ink:#45741b;--accent-press:#45741b;--accent-glow:rgba(106,186,35,.3);--on-accent:#0b0b0b;
+  --ok:#6aba23;--err:#0b0b0b;--warn:#45741b;--seal:#1f507a;
+  --key:#e4e6e8;--key-edge:#a5aaae;
+  --prime:#1f507a;--prime-2:#3f77a6;--prime-deep:#002341;--prime-ink:#f2f2f3;--grid:rgba(0,35,65,.1);
+  --ev:#1f507a;--ev-ink:#f2f2f3;--ev-now:#6aba23;--ev-now-ink:#0b0b0b;--ev-now-bar:transparent;
+  --ev-past:rgba(0,35,65,.06);--ev-past-ink:#81888d;--ev-past-edge:rgba(0,35,65,.2);--ev-past-op:1;
+  --bubble:#1f507a;--bubble-ink:#f2f2f3;--btn:#1f507a;--btn-ink:#f2f2f3;--btn-edge:#002341;
+  --card-edge:#1f507a;--tag-del:#002341;--tag-del-ink:#f2f2f3;--switch:#c4c7ca;--toast-x:rgba(255,255,255,.18);
+  --seg-on:#0b0b0b;--seg-off:rgba(0,35,65,.1);--seg-glow:transparent;
+  --k3-edge:#a5aaae;
+  --k5:#e4e6e8;--k5-ink:#0b0b0b;--k5-edge:#a5aaae;--dial:#e4e6e8;
+  --screw:#dcdee0;--screw-edge:#a5aaae;--screw-slot:#81888d;
+  --m-body:#f2f2f3;--m-line:#0b0b0b;--m-screen:#1f507a;--m-face:#f2f2f3;--m-led:#6aba23;--m-led-off:#a5aaae;
   color-scheme:light;
 }
 @media (prefers-color-scheme:light){:root[data-theme="system"]{
-  --bg:#d5d4ce;--dot:rgba(22,22,22,.08);--panel:#efeee9;--panel-2:#f8f7f3;--lcd:#161616;--lcd-edge:#000;--track:#e2e1db;
-  --ink:#161616;--ink-2:#5a5954;--ink-3:#8f8d86;--lcd-ink:#f3f2ed;--lcd-ink-2:#a9a79f;
-  --line:rgba(22,22,22,.12);--line-2:rgba(22,22,22,.30);
-  --accent:#ff4f00;--accent-press:#c23c00;--accent-glow:rgba(255,79,0,.22);--on-accent:#fff;
-  --ok:#1e9e57;--err:#d7322b;--warn:#b35f00;--seal:#d9261c;
-  --key:#e2e1db;--key-edge:#b4b3ac;
-  --ev:#161616;--ev-ink:#f3f2ed;--ev-now:#ff4f00;--ev-now-ink:#fff;--ev-now-bar:transparent;
-  --ev-past:#161616;--ev-past-ink:#f3f2ed;--ev-past-edge:transparent;--ev-past-op:.3;
-  --bubble:#161616;--bubble-ink:#efeee9;--btn:#161616;--btn-ink:#efeee9;--btn-edge:#8f8d86;
-  --card-edge:#161616;--tag-del:#161616;--tag-del-ink:#efeee9;--switch:#161616;--toast-x:rgba(255,255,255,.22);
-  --seg-on:#ff4f00;--seg-off:rgba(255,79,0,.12);--seg-glow:rgba(255,79,0,.5);
-  --k1:#ff4f00;--k1-ink:#fff;--k1-edge:#c23c00;
-  --k2:#e2e1db;--k2-ink:#161616;--k2-edge:#b4b3ac;
-  --k3:#161616;--k3-ink:#efeee9;--k3-edge:#000;
-  --k4:#fff;--k4-ink:#161616;--k4-edge:#c9c8c2;
-  --k5:#e2e1db;--k5-ink:#161616;--k5-edge:#b4b3ac;
-  --screw:#dcdbd5;--screw-edge:#b4b3ac;--screw-slot:#9d9c96;
-  --m-ring:#8f8d86;--m-top:#ff4f00;--m-body:#fff;--m-ink:#161616;--m-cheek:#ffb199;
-  --prime:#161616;--prime-2:#5a5954;--prime-deep:#161616;--prime-ink:#f3f2ed;--grid:rgba(22,22,22,.07);--dial:#d5d4ce;
-  --m-body:#fff;--m-line:#161616;--m-screen:#4a4945;--m-face:#fff;--m-led:#ff4f00;--m-led-off:#8f8d86;
+  --bg:#d4d6d8;--dot:rgba(0,35,65,.09);--panel:#f2f2f3;--panel-2:#fafafb;--lcd:#050709;--lcd-edge:#002341;--track:#e4e6e8;
+  --ink:#0b0b0b;--ink-2:#4c5156;--ink-3:#81888d;--lcd-ink:#f2f2f3;--lcd-ink-2:#a5aaae;
+  --line:rgba(0,35,65,.14);--line-2:rgba(0,35,65,.34);--drop:#a5aaae;
+  --accent:#6aba23;--accent-ink:#45741b;--accent-press:#45741b;--accent-glow:rgba(106,186,35,.3);--on-accent:#0b0b0b;
+  --ok:#6aba23;--err:#0b0b0b;--warn:#45741b;--seal:#1f507a;
+  --key:#e4e6e8;--key-edge:#a5aaae;
+  --prime:#1f507a;--prime-2:#3f77a6;--prime-deep:#002341;--prime-ink:#f2f2f3;--grid:rgba(0,35,65,.1);
+  --ev:#1f507a;--ev-ink:#f2f2f3;--ev-now:#6aba23;--ev-now-ink:#0b0b0b;--ev-now-bar:transparent;
+  --ev-past:rgba(0,35,65,.06);--ev-past-ink:#81888d;--ev-past-edge:rgba(0,35,65,.2);--ev-past-op:1;
+  --bubble:#1f507a;--bubble-ink:#f2f2f3;--btn:#1f507a;--btn-ink:#f2f2f3;--btn-edge:#002341;
+  --card-edge:#1f507a;--tag-del:#002341;--tag-del-ink:#f2f2f3;--switch:#c4c7ca;--toast-x:rgba(255,255,255,.18);
+  --seg-on:#0b0b0b;--seg-off:rgba(0,35,65,.1);--seg-glow:transparent;
+  --k3-edge:#a5aaae;
+  --k5:#e4e6e8;--k5-ink:#0b0b0b;--k5-edge:#a5aaae;--dial:#e4e6e8;
+  --screw:#dcdee0;--screw-edge:#a5aaae;--screw-slot:#81888d;
+  --m-body:#f2f2f3;--m-line:#0b0b0b;--m-screen:#1f507a;--m-face:#f2f2f3;--m-led:#6aba23;--m-led-off:#a5aaae;
   color-scheme:light;
 }}
 *{box-sizing:border-box}
@@ -122,7 +107,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 /* 마스코트 · 7세그 */
 .mascot{position:relative;display:inline-block;flex:none;width:26px;height:26px}
 .mascot svg{display:block;width:100%;height:100%}
-.mascot .r{fill:var(--m-ring)}.mascot .L{fill:var(--m-top)}.mascot .W{fill:var(--m-body)}.mascot .K{fill:var(--m-ink)}.mascot .N{fill:var(--m-cheek)}
 .mascot.idle svg{animation:bob 2.4s steps(2) infinite}
 .mascot.think svg{animation:bob .45s steps(2) infinite}
 .mascot.happy svg{animation:jump .7s cubic-bezier(.3,1.6,.5,1) 2}
@@ -326,7 +310,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .switch::after{content:"";position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:var(--accent);transition:all .2s}
 body.off .switch::after{right:13px;background:var(--ink-3)}
 body.off .device{animation:crt .8s cubic-bezier(.6,0,.9,.4) forwards}
-body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position:fixed;inset:0;display:grid;place-items:center;color:var(--ink-3);animation:fade .4s .8s both}
+body.off::after{content:"Secretary–1 · off — secretary-1.bat 으로 다시 켜기";position:fixed;inset:0;display:grid;place-items:center;color:var(--ink-3);animation:fade .4s .8s both}
 
 .toast{position:fixed;left:50%;top:12px;transform:translate(-50%,-170%);background:var(--accent);color:var(--on-accent);line-height:20px;text-shadow:var(--b);padding:6px 8px;border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.4);transition:transform .35s cubic-bezier(.2,1.4,.3,1);z-index:10;display:flex;gap:9px;align-items:center;width:max-content;max-width:calc(100vw - 24px)}
 .toast.show{transform:translate(-50%,0)}
@@ -377,7 +361,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .screw{background:none;border-color:var(--line-2)}
 .screw::after{height:1px;margin-top:0;background:var(--line-2)}
 .bar{padding:14px 24px 2px;align-items:flex-end}
-.logo{display:flex;flex-direction:column}
+.logo{display:flex;flex-direction:column;flex:none;white-space:nowrap;font-size:24px;line-height:24px}  /* Secretary–1: 11글자라 한 줄에 */
 .logo .model-no{font-size:16px;line-height:16px;color:var(--ink-3);letter-spacing:1px;text-shadow:none;margin-top:4px}
 .logo::after{display:none}
 .led i{width:6px;height:6px}
@@ -459,21 +443,21 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .key.knob{background:none;box-shadow:none;border-radius:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:6px;text-shadow:none;color:var(--ink);white-space:nowrap}
 .key.knob span{position:static;opacity:1}
 .key.knob:active,.key.knob.pressed{transform:none;box-shadow:none}
-.knob .dial{position:relative;display:block;width:48px;height:48px;border-radius:50%;background:var(--dial);border:1px solid var(--prime);box-shadow:0 3px 0 #000}
+.knob .dial{position:relative;display:block;width:48px;height:48px;border-radius:50%;background:var(--dial);border:1px solid var(--prime);box-shadow:0 3px 0 var(--drop)}
 .knob .dial::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--kb);box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
 .knob .dial::after{content:"";position:absolute;left:50%;top:9px;width:2px;height:10px;margin-left:-1px;background:var(--ki);transform-origin:50% 15px;transform:rotate(var(--rot,0deg));transition:transform .3s cubic-bezier(.3,1.6,.5,1)}
 .knob:active .dial::after,.knob.pressed .dial::after{transform:rotate(calc(var(--rot,0deg) + 60deg))}
 .knob .dial{outline:1px dashed transparent}
 .knob .kn{color:var(--ink-3);letter-spacing:1px;text-transform:uppercase;line-height:16px}
-.knob .kn em{font-style:normal;color:var(--prime-2);margin-right:4px}
+.knob .kn em{font-style:normal;display:inline-block;min-width:14px;margin-right:5px;padding:0 3px;text-align:center;background:var(--kb);color:var(--ki);letter-spacing:0;box-shadow:inset 0 0 0 1px var(--line)}  /* 번호표 = 그 노브 색 (색 = 조작) */
 .knob .kl{line-height:16px}
 .k1{--rot:-40deg}.k2{--rot:10deg}.k3{--rot:60deg}.k4{--rot:-80deg}
 .rubbers{display:flex;flex-direction:column;gap:8px}
-.key.rub{flex:none;height:32px;padding:0 8px;display:flex;align-items:center;gap:6px;border-radius:0;border:1px solid var(--prime);box-shadow:0 3px 0 #000;text-shadow:none}
+.key.rub{flex:none;height:32px;padding:0 8px;display:flex;align-items:center;gap:6px;border-radius:0;border:1px solid var(--prime);box-shadow:0 3px 0 var(--drop);text-shadow:none}
 .key.rub span{position:static;opacity:1;color:var(--ink-3)}
-.key.rub:active,.key.rub.pressed{transform:translateY(2px);box-shadow:0 1px 0 #000}
+.key.rub:active,.key.rub.pressed{transform:translateY(2px);box-shadow:0 1px 0 var(--drop)}
 .k6{--kb:var(--k5);--ki:var(--k5-ink);--ke:var(--k5-edge)}
-.k5 .badge{top:50%;margin-top:-8px}
+.k5 .badge{top:50%;margin-top:-8px;background:var(--k3);color:var(--k3-ink);box-shadow:inset 0 0 0 1px var(--line-2)}  /* 개수는 데이터 → 규칙 번호 칩과 같은 흰 칩 (라임은 켜짐 · 지금에만) */
 
 /* 05 입력 · 아래 줄 */
 .input{margin:14px 24px 0;padding:0 0 0 8px;border:1px solid var(--prime);align-items:center;gap:8px}
@@ -486,7 +470,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .ghost{border-radius:0;border-color:var(--prime-2)}
 .toast{border-radius:0;background:var(--prime-deep);color:var(--prime-ink);border-left:4px solid var(--accent);text-shadow:none}
 @media (max-width:420px){.keys{grid-template-columns:repeat(4,minmax(0,1fr)) 72px;padding:2px 12px 0}.lbl,.overview{padding-left:12px;padding-right:12px}.lcd,.input{margin-left:12px;margin-right:12px}.log{padding-left:12px;padding-right:12px}}
-/* 마스코트 JB-1 */
+/* 마스코트 — Secretary–1 의 얼굴 */
 .lcd .mascot,.toast .mascot{--m-line:var(--lcd-ink);--m-body:var(--lcd)}  /* 화면·토스트는 테마와 상관없이 어두운 바탕 */
 .mascot svg{overflow:visible}
 .mascot .mb{fill:var(--m-body);stroke:var(--m-line);stroke-width:1.1}
@@ -498,13 +482,25 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .mascot.alert .mled.on{animation:blink .5s steps(2) infinite}
 .mascot .mdot{fill:var(--m-line);opacity:.45}
 .mascot .mbang{stroke:var(--m-led);stroke-width:1.4}
+/* 공통 규칙 (Terminal–1 과 같음): 글자로 쓰는 라임은 --accent-ink · 버튼은 네이비 · 오류는 빨강 대신 ERR 칩 */
+.lcd{--seg-on:var(--lcd-ink);--seg-off:rgba(63,119,166,.16)}  /* 화면은 두 테마 모두 검정 바탕 */
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:var(--accent-ink)}
+#msg,.rule-add input,.wedit input,.wedit textarea{caret-color:var(--accent-ink)}
+.act.alert,.act.learn,.wiki a,.plus1,.note::before,.rows dd.chg::before{color:var(--accent-ink)}
+.track .nowline{background:var(--accent-ink)}.track .nowline::before{border-top-color:var(--accent-ink)}
+.rule-add button,.wiki .wacts .save{border-radius:0;background:var(--btn);color:var(--btn-ink);box-shadow:none;text-shadow:none;border-color:transparent}
+.rule-add button:active{transform:none;filter:brightness(1.25)}
+.sys{border-color:var(--err)}
+.sys::before{content:"ERR";display:inline-block;margin-right:8px;padding:0 4px;background:var(--err);color:var(--panel);line-height:18px}
+.sys.info{color:var(--ink-2);border-color:var(--prime-2)}
+.sys.info::before{content:"SYS";background:var(--prime);color:var(--prime-ink)}
 </style>
 </head>
 <body>
 <div class="device" id="device">
   <i class="screw s1"></i><i class="screw s2"></i><i class="screw s3"></i><i class="screw s4"></i>
   <header class="bar">
-    <span class="logo">jaba<small class="model-no">JB-1 · 일정 비서</small></span>
+    <span class="logo">Secretary–1<small class="model-no">일정 비서</small></span>
     <span class="leds">
       <span class="led" id="led-llm"><i></i>llm</span>
       <span class="led" id="led-cal"><i></i><span id="cal-name">cal</span></span>
@@ -561,11 +557,11 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
     <button class="send" id="send" type="submit" aria-label="보내기">↵</button>
   </form>
   <footer class="foot">
-    <span id="foot-info" title="일정(jaba.db) · 학습 규칙 · 일정 위키는 이 PC 의 파일에만 저장 · 대화 내용은 끄면 사라짐 · 127.0.0.1 에서만 동작">로컬 저장</span>
+    <span id="foot-info" title="일정(secretary-1.db) · 학습 규칙 · 일정 위키는 이 PC 의 파일에만 저장 · 대화 내용은 끄면 사라짐 · 127.0.0.1 에서만 동작">로컬 저장</span>
     <select id="model" aria-label="LLM 모델" title="LLM 모델 (바꾸면 config.json 에 저장)" disabled><option>LLM 미설정</option></select><span id="mode"></span>
     <span class="spacer"></span>
     <button class="ghost" id="reset" type="button">clear</button>
-    <button class="power" id="power" type="button" aria-label="jaba 종료"><span id="power-label">on</span><span class="switch"></span></button>
+    <button class="power" id="power" type="button" aria-label="Secretary–1 종료"><span id="power-label">on</span><span class="switch"></span></button>
   </footer>
 </div>
 <div class="toast" id="toast" role="status"><span class="mascot" id="mascot-toast" aria-hidden="true"></span><span id="toast-text"></span><button id="toast-x" type="button" aria-label="닫기">×</button></div>
@@ -573,10 +569,10 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 <script>
 (() => {
 'use strict';
-const TOKEN = document.querySelector('meta[name="jaba-token"]').content;
+const TOKEN = document.querySelector('meta[name="secretary-token"]').content;
 let BOOT = {};
 try { BOOT = JSON.parse(document.getElementById('boot').textContent || '{}'); } catch (e) {}
-const TITLE = BOOT.title || 'jaba · 일정 비서';
+const TITLE = BOOT.title || 'Secretary–1 · 일정 비서';
 const ALERTS = BOOT.alerts || {with_location: [15, 5, 1], without_location: [5, 1], poll_ms: 10000, enabled: true};
 const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const WD = ['일','월','화','수','목','금','토'];
@@ -600,11 +596,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function restart(node, cls){ node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
 
 async function api(path, body){
-  const opt = {method: body ? 'POST' : 'GET', headers: {'X-Jaba-Token': TOKEN}};
+  const opt = {method: body ? 'POST' : 'GET', headers: {'X-Secretary-Token': TOKEN}};
   if (body){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
   let res;
   try { res = await fetch(path, opt); }
-  catch (e) { return {error: 'jaba 서버에 연결할 수 없습니다. 꺼져 있으면 jaba.bat 으로 다시 켜세요.', offline: true}; }
+  catch (e) { return {error: 'Secretary–1 서버에 연결할 수 없습니다. 꺼져 있으면 secretary-1.bat 으로 다시 켜세요.', offline: true}; }
   let data = {};
   try { data = await res.json(); } catch (e) {}
   if (res.status === 401) data.error = '서버가 다시 시작됐습니다. 새로고침(F5) 해주세요.';
@@ -640,7 +636,7 @@ function seg7(text, blinkColon){
   return '<svg class="seg" viewBox="-3 0 ' + (x + 2) + ' 22" aria-hidden="true">' + body + '</svg>';
 }
 
-/* ── 마스코트 "JB-1": 네모 화면 얼굴 + 노브 + 안테나 불빛. 선 · 기본 도형만 (OP-1 화면 그림처럼) */
+/* ── 마스코트 (Secretary–1 의 얼굴): 네모 화면 얼굴 + 노브 + 안테나 불빛. 선 · 기본 도형만 (OP-1 화면 그림처럼) */
 const FACES = {
   idle:   {eyes: 'sq'},
   blink:  {eyes: 'line'},
@@ -751,7 +747,7 @@ function addAct(a, cls){
   const d = el('div', 'act' + (a.ok === false ? ' bad' : '') + (cls ? ' ' + cls : ''));
   logEl.appendChild(d); scramble(d, (a.icon || '→ ') + a.tool + (a.text ? ' · ' + a.text : '')); scrollLog();
 }
-function addSys(text){ logEl.appendChild(el('div', 'sys', text)); scrollLog(); }
+function addSys(text, info){ logEl.appendChild(el('div', 'sys' + (info ? ' info' : ''), text)); scrollLog(); }  // info: 오류가 아닌 알림
 
 /* ── 제안 카드 */
 const STATUS = {pending: '대기', done: '반영됨', cancelled: '취소됨', failed: '실패', undone: '되돌림'};
@@ -1077,7 +1073,7 @@ $('#model').addEventListener('change', async () => {
   modelName = r.model;
   setLed('llm', '', modelName);
   setMode(r.mode);
-  addSys('모델 → ' + modelName + (r.saved ? ' (다음 실행에도 유지)' : ''));
+  addSys('모델 → ' + modelName + (r.saved ? ' (다음 실행에도 유지)' : ''), true);
   msgEl.focus();
 });
 
@@ -1252,7 +1248,7 @@ function flashTitle(text){
   let on = false, n = 0;
   clearInterval(flashTimer);
   flashTimer = setInterval(() => {
-    on = !on; document.title = on ? 'jaba · ● ' + text : TITLE;
+    on = !on; document.title = on ? TITLE.split(' · ')[0] + ' · ● ' + text : TITLE;  // 앞머리가 같아야 단축키가 창을 찾는다
     if (++n > 30 || document.hasFocus()){ clearInterval(flashTimer); document.title = TITLE; }
   }, 1000);
 }
@@ -1350,7 +1346,7 @@ $('#reset').addEventListener('click', async () => {
 $('#toast-x').addEventListener('click', () => $('#toast').classList.remove('show'));
 $('#power').addEventListener('click', async () => {
   if (document.body.classList.contains('off')) return;
-  if (!confirm('jaba 를 끌까요? (알림도 멈춥니다)')) return;
+  if (!confirm('Secretary–1 을 끌까요? (알림도 멈춥니다)')) return;
   setMood('sleep');
   await api('/api/shutdown', {});
   timers.forEach(clearInterval);
@@ -1369,7 +1365,7 @@ async function bootFx(){
   drawMascot('blink');
   setCount('88:88', '');
   $('#next-title').textContent = 'self-test';
-  $('#next-meta').textContent = 'jaba ' + (BOOT.version || '');
+  $('#next-meta').textContent = 'Secretary–1 ' + (BOOT.version || '');
   if (REDUCED){ return; }
   document.body.classList.add('booting');
   await sleep(750);

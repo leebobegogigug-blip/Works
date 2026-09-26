@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""jaba 단위·통합 테스트 (표준 라이브러리 unittest)."""
+"""Secretary–1 단위·통합 테스트 (표준 라이브러리 unittest)."""
 import bisect
 import contextlib
 import io
@@ -26,18 +26,24 @@ if hasattr(time, "tzset"):  # POSIX: 한국 시간 기준으로 고정 (Windows 
     time.tzset()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-import jaba  # noqa: E402
-from jaba import Event, LLMReply, ToolCall  # noqa: E402
+import importlib.util  # noqa: E402
+
+# secretary-1.py 는 이름에 '-' 가 있어 import 문으로는 못 부른다 → 파일에서 직접 읽어 'secretary' 모듈로 등록
+_spec = importlib.util.spec_from_file_location("secretary", os.path.join(ROOT, "secretary-1.py"))
+sec = importlib.util.module_from_spec(_spec)
+sys.modules["secretary"] = sec
+_spec.loader.exec_module(sec)
+Event, LLMReply, ToolCall = sec.Event, sec.LLMReply, sec.ToolCall
 
 
 def cfg_for(db_path, **over):
-    cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"calendar": {"backend": "local", "local_db": db_path},
+    cfg = sec.deep_merge(sec.DEFAULT_CONFIG, {"calendar": {"backend": "local", "local_db": db_path},
                                                 "llm": {"base_url": "http://x/v1", "model": "m"},
                                                 "learn_file": os.path.join(os.path.dirname(db_path), "rules.json"),
                                                 "wiki_file": os.path.join(os.path.dirname(db_path), "wiki.json"),
                                                 "alerts": {"windows_toast": False}})  # 테스트 중 진짜 윈도우 알림 금지
-    cfg = jaba.deep_merge(cfg, over)
-    jaba.validate_config(cfg)
+    cfg = sec.deep_merge(cfg, over)
+    sec.validate_config(cfg)
     return cfg
 
 
@@ -84,7 +90,7 @@ def next_weekday(d, wd):
 
 class TestDates(unittest.TestCase):
     def test_parse_variants(self):
-        p = jaba.parse_dt
+        p = sec.parse_dt
         self.assertEqual(p("2026-09-25T15:00"), datetime(2026, 9, 25, 15, 0))
         self.assertEqual(p("2026-09-25 15:00"), datetime(2026, 9, 25, 15, 0))
         self.assertEqual(p("2026/9/5 9:05"), datetime(2026, 9, 5, 9, 5))
@@ -98,47 +104,47 @@ class TestDates(unittest.TestCase):
             return aware.astimezone().replace(tzinfo=None)
         utc6 = datetime(2026, 9, 25, 6, 0, tzinfo=timezone.utc)
         kst15 = datetime(2026, 9, 25, 15, 0, tzinfo=timezone(timedelta(hours=9)))
-        self.assertEqual(jaba.parse_dt("2026-09-25T06:00:00Z"), local(utc6))
-        self.assertEqual(jaba.parse_dt("2026-09-25T15:00+09:00"), local(kst15))
-        self.assertEqual(jaba.parse_dt("2026-09-25T15:00+0900"), local(kst15))
-        self.assertEqual(jaba.parse_dt(utc6), local(utc6))
+        self.assertEqual(sec.parse_dt("2026-09-25T06:00:00Z"), local(utc6))
+        self.assertEqual(sec.parse_dt("2026-09-25T15:00+09:00"), local(kst15))
+        self.assertEqual(sec.parse_dt("2026-09-25T15:00+0900"), local(kst15))
+        self.assertEqual(sec.parse_dt(utc6), local(utc6))
 
     def test_parse_errors(self):
         for bad in ("내일 3시", "2026-13-01", "", None, "15:00"):
             with self.assertRaises(ValueError):
-                jaba.parse_dt(bad)
+                sec.parse_dt(bad)
 
     def test_format(self):
         s, e = datetime(2026, 9, 28, 15), datetime(2026, 9, 28, 16)
-        self.assertEqual(jaba.fmt_range(s, e), "09-28(월) 15:00–16:00")
-        self.assertEqual(jaba.fmt_range(datetime(2026, 9, 28), datetime(2026, 9, 29), True), "09-28(월) 종일")
-        self.assertEqual(jaba.fmt_range(datetime(2026, 9, 28), datetime(2026, 9, 30), True), "09-28(월)~09-29(화) 종일")
-        self.assertEqual(jaba.fmt_range(datetime(2026, 9, 28, 23), datetime(2026, 9, 29)), "09-28(월) 23:00–24:00")
-        self.assertIn("–", jaba.fmt_range(datetime(2026, 9, 28, 22), datetime(2026, 9, 29, 2)))
+        self.assertEqual(sec.fmt_range(s, e), "09-28(월) 15:00–16:00")
+        self.assertEqual(sec.fmt_range(datetime(2026, 9, 28), datetime(2026, 9, 29), True), "09-28(월) 종일")
+        self.assertEqual(sec.fmt_range(datetime(2026, 9, 28), datetime(2026, 9, 30), True), "09-28(월)~09-29(화) 종일")
+        self.assertEqual(sec.fmt_range(datetime(2026, 9, 28, 23), datetime(2026, 9, 29)), "09-28(월) 23:00–24:00")
+        self.assertIn("–", sec.fmt_range(datetime(2026, 9, 28, 22), datetime(2026, 9, 29, 2)))
 
     def test_ceil(self):
-        self.assertEqual(jaba.ceil_minutes(datetime(2026, 9, 25, 10, 47)), datetime(2026, 9, 25, 11, 0))
-        self.assertEqual(jaba.ceil_minutes(datetime(2026, 9, 25, 10, 30)), datetime(2026, 9, 25, 10, 30))
-        self.assertEqual(jaba.ceil_minutes(datetime(2026, 9, 25, 10, 30, 5)), datetime(2026, 9, 25, 11, 0))
-        self.assertEqual(jaba.ceil_minutes(datetime(2026, 9, 25, 23, 50)), datetime(2026, 9, 26, 0, 0))
+        self.assertEqual(sec.ceil_minutes(datetime(2026, 9, 25, 10, 47)), datetime(2026, 9, 25, 11, 0))
+        self.assertEqual(sec.ceil_minutes(datetime(2026, 9, 25, 10, 30)), datetime(2026, 9, 25, 10, 30))
+        self.assertEqual(sec.ceil_minutes(datetime(2026, 9, 25, 10, 30, 5)), datetime(2026, 9, 25, 11, 0))
+        self.assertEqual(sec.ceil_minutes(datetime(2026, 9, 25, 23, 50)), datetime(2026, 9, 26, 0, 0))
 
 
 class TestConfig(unittest.TestCase):
     def test_models_list_validated(self):
-        cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {"models": ["a", ""]}})
-        with self.assertRaises(jaba.ConfigError):
-            jaba.validate_config(cfg)
+        cfg = sec.deep_merge(sec.DEFAULT_CONFIG, {"llm": {"models": ["a", ""]}})
+        with self.assertRaises(sec.ConfigError):
+            sec.validate_config(cfg)
 
     def test_create_and_merge(self):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "config.json")
-            cfg, created = jaba.load_config(path)
+            cfg, created = sec.load_config(path)
             self.assertTrue(created and os.path.exists(path))
             self.assertEqual(cfg["calendar"]["backend"], "local")
             self.assertEqual(cfg["theme"], "dark")
             with open(path, "w", encoding="utf-8-sig") as f:  # 메모장 BOM 저장 대응
                 json.dump({"llm": {"model": "사내모델"}, "work_hours": {"start": "08:30"}}, f, ensure_ascii=False)
-            cfg, created = jaba.load_config(path)
+            cfg, created = sec.load_config(path)
             self.assertFalse(created)
             self.assertEqual(cfg["llm"]["model"], "사내모델")
             self.assertEqual(cfg["work_hours"]["start"], "08:30")
@@ -149,51 +155,55 @@ class TestConfig(unittest.TestCase):
             path = os.path.join(d, "config.json")
             with open(path, "w", encoding="utf-8") as f:
                 f.write("{ broken json")
-            with self.assertRaises(jaba.ConfigError):
-                jaba.load_config(path)
+            with self.assertRaises(sec.ConfigError):
+                sec.load_config(path)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump({"work_hours": {"start": "18:00", "end": "09:00"}}, f)
-            with self.assertRaises(jaba.ConfigError):
-                jaba.load_config(path)
+            with self.assertRaises(sec.ConfigError):
+                sec.load_config(path)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump({"calendar": {"backend": "google"}}, f)
-            with self.assertRaises(jaba.ConfigError):
-                jaba.load_config(path)
+            with self.assertRaises(sec.ConfigError):
+                sec.load_config(path)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump({"theme": "neon"}, f)
-            with self.assertRaises(jaba.ConfigError):
-                jaba.load_config(path)
+            with self.assertRaises(sec.ConfigError):
+                sec.load_config(path)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump({"theme": " System "}, f)
-            self.assertEqual(jaba.load_config(path)[0]["theme"], "system")
+            self.assertEqual(sec.load_config(path)[0]["theme"], "system")
 
     def test_env_override(self):
         with tempfile.TemporaryDirectory() as d:
-            os.environ["JABA_API_KEY"] = "secret-from-env"
+            os.environ["JABA_API_KEY"] = "secret-from-old-env"   # 예전 이름도 계속 읽는다
             try:
-                cfg, _ = jaba.load_config(os.path.join(d, "config.json"))
-                self.assertEqual(cfg["llm"]["api_key"], "secret-from-env")
+                cfg, _ = sec.load_config(os.path.join(d, "config.json"))
+                self.assertEqual(cfg["llm"]["api_key"], "secret-from-old-env")
+                os.environ["SECRETARY_API_KEY"] = "secret-from-env"
+                cfg, _ = sec.load_config(os.path.join(d, "config.json"))
+                self.assertEqual(cfg["llm"]["api_key"], "secret-from-env")  # 새 이름이 우선
             finally:
-                del os.environ["JABA_API_KEY"]
+                os.environ.pop("JABA_API_KEY", None)
+                os.environ.pop("SECRETARY_API_KEY", None)
 
 
 class TestFreeSlots(unittest.TestCase):
     def ev(self, s, e, busy=True):
-        return Event(id=s, title="x", start=jaba.parse_dt(s), end=jaba.parse_dt(e), busy=busy)
+        return Event(id=s, title="x", start=sec.parse_dt(s), end=sec.parse_dt(e), busy=busy)
 
     def test_gaps(self):
         evs = [self.ev("2026-09-25T10:00", "2026-09-25T11:00"),
                self.ev("2026-09-25T13:00", "2026-09-25T14:30"),
                self.ev("2026-09-25T15:00", "2026-09-25T15:30", busy=False)]
-        slots = jaba.free_slots(evs, datetime(2026, 9, 25, 9), datetime(2026, 9, 25, 18), 60,
-                                jaba.parse_hhmm("09:00"), jaba.parse_hhmm("18:00"), [0, 1, 2, 3, 4])
+        slots = sec.free_slots(evs, datetime(2026, 9, 25, 9), datetime(2026, 9, 25, 18), 60,
+                                sec.parse_hhmm("09:00"), sec.parse_hhmm("18:00"), [0, 1, 2, 3, 4])
         self.assertEqual([(a.strftime("%H:%M"), b.strftime("%H:%M")) for a, b in slots],
                          [("09:00", "10:00"), ("11:00", "13:00"), ("14:30", "18:00")])
 
     def test_weekend_and_rounding(self):
         # 금 16:47 시작 → 17:00 부터, 주말 건너뛰고 월요일
-        slots = jaba.free_slots([], datetime(2026, 9, 25, 16, 47), datetime(2026, 9, 28, 12), 45,
-                                jaba.parse_hhmm("09:00"), jaba.parse_hhmm("18:00"), [0, 1, 2, 3, 4])
+        slots = sec.free_slots([], datetime(2026, 9, 25, 16, 47), datetime(2026, 9, 28, 12), 45,
+                                sec.parse_hhmm("09:00"), sec.parse_hhmm("18:00"), [0, 1, 2, 3, 4])
         self.assertEqual(slots[0], (datetime(2026, 9, 25, 17, 0), datetime(2026, 9, 25, 18, 0)))
         self.assertEqual(slots[1], (datetime(2026, 9, 28, 9, 0), datetime(2026, 9, 28, 12, 0)))
         self.assertEqual(len(slots), 2)
@@ -202,8 +212,8 @@ class TestFreeSlots(unittest.TestCase):
         evs = [self.ev("2026-09-25T09:00", "2026-09-25T12:00"),
                self.ev("2026-09-25T10:00", "2026-09-25T11:00"),
                self.ev("2026-09-25T11:30", "2026-09-25T17:40")]
-        slots = jaba.free_slots(evs, datetime(2026, 9, 25, 9), datetime(2026, 9, 25, 18), 30,
-                                jaba.parse_hhmm("09:00"), jaba.parse_hhmm("18:00"), [4])
+        slots = sec.free_slots(evs, datetime(2026, 9, 25, 9), datetime(2026, 9, 25, 18), 30,
+                                sec.parse_hhmm("09:00"), sec.parse_hhmm("18:00"), [4])
         self.assertEqual(slots, [])
 
 
@@ -212,7 +222,7 @@ class TestFreeSlots(unittest.TestCase):
 class TestLocalCalendar(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.cal = jaba.LocalCalendar(os.path.join(self.tmp.name, "t.db"))
+        self.cal = sec.LocalCalendar(os.path.join(self.tmp.name, "t.db"))
 
     def tearDown(self):
         self.cal.db.close()
@@ -246,9 +256,9 @@ class AgentBase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.cfg = cfg_for(os.path.join(self.tmp.name, "a.db"))
-        self.cal = jaba.CalendarService(self.cfg)
+        self.cal = sec.CalendarService(self.cfg)
         self.assertTrue(self.cal.ok, self.cal.error)
-        self.day = next_weekday(jaba.start_of_day(datetime.now()), 0)  # 다음 월요일
+        self.day = next_weekday(sec.start_of_day(datetime.now()), 0)  # 다음 월요일
 
     def tearDown(self):
         self.cal.close()  # Windows 는 열린 DB 파일이 있으면 임시 폴더를 못 지운다
@@ -256,11 +266,11 @@ class AgentBase(unittest.TestCase):
 
     def agent(self, steps, mode="native"):
         self.llm = ScriptLLM(steps, mode)
-        return jaba.Agent(self.cfg, self.cal, self.llm)
+        return sec.Agent(self.cfg, self.cal, self.llm)
 
     def iso(self, h, m=0, day=None):
         d = day or self.day
-        return jaba.fmt_iso(d.replace(hour=h, minute=m))
+        return sec.fmt_iso(d.replace(hour=h, minute=m))
 
 
 class TestAgentNative(AgentBase):
@@ -274,7 +284,7 @@ class TestAgentNative(AgentBase):
         self.assertEqual(len(r["proposals"]), 1)
         p = r["proposals"][0]
         self.assertEqual((p["id"], p["kind"], p["status"]), ("p1", "create", "pending"))
-        self.assertEqual(p["rows"][1][1], jaba.fmt_range(self.day.replace(hour=15), self.day.replace(hour=16)))
+        self.assertEqual(p["rows"][1][1], sec.fmt_range(self.day.replace(hour=15), self.day.replace(hour=16)))
         self.assertEqual(r["activity"][0]["tool"], "propose_create")
         self.assertEqual(self.cal.list_events(self.day, self.day + timedelta(days=1)), [])  # 확정 전엔 없음
         # 두 번째 LLM 호출 직전 메시지: assistant(tool_calls) + tool 결과
@@ -390,7 +400,7 @@ class TestAgentNative(AgentBase):
         self.assertEqual(r["reply"], "다시 알려주세요")
 
     def test_all_day_inclusive_end(self):
-        ag = self.agent([tc("propose_create", title="워크숍", start=self.iso(0), end=jaba.fmt_iso(self.day + timedelta(days=1)),
+        ag = self.agent([tc("propose_create", title="워크숍", start=self.iso(0), end=sec.fmt_iso(self.day + timedelta(days=1)),
                             all_day=True), say("ok")])
         p = ag.chat("월화 워크숍")["proposals"][0]
         self.assertIn("종일", p["rows"][1][1])
@@ -401,7 +411,7 @@ class TestAgentNative(AgentBase):
     def test_all_day_shown_as_dates_to_llm(self):
         self.cal.create_event(title="워크숍", start=self.day, end=self.day + timedelta(days=2), all_day=True)
         self.cal.create_event(title="점심", start=self.day.replace(hour=12), end=self.day.replace(hour=13))
-        ag = self.agent([tc("list_events", start=self.iso(0), end=jaba.fmt_iso(self.day + timedelta(days=3))), say("ok")])
+        ag = self.agent([tc("list_events", start=self.iso(0), end=sec.fmt_iso(self.day + timedelta(days=3))), say("ok")])
         ag.chat("일정")
         evs = json.loads(self.llm.calls[1][-1]["content"])["events"]
         ws = next(e for e in evs if e["title"] == "워크숍")
@@ -412,7 +422,7 @@ class TestAgentNative(AgentBase):
         self.assertNotIn("all_day", lunch)
 
     def test_step_limit(self):
-        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23))] * jaba.Agent.MAX_STEPS)
+        ag = self.agent([tc("list_events", start=self.iso(0), end=self.iso(23))] * sec.Agent.MAX_STEPS)
         r = ag.chat("무한루프")
         self.assertIn("너무 길어져", r["reply"])
 
@@ -420,7 +430,7 @@ class TestAgentNative(AgentBase):
         ag = self.agent([say(str(i)) for i in range(10)])
         for i in range(10):
             ag.chat(f"q{i}")
-        self.assertEqual(len(ag.turns), jaba.Agent.KEEP_TURNS)
+        self.assertEqual(len(ag.turns), sec.Agent.KEEP_TURNS)
         self.assertEqual(ag.turns[0][0]["content"], "q4")
 
     def test_free_slots_tool(self):
@@ -432,14 +442,14 @@ class TestAgentNative(AgentBase):
 
     def test_system_prompt_calendar_table(self):
         now = datetime(2026, 9, 25, 13, 5)
-        sp = jaba.build_system_prompt(self.cfg, "native", now)
+        sp = sec.build_system_prompt(self.cfg, "native", now)
         self.assertIn("2026-09-25(금) 오늘", sp)
         self.assertIn("2026-09-26(토) 내일", sp)
         self.assertIn("이번 주: 2026-09-21(월) ~ 2026-09-27(일)", sp)
         self.assertIn("다음 주: 2026-09-28(월) ~ 2026-10-04(일)", sp)
         self.assertNotIn("[도구 사용법]", sp)
-        self.assertIn("[도구 사용법]", jaba.build_system_prompt(self.cfg, "json", now))
-        self.assertIn("propose_update(event_id, title?, start?, end?, location?)", jaba.tools_as_text())
+        self.assertIn("[도구 사용법]", sec.build_system_prompt(self.cfg, "json", now))
+        self.assertIn("propose_update(event_id, title?, start?, end?, location?)", sec.tools_as_text())
 
     def test_confirm_not_blocked_by_llm_wait(self):
         """LLM 을 기다리는 동안에도 확정 버튼 · /api/state 가 바로 응답하고, 그 사이 확정한 알림은 다음 턴에 전달된다."""
@@ -518,7 +528,7 @@ class TestAgentJsonMode(AgentBase):
 
         def first(msgs, llm):
             self.assertIn("[도구 사용법]", msgs[0]["content"])
-            return LLMReply(text="", tool_calls=jaba.extract_text_tool_calls(raw), raw_text=raw, via_text=True)
+            return LLMReply(text="", tool_calls=sec.extract_text_tool_calls(raw), raw_text=raw, via_text=True)
 
         ag = self.agent([first, say("확정을 눌러주세요")], mode="json")
         r = ag.chat("월요일 점심 잡아")
@@ -540,7 +550,7 @@ class TestAgentJsonMode(AgentBase):
     def test_mode_switch_retry(self):
         def reject(msgs, llm):
             llm.active_mode = "json"
-            raise jaba.ModeSwitched()
+            raise sec.ModeSwitched()
 
         ag = self.agent([reject, say("json 모드 응답")])
         r = ag.chat("안녕")
@@ -550,9 +560,9 @@ class TestAgentJsonMode(AgentBase):
 
 # ───────────────────────────────────────────── LLM 클라이언트
 
-class FakePostClient(jaba.LLMClient):
+class FakePostClient(sec.LLMClient):
     def __init__(self, responses, **llm):
-        cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": dict({"base_url": "http://h/v1", "model": "m"}, **llm)})
+        cfg = sec.deep_merge(sec.DEFAULT_CONFIG, {"llm": dict({"base_url": "http://h/v1", "model": "m"}, **llm)})
         super().__init__(cfg)
         self.responses = list(responses)
         self.payloads = []
@@ -581,7 +591,7 @@ class TestLLMClient(unittest.TestCase):
 
     def test_not_ready(self):
         c = FakePostClient([], model="")
-        with self.assertRaises(jaba.LLMError):
+        with self.assertRaises(sec.LLMError):
             c.complete([{"role": "user", "content": "x"}])
 
     def test_native_tool_calls(self):
@@ -625,17 +635,17 @@ class TestLLMClient(unittest.TestCase):
 
     def test_reject_tools_switch(self):
         body = '{"error":{"message":"\\"auto\\" tool choice requires --enable-auto-tool-choice"}}'
-        c = FakePostClient([jaba.LLMError("400", 400, body)])
-        with self.assertRaises(jaba.ModeSwitched):
+        c = FakePostClient([sec.LLMError("400", 400, body)])
+        with self.assertRaises(sec.ModeSwitched):
             c.complete([], allow_switch=True)
         self.assertEqual(c.active_mode, "json")
-        c2 = FakePostClient([jaba.LLMError("400", 400, body)])
-        with self.assertRaises(jaba.LLMError):
+        c2 = FakePostClient([sec.LLMError("400", 400, body)])
+        with self.assertRaises(sec.LLMError):
             c2.complete([], allow_switch=False)
         self.assertEqual(c2.active_mode, "native")
         self.assertFalse(c2.last_ok)
-        c3 = FakePostClient([jaba.LLMError("400", 400, body)], tool_mode="native")
-        with self.assertRaises(jaba.LLMError):
+        c3 = FakePostClient([sec.LLMError("400", 400, body)], tool_mode="native")
+        with self.assertRaises(sec.LLMError):
             c3.complete([], allow_switch=True)
 
     def test_real_http_errors(self):
@@ -668,19 +678,19 @@ class TestLLMClient(unittest.TestCase):
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         port = srv.server_address[1]
         try:
-            ok = jaba.LLMClient(jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {
+            ok = sec.LLMClient(sec.deep_merge(sec.DEFAULT_CONFIG, {"llm": {
                 "base_url": f"http://127.0.0.1:{port}/v1", "model": "m", "api_key": "k",
                 "extra_headers": {"X-Team": "t1"}, "proxy": ""}}))
             self.assertEqual(ok.complete([{"role": "user", "content": "hi"}], use_tools=False).text, "안녕하세요")
-            bad = jaba.LLMClient(jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {
+            bad = sec.LLMClient(sec.deep_merge(sec.DEFAULT_CONFIG, {"llm": {
                 "base_url": f"http://127.0.0.1:{port}/v1", "model": "m", "api_key": "wrong", "proxy": ""}}))
-            with self.assertRaises(jaba.LLMError) as cm:
+            with self.assertRaises(sec.LLMError) as cm:
                 bad.complete([], use_tools=False)
             self.assertEqual(cm.exception.status, 401)
             # Windows 는 닫힌 포트도 SYN 을 재시도해서 '거절'이 2초쯤 뒤에 온다 → 시간 초과보다 먼저 오게 넉넉히
-            down = jaba.LLMClient(jaba.deep_merge(jaba.DEFAULT_CONFIG, {"llm": {
+            down = sec.LLMClient(sec.deep_merge(sec.DEFAULT_CONFIG, {"llm": {
                 "base_url": "http://127.0.0.1:1/v1", "model": "m", "proxy": "", "timeout_sec": 10}}))
-            with self.assertRaises(jaba.LLMError) as cm:
+            with self.assertRaises(sec.LLMError) as cm:
                 down.complete([], use_tools=False)
             self.assertIn("연결할 수 없습니다", str(cm.exception))
         finally:
@@ -827,7 +837,7 @@ class TestOutlookFake(unittest.TestCase):
         pkg.client = client
         sys.modules["win32com"] = pkg
         sys.modules["win32com.client"] = client
-        self.ol = jaba.OutlookCalendar()
+        self.ol = sec.OutlookCalendar()
         self.day = datetime(2026, 9, 28)
 
     def tearDown(self):
@@ -904,7 +914,7 @@ class TestOutlookFake(unittest.TestCase):
         sys.modules["win32com"] = None
         sys.modules["win32com.client"] = None
         with self.assertRaises(RuntimeError) as cm:
-            jaba.OutlookCalendar()
+            sec.OutlookCalendar()
         self.assertIn("pip install pywin32", str(cm.exception))
 
 
@@ -914,9 +924,9 @@ class TestServer(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.cfg = cfg_for(os.path.join(self.tmp.name, "s.db"), open_window=False, hotkey="")
-        self.app = jaba.App(self.cfg)
-        self.day = next_weekday(jaba.start_of_day(datetime.now()), 0)
-        start = jaba.fmt_iso(self.day.replace(hour=15))
+        self.app = sec.App(self.cfg)
+        self.day = next_weekday(sec.start_of_day(datetime.now()), 0)
+        start = sec.fmt_iso(self.day.replace(hour=15))
         self.app.llm = self.app.agent.llm = ScriptLLM([tc("propose_create", title="김과장 미팅", start=start), say("확정해 주세요")])
         self.thread = threading.Thread(target=self.app.serve, args=(0, False), daemon=True)
         self.thread.start()
@@ -939,7 +949,7 @@ class TestServer(unittest.TestCase):
         data = json.dumps(body).encode() if body is not None else None
         r = urllib.request.Request(self.base + path, data=data, method="POST" if data is not None else "GET")
         if token:
-            r.add_header("X-Jaba-Token", self.app.token)
+            r.add_header("X-Secretary-Token", self.app.token)
         if data is not None and ctype:
             r.add_header("Content-Type", ctype)
         if host:
@@ -953,7 +963,7 @@ class TestServer(unittest.TestCase):
 
     def test_negative_content_length(self):
         with socket.create_connection(("127.0.0.1", self.app.port), timeout=5) as c:
-            c.sendall((f"POST /api/chat HTTP/1.1\r\nHost: 127.0.0.1:{self.app.port}\r\nX-Jaba-Token: {self.app.token}\r\n"
+            c.sendall((f"POST /api/chat HTTP/1.1\r\nHost: 127.0.0.1:{self.app.port}\r\nX-Secretary-Token: {self.app.token}\r\n"
                        "Content-Type: application/json\r\nContent-Length: -1\r\nConnection: close\r\n\r\n").encode())
             self.assertIn(b" 400 ", c.recv(200))
 
@@ -964,7 +974,7 @@ class TestServer(unittest.TestCase):
         self.assertNotIn("__BOOT__", html)
         self.assertNotIn("__THEME__", html)
         self.assertIn('<html lang="ko" data-theme="dark">', html)
-        self.assertEqual(self.req("/api/ping", token=False), (200, {"app": "jaba", "version": jaba.VERSION}))
+        self.assertEqual(self.req("/api/ping", token=False), (200, {"app": "secretary-1", "version": sec.VERSION}))
         self.assertEqual(self.req("/api/state", token=False)[0], 401)
         self.assertEqual(self.req("/api/state", host="evil.example:80")[0], 403)
         self.assertEqual(self.req("/", token=False, host="attacker.test")[0], 403)
@@ -984,14 +994,14 @@ class TestServer(unittest.TestCase):
         self.assertEqual(nx["next"]["title"], "김과장 미팅")
         self.assertEqual(self.req("/api/reset", {}), (200, {"ok": True}))
         self.assertEqual(self.req("/api/state")[1]["pending"], [])
-        self.assertEqual(jaba.find_running(self.app.port), self.base + "/")
+        self.assertEqual(sec.find_running(self.app.port), self.base + "/")
         self.assertEqual(self.req("/api/shutdown", {}), (200, {"ok": True}))
         self.thread.join(5)
         self.assertFalse(self.thread.is_alive())
 
     def test_llm_error_is_reported(self):
         def boom(msgs, llm):
-            raise jaba.LLMError("LLM 서버에 연결할 수 없습니다: refused")
+            raise sec.LLMError("LLM 서버에 연결할 수 없습니다: refused")
         self.app.agent.llm.steps = [boom]
         code, r = self.req("/api/chat", {"message": "안녕"})
         self.assertEqual(code, 200)
@@ -1044,7 +1054,7 @@ class TestWindowsShims(unittest.TestCase):
                     delattr(self.ctypes, k)
             else:
                 setattr(self.ctypes, k, v)
-        jaba.IS_WINDOWS = sys.platform == "win32"
+        sec.IS_WINDOWS = sys.platform == "win32"
 
     def test_locale_datetime(self):
         def date_fmt(loc, flags, st, fmt, buf, n, cal):
@@ -1057,10 +1067,10 @@ class TestWindowsShims(unittest.TestCase):
             buf.value = "오후 3:00"
             return 7
         self.impls.update(GetDateFormatEx=date_fmt, GetTimeFormatEx=time_fmt)
-        self.assertEqual(jaba._win_locale_datetime(datetime(2026, 9, 28, 15, 0)), "2026-09-28 오후 3:00")
+        self.assertEqual(sec._win_locale_datetime(datetime(2026, 9, 28, 15, 0)), "2026-09-28 오후 3:00")
 
     def test_focus_existing_window(self):
-        title = "jaba · 일정 비서"
+        title = "Secretary–1 · 일정 비서"
 
         def enum(cb, lparam):
             for hwnd in (111, 222):
@@ -1074,12 +1084,12 @@ class TestWindowsShims(unittest.TestCase):
         self.impls.update(EnumWindows=enum, GetWindowTextW=text, GetWindowTextLengthW=lambda h: 20,
                           IsWindowVisible=lambda h: 1, IsIconic=lambda h: 1)
         opened = []
-        orig = jaba.open_app_window
-        jaba.open_app_window = opened.append
+        orig = sec.open_app_window
+        sec.open_app_window = opened.append
         try:
-            jaba.focus_or_open("http://127.0.0.1:8765/")
+            sec.focus_or_open("http://127.0.0.1:8765/")
         finally:
-            jaba.open_app_window = orig
+            sec.open_app_window = orig
         self.assertEqual(opened, [])
         self.assertIn("ShowWindow", self.calls)
         self.assertEqual(self.calls[-1], "SetForegroundWindow")
@@ -1087,12 +1097,12 @@ class TestWindowsShims(unittest.TestCase):
     def test_focus_opens_when_missing(self):
         self.impls.update(EnumWindows=lambda cb, lp: 1)
         opened = []
-        orig = jaba.open_app_window
-        jaba.open_app_window = opened.append
+        orig = sec.open_app_window
+        sec.open_app_window = opened.append
         try:
-            jaba.focus_or_open("http://127.0.0.1:8765/")
+            sec.focus_or_open("http://127.0.0.1:8765/")
         finally:
-            jaba.open_app_window = orig
+            sec.open_app_window = orig
         self.assertEqual(opened, ["http://127.0.0.1:8765/"])
 
     def test_hotkey_loop(self):
@@ -1106,22 +1116,22 @@ class TestWindowsShims(unittest.TestCase):
                 return 1
             return 0
         self.impls.update(RegisterHotKey=lambda h, i, m, vk: 1, GetMessageW=get_message)
-        jaba.IS_WINDOWS = True
-        jaba.start_hotkey("ctrl+alt+j", fired.set)
+        sec.IS_WINDOWS = True
+        sec.start_hotkey("ctrl+alt+j", fired.set)
         self.assertTrue(fired.wait(3))
 
     def test_launcher(self):
         with tempfile.TemporaryDirectory() as d:
-            orig = jaba.BASE_DIR
-            jaba.BASE_DIR = d
+            orig = sec.BASE_DIR
+            sec.BASE_DIR = d
             try:
-                jaba.ensure_launcher()
-                with open(os.path.join(d, "jaba.bat"), "rb") as f:
+                sec.ensure_launcher()
+                with open(os.path.join(d, "secretary-1.bat"), "rb") as f:
                     data = f.read().decode("ascii")
             finally:
-                jaba.BASE_DIR = orig
-        self.assertIn('start "jaba" /min', data)
-        self.assertIn('"%~dp0jaba.py"', data)
+                sec.BASE_DIR = orig
+        self.assertIn('start "secretary-1" /min', data)
+        self.assertIn('"%~dp0secretary-1.py"', data)
         self.assertTrue(data.endswith("\r\n"))
 
 
@@ -1136,29 +1146,29 @@ class TestRuleBook(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_failed_write_changes_nothing(self):
-        rb = jaba.RuleBook(self.path)
+        rb = sec.RuleBook(self.path)
         real = os.replace
 
         def boom(a, b):
             raise PermissionError("백신이 잡고 있음")
-        jaba.os.replace = boom
+        sec.os.replace = boom
         try:
             with self.assertRaises(PermissionError):
                 rb.add("스크럼은 15분")
         finally:
-            jaba.os.replace = real
+            sec.os.replace = real
         self.assertEqual((rb.all(), rb.seq), ([], 0))
         self.assertEqual(rb.add("스크럼은 15분")[0]["id"], "r1")
 
     def test_crud_and_persist(self):
-        rb = jaba.RuleBook(self.path)
+        rb = sec.RuleBook(self.path)
         r1, c1 = rb.add("  스크럼은   항상 15분 ")
         self.assertEqual((r1["id"], r1["text"], c1), ("r1", "스크럼은 항상 15분", True))
         self.assertEqual(rb.add("스크럼은 항상 15분")[1], False)  # 중복은 새로 안 만듦
         r2, _ = rb.add("금요일 오후엔 회의 금지", "manual")
         self.assertEqual(rb.update("2", "금요일 오후엔 회의 잡지 마")["text"], "금요일 오후엔 회의 잡지 마")
         self.assertIn("- r1: 스크럼은 항상 15분", rb.prompt_lines())
-        again = jaba.RuleBook(self.path)  # 다시 읽어도 그대로
+        again = sec.RuleBook(self.path)  # 다시 읽어도 그대로
         self.assertEqual([r["id"] for r in again.all()], ["r1", "r2"])
         self.assertEqual(again.remove("r1")["text"], "스크럼은 항상 15분")
         self.assertEqual(again.add("새 규칙")[0]["id"], "r3")  # 지운 번호 재사용 안 함
@@ -1171,15 +1181,15 @@ class TestRuleBook(unittest.TestCase):
     def test_broken_file(self):
         with open(self.path, "w", encoding="utf-8") as f:
             f.write("{not json")
-        rb = jaba.RuleBook(self.path)
+        rb = sec.RuleBook(self.path)
         self.assertIn("새로 시작", rb.error)
         self.assertEqual(rb.all(), [])
         self.assertTrue(os.path.exists(self.path + ".broken"))
         rb.add("복구 후 규칙")
-        self.assertEqual(len(jaba.RuleBook(self.path).all()), 1)
+        self.assertEqual(len(sec.RuleBook(self.path).all()), 1)
 
     def test_limit(self):
-        rb = jaba.RuleBook(self.path)
+        rb = sec.RuleBook(self.path)
         rb.MAX_RULES = 2
         rb.add("a")
         rb.add("b")
@@ -1190,8 +1200,8 @@ class TestRuleBook(unittest.TestCase):
 class TestAgentLearning(AgentBase):
     def agent(self, steps, mode="native"):
         self.llm = ScriptLLM(steps, mode)
-        self.rules = jaba.RuleBook(self.cfg["learn_file"])
-        return jaba.Agent(self.cfg, self.cal, self.llm, self.rules)
+        self.rules = sec.RuleBook(self.cfg["learn_file"])
+        return sec.Agent(self.cfg, self.cal, self.llm, self.rules)
 
     def test_llm_learns_and_prompt_includes_rules(self):
         def second(msgs, llm):
@@ -1214,7 +1224,7 @@ class TestAgentLearning(AgentBase):
         self.assertEqual(self.rules.all(), [])  # 확정 전엔 저장 안 됨
         self.assertEqual(ag.confirm("p1")["status"], "done")
         ag.chat("내일 스크럼 잡아")
-        self.assertEqual(len(jaba.RuleBook(self.cfg["learn_file"]).all()), 1)
+        self.assertEqual(len(sec.RuleBook(self.cfg["learn_file"]).all()), 1)
 
     def test_llm_rule_cancel_and_duplicate(self):
         """일정 제목 속 지시 같은 것에 넘어가 remember_rule 을 불러도, 사용자가 확정하지 않으면 저장되지 않는다."""
@@ -1253,7 +1263,7 @@ class TestAgentLearning(AgentBase):
         self.assertEqual(self.llm.calls, [])
 
     def test_no_rulebook(self):
-        ag = jaba.Agent(self.cfg, self.cal, ScriptLLM([]))
+        ag = sec.Agent(self.cfg, self.cal, ScriptLLM([]))
         self.assertIn("꺼져", ag.chat("/학습 x")["reply"])
 
 
@@ -1274,7 +1284,7 @@ class FakeNotifier:
         self.ok_value = ok
         self.shown = []
 
-    def show(self, title, body, tag="jaba"):
+    def show(self, title, body, tag="secretary-1"):
         self.shown.append((title, body, tag))
         return self.ok_value
 
@@ -1294,14 +1304,14 @@ class TestAlertScheduler(unittest.TestCase):
         self.no_loc = Event(id="B", title="개인 작업", start=self.start, end=self.start + timedelta(minutes=30))
         self.clock = Clock(self.start - timedelta(minutes=20))
         self.notifier = FakeNotifier()
-        cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {})
-        jaba.validate_config(cfg)
+        cfg = sec.deep_merge(sec.DEFAULT_CONFIG, {})
+        sec.validate_config(cfg)
         self.cfg = cfg
 
     def sched(self, events, **alerts):
-        cfg = jaba.deep_merge(self.cfg, {"alerts": alerts}) if alerts else self.cfg
-        jaba.validate_config(cfg)
-        return jaba.AlertScheduler(cfg, FakeCal(events), self.notifier, self.clock)
+        cfg = sec.deep_merge(self.cfg, {"alerts": alerts}) if alerts else self.cfg
+        sec.validate_config(cfg)
+        return sec.AlertScheduler(cfg, FakeCal(events), self.notifier, self.clock)
 
     def at(self, s, minutes_before, seconds=0):
         self.clock.t = self.start - timedelta(minutes=minutes_before) + timedelta(seconds=seconds)
@@ -1349,55 +1359,55 @@ class TestAlertScheduler(unittest.TestCase):
 
     def test_config_validation(self):
         for bad in ({"with_location": "15"}, {"without_location": [5, -1]}, {"with_location": [True]}):
-            cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"alerts": bad})
-            with self.assertRaises(jaba.ConfigError):
-                jaba.validate_config(cfg)
-        cfg = jaba.deep_merge(jaba.DEFAULT_CONFIG, {"alerts": {"with_location": [1, 15, 5, 5], "poll_sec": 0}})
-        jaba.validate_config(cfg)
+            cfg = sec.deep_merge(sec.DEFAULT_CONFIG, {"alerts": bad})
+            with self.assertRaises(sec.ConfigError):
+                sec.validate_config(cfg)
+        cfg = sec.deep_merge(sec.DEFAULT_CONFIG, {"alerts": {"with_location": [1, 15, 5, 5], "poll_sec": 0}})
+        sec.validate_config(cfg)
         self.assertEqual(cfg["alerts"]["with_location"], [15, 5, 1])
         self.assertEqual(cfg["alerts"]["poll_sec"], 0.5)
 
 
 class TestWindowsToastUnit(unittest.TestCase):
     def tearDown(self):
-        jaba.IS_WINDOWS = sys.platform == "win32"
+        sec.IS_WINDOWS = sys.platform == "win32"
 
     def test_plain_command_and_xml(self):
-        x = jaba.WindowsToast.xml("5분 뒤 · <A&B>", "O'Neil @3A")
+        x = sec.WindowsToast.xml("5분 뒤 · <A&B>", "O'Neil @3A")
         self.assertIn("&lt;A&amp;B&gt;", x)
         self.assertIn("O'Neil @3A", x)
-        s = jaba.WindowsToast.SCRIPT
+        s = sec.WindowsToast.SCRIPT
         self.assertTrue(s.isascii())  # 제목·본문(한글)은 명령이 아니라 환경변수로 넘긴다
-        self.assertIn("$x.LoadXml($env:JABA_TOAST_XML)", s)
+        self.assertIn("$x.LoadXml($env:SECRETARY_TOAST_XML)", s)
         self.assertIn("CreateToastNotifier('{1AC14E77", s)
 
     def test_show_paths(self):
-        jaba.IS_WINDOWS = False
-        self.assertFalse(jaba.WindowsToast(True).show("t", "b"))  # Windows 가 아니면 꺼짐
-        jaba.IS_WINDOWS = True
+        sec.IS_WINDOWS = False
+        self.assertFalse(sec.WindowsToast(True).show("t", "b"))  # Windows 가 아니면 꺼짐
+        sec.IS_WINDOWS = True
         calls = []
-        orig = jaba.subprocess.run
+        orig = sec.subprocess.run
 
         def fake_run(args, **kw):
             calls.append((args, kw))
             return types.SimpleNamespace(returncode=calls and len(calls) - 1, stdout=b"", stderr="CLM 차단".encode("cp949"))
-        jaba.subprocess.run = fake_run
+        sec.subprocess.run = fake_run
         try:
-            toast = jaba.WindowsToast(True)
+            toast = sec.WindowsToast(True)
             self.assertTrue(toast.show("제목", "본문"))
             self.assertTrue(toast.ok)
             args, kw = calls[0]
-            self.assertEqual(args, ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", jaba.WindowsToast.SCRIPT])
+            self.assertEqual(args, ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", sec.WindowsToast.SCRIPT])
             for bad in ("-EncodedCommand", "-ExecutionPolicy", "Bypass", "-WindowStyle"):  # 보안 솔루션이 싫어하는 형태 금지
                 self.assertNotIn(bad, " ".join(args))
             self.assertEqual(kw["creationflags"], 0x08000000)
-            self.assertIn("<text>제목</text><text>본문</text>", kw["env"]["JABA_TOAST_XML"])
-            self.assertEqual(kw["env"]["JABA_TOAST_TAG"], "jaba")
+            self.assertIn("<text>제목</text><text>본문</text>", kw["env"]["SECRETARY_TOAST_XML"])
+            self.assertEqual(kw["env"]["SECRETARY_TOAST_TAG"], "secretary-1")
             self.assertFalse(toast.show("제목", "본문"))
             self.assertEqual((toast.ok, toast.last_error), (False, "CLM 차단"))
-            self.assertFalse(jaba.WindowsToast(False).show("x", "y"))
+            self.assertFalse(sec.WindowsToast(False).show("x", "y"))
         finally:
-            jaba.subprocess.run = orig
+            sec.subprocess.run = orig
 
 
 class TestServerV2(TestServer):
@@ -1409,14 +1419,14 @@ class TestServerV2(TestServer):
         with open(cfg_path, "w", encoding="utf-8") as f:
             json.dump({"llm": {"base_url": "http://x/v1", "model": "m", "api_key": "비밀"}}, f)
         self.app.config_path = cfg_path
-        llm = jaba.LLMClient(jaba.deep_merge(self.cfg, {"llm": {"models": ["m", "m2"]}}))
+        llm = sec.LLMClient(sec.deep_merge(self.cfg, {"llm": {"models": ["m", "m2"]}}))
         llm.list_models = lambda: ["m", "qwen3-32b"]  # 서버의 /v1/models
         llm.active_mode = "json"
         self.app.llm = self.app.agent.llm = llm
         real_list = llm.list_models
 
         def refuse():
-            raise jaba.LLMError("모델 목록을 받지 못했습니다 (404)", 404)
+            raise sec.LLMError("모델 목록을 받지 못했습니다 (404)", 404)
         llm.list_models = refuse
         code, r = self.req("/api/models")
         self.assertEqual((r["models"], r["error"]), (["m", "m2"], "모델 목록을 받지 못했습니다 (404)"))  # 막혀도 설정 목록은
@@ -1444,7 +1454,7 @@ class TestServerV2(TestServer):
         ev = self.app.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
         self.assertEqual(self.req("/api/wiki")[1]["pages"], [])
         self.assertEqual(self.req("/api/wiki", token=False)[0], 401)
-        w = self.app.wiki.save(jaba.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서"]}))
+        w = self.app.wiki.save(sec.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서"]}))
         code, r = self.req("/api/events?date=" + self.day.strftime("%Y-%m-%d"))
         self.assertEqual([e["wiki"] for e in r["events"]], [w["id"]])
         self.assertEqual(self.req(f"/api/wiki?id={w['id']}")[1]["page"]["prep"], ["견적서"])
@@ -1490,40 +1500,40 @@ class TestServerV2(TestServer):
         self.assertEqual((r["rules"], r["learned"][0]["id"]), (1, "r2"))
 
     def test_status_and_stop(self):
-        self.assertFalse(jaba._port_free(self.app.port))  # 켜진 포트는 bind 로 바로 판별 (연결 시도 없음)
-        self.assertEqual(jaba.wait_running(self.app.port, 0), self.base + "/")
+        self.assertFalse(sec._port_free(self.app.port))  # 켜진 포트는 bind 로 바로 판별 (연결 시도 없음)
+        self.assertEqual(sec.wait_running(self.app.port, 0), self.base + "/")
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            self.assertEqual(jaba.stop_running(self.app.port), 0)  # 화면이 쓰는 토큰으로 /api/shutdown
+            self.assertEqual(sec.stop_running(self.app.port), 0)  # 화면이 쓰는 토큰으로 /api/shutdown
         self.assertIn("껐습니다", out.getvalue())
         self.thread.join(5)
         self.assertFalse(self.thread.is_alive())
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(jaba.stop_running(self.app.port), 0)  # 이미 꺼져 있어도 성공
+            self.assertEqual(sec.stop_running(self.app.port), 0)  # 이미 꺼져 있어도 성공
         probe = socket.socket()
         probe.bind(("127.0.0.1", 0))
         free = probe.getsockname()[1]
         probe.close()
-        self.assertTrue(jaba._port_free(free))
+        self.assertTrue(sec._port_free(free))
         pinged = []
 
         def no_connect(*a, **k):
             pinged.append(a)
             raise OSError("연결하면 안 됨")
-        saved = jaba._port_free, jaba._LOCAL_OPENER
-        jaba._port_free, jaba._LOCAL_OPENER = (lambda p: True), types.SimpleNamespace(open=no_connect)
+        saved = sec._port_free, sec._LOCAL_OPENER
+        sec._port_free, sec._LOCAL_OPENER = (lambda p: True), types.SimpleNamespace(open=no_connect)
         try:
-            self.assertIsNone(jaba.find_running(free))
+            self.assertIsNone(sec.find_running(free))
             self.assertEqual(pinged, [])  # 빈 포트에는 연결을 시도하지 않는다 (Windows 에선 거절도 느리다)
         finally:
-            jaba._port_free, jaba._LOCAL_OPENER = saved
+            sec._port_free, sec._LOCAL_OPENER = saved
 
     def test_font_route(self):
-        with self.opener.open(self.base + jaba.FONT_URL, timeout=10) as r:  # 토큰 없이 (@font-face 요청)
+        with self.opener.open(self.base + sec.FONT_URL, timeout=10) as r:  # 토큰 없이 (@font-face 요청)
             self.assertEqual((r.status, r.headers["Content-Type"]), (200, "font/woff"))
             self.assertIn("max-age", r.headers["Cache-Control"])
-            self.assertEqual(r.read(), jaba.font_bytes())
-        self.assertEqual(self.req(jaba.FONT_URL, token=False, host="evil.example")[0], 403)
+            self.assertEqual(r.read(), sec.font_bytes())
+        self.assertEqual(self.req(sec.FONT_URL, token=False, host="evil.example")[0], 403)
         self.assertEqual(self.req("/font/other.woff", token=False)[0], 404)
 
 
@@ -1582,20 +1592,20 @@ def name_strings(table):
 class TestFont(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.data = jaba.font_bytes()
+        cls.data = sec.font_bytes()
         cls.sig, cls.flavor, cls.length, cls.tables = woff_tables(cls.data)
 
     def test_embedded_woff(self):
         self.assertEqual((self.sig, self.flavor, self.length), (b"wOFF", b"OTTO", len(self.data)))
         self.assertTrue({"cmap", "CFF ", "name", "head", "hmtx"} <= set(self.tables))
-        src = os.path.join(ROOT, "fonts", "jaba-dos.woff")
+        src = os.path.join(ROOT, "fonts", "secretary-1-dos.woff")
         if os.path.exists(src):  # build.py 로 넣은 것과 같아야 한다
             with open(src, "rb") as f:
                 self.assertEqual(f.read(), self.data)
 
     def test_covers_ui_and_all_hangul(self):
         has = cmap_lookup(self.tables["cmap"])
-        ui = {c for c in jaba.INDEX_HTML if c.isprintable() and c != " "}
+        ui = {c for c in sec.INDEX_HTML if c.isprintable() and c != " "}
         self.assertEqual(sorted(c for c in ui if not has(ord(c))), [])  # 화면에 쓰는 글자는 전부 픽셀 폰트로
         self.assertEqual([hex(c) for c in range(0xAC00, 0xD7A4) if not has(c)], [])  # 한글 11,172자
         for c in "ㄱㅎㅏㅣㅇㄴㅋ₩✂⏰→…·–—「」①㈜":
@@ -1609,15 +1619,15 @@ class TestFont(unittest.TestCase):
         self.assertIn("SIL Open Font License", names[13])
 
     def test_index_uses_font(self):
-        self.assertIn("src:url(" + jaba.FONT_URL + ")", jaba.INDEX_HTML)
-        self.assertIn('rel="preload" href="' + jaba.FONT_URL + '"', jaba.INDEX_HTML)
-        self.assertIn('--dos:"JabaDOS"', jaba.INDEX_HTML)
+        self.assertIn("src:url(" + sec.FONT_URL + ")", sec.INDEX_HTML)
+        self.assertIn('rel="preload" href="' + sec.FONT_URL + '"', sec.INDEX_HTML)
+        self.assertIn('--dos:"Secretary1DOS"', sec.INDEX_HTML)
 
 
 # ───────────────────────────────────────────── 설치 도우미 (--setup · --set · --autostart)
 class TestSetup(unittest.TestCase):
     ENV = ("HOME", "USERPROFILE", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "OPENCODE_CONFIG", "CORP_KEY", "JABA_API_KEY",
-           "JABA_BASE_URL", "JABA_MODEL")
+           "JABA_BASE_URL", "JABA_MODEL", "SECRETARY_API_KEY", "SECRETARY_BASE_URL", "SECRETARY_MODEL")
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -1629,7 +1639,7 @@ class TestSetup(unittest.TestCase):
             os.environ.pop(k, None)
         os.environ["HOME"] = os.environ["USERPROFILE"] = self.home  # ~ = 가짜 홈 (POSIX · Windows 둘 다)
         self.cfg_path = os.path.join(self.tmp.name, "config.json")
-        jaba.load_config(self.cfg_path)
+        sec.load_config(self.cfg_path)
         self.fake = None
 
     def tearDown(self):
@@ -1641,7 +1651,7 @@ class TestSetup(unittest.TestCase):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-        jaba.IS_WINDOWS = sys.platform == "win32"
+        sec.IS_WINDOWS = sys.platform == "win32"
         self.tmp.cleanup()
 
     def write(self, path, text):
@@ -1670,7 +1680,7 @@ class TestSetup(unittest.TestCase):
   "d": {"e": 1, // 끝 쉼표 + 주석
   },
 }"""
-        self.assertEqual(jaba.parse_jsonc(text), {"a": "http://x/v1", "b": 'say "hi" /* 문자열 */ // 그대로',
+        self.assertEqual(sec.parse_jsonc(text), {"a": "http://x/v1", "b": 'say "hi" /* 문자열 */ // 그대로',
                                                   "c": [1, 2], "d": {"e": 1}})
 
     def test_find_global_jsonc_env_key_and_headers(self):
@@ -1686,12 +1696,12 @@ class TestSetup(unittest.TestCase):
     "anthropic": {"options": {"baseURL": "https://proxy.corp.local/anthropic"}},
   },
 }""")
-        f = jaba.find_opencode_llm(dirs=[self.proj])
+        f = sec.find_opencode_llm(dirs=[self.proj])
         self.assertEqual((f["provider"], f["base_url"], f["model"], f["api_key"]),
                          ("corp", "https://llm.corp.local/v1", "qwen3", "{env:CORP_KEY}"))  # 키 값이 아니라 참조를 옮긴다
         team = os.path.join(self.home, ".config", "opencode", "team.txt")
         self.assertEqual(f["extra_headers"], {"X-Team": "{file:" + os.path.normpath(team) + "}"})
-        self.assertEqual(jaba.find_opencode_llm(model="coder", dirs=[self.proj])["model"], "qwen3-coder-30b")  # models.id
+        self.assertEqual(sec.find_opencode_llm(model="coder", dirs=[self.proj])["model"], "qwen3-coder-30b")  # models.id
         self.assertEqual(f["models"], ["qwen3", "qwen3-coder-30b"])  # 드롭다운 후보
 
     def test_project_overrides_and_auth_json(self):
@@ -1701,31 +1711,31 @@ class TestSetup(unittest.TestCase):
             {"model": "corp/m2", "provider": {"corp": {"options": {"baseURL": "https://b.corp/v1"}}}}))
         self.write(os.path.join(self.home, ".local", "share", "opencode", "auth.json"),
                    json.dumps({"corp": {"type": "api", "key": "sk-from-auth"}, "x": {"type": "oauth"}}))
-        f = jaba.find_opencode_llm(dirs=[self.proj])
+        f = sec.find_opencode_llm(dirs=[self.proj])
         self.assertEqual((f["base_url"], f["model"], f["api_key"], f["key_from"]),
                          ("https://b.corp/v1", "m2", "sk-from-auth", "OpenCode 로그인 정보(auth.json)"))
         self.assertEqual(f["source"], os.path.join(self.proj, "opencode.json"))
 
     def test_choices_and_missing(self):
         with self.assertRaises(LookupError):
-            jaba.find_opencode_llm(dirs=[self.proj])  # 설정 파일 없음
+            sec.find_opencode_llm(dirs=[self.proj])  # 설정 파일 없음
         self.write(self.global_cfg(), json.dumps({"provider": {"anthropic": {"options": {"baseURL": "https://x"}}}}))
         with self.assertRaises(LookupError):
-            jaba.find_opencode_llm(dirs=[self.proj])  # OpenAI 호환이 없음
+            sec.find_opencode_llm(dirs=[self.proj])  # OpenAI 호환이 없음
         two = {"provider": {p: {"npm": "@ai-sdk/openai-compatible", "options": {"baseURL": f"https://{p}/v1"},
                                 "models": {"a": {}, "b": {}}} for p in ("corp1", "corp2")}}
         self.write(self.global_cfg(), json.dumps(two))
-        with self.assertRaises(jaba.SetupChoice):
-            jaba.find_opencode_llm(dirs=[self.proj])
-        with self.assertRaises(jaba.SetupChoice):
-            jaba.find_opencode_llm(provider="corp2", dirs=[self.proj])  # 모델이 두 개
-        with self.assertRaises(jaba.SetupChoice):
-            jaba.find_opencode_llm(provider="nope", dirs=[self.proj])
-        f = jaba.find_opencode_llm(provider="corp2", model="b", dirs=[self.proj])
+        with self.assertRaises(sec.SetupChoice):
+            sec.find_opencode_llm(dirs=[self.proj])
+        with self.assertRaises(sec.SetupChoice):
+            sec.find_opencode_llm(provider="corp2", dirs=[self.proj])  # 모델이 두 개
+        with self.assertRaises(sec.SetupChoice):
+            sec.find_opencode_llm(provider="nope", dirs=[self.proj])
+        f = sec.find_opencode_llm(provider="corp2", model="b", dirs=[self.proj])
         self.assertEqual((f["base_url"], f["model"], f["api_key"], f["key_from"]), ("https://corp2/v1", "b", "", ""))
 
     def test_set_config_values(self):
-        rc, out = self.run_quiet(jaba.set_config_values, self.cfg_path,
+        rc, out = self.run_quiet(sec.set_config_values, self.cfg_path,
                                  ["alerts.windows_toast=false", "port=8770", "llm.proxy=", "llm.tool_mode=json",
                                   "llm.extra_headers.X-Team=abc", "llm.ca_file=C:\\certs\\corp.pem"])
         self.assertEqual(rc, 0, out)
@@ -1736,12 +1746,12 @@ class TestSetup(unittest.TestCase):
         self.assertNotIn("abc", out)  # 헤더 값은 찍지 않는다
         before = self.user_cfg()
         for bad in ("nope.x=1", "calendar.backend=outlok", "alerts.windows_toast.x=1", "llm.api_key=sk-literal-123", "port"):
-            rc, out = self.run_quiet(jaba.set_config_values, self.cfg_path, [bad])
+            rc, out = self.run_quiet(sec.set_config_values, self.cfg_path, [bad])
             self.assertEqual(rc, 2, bad)
             self.assertNotIn("sk-literal-123", out)
             self.assertEqual(self.user_cfg(), before, bad)  # 틀리면 파일 그대로
         os.environ["CORP_KEY"] = "sk-env-value"
-        rc, out = self.run_quiet(jaba.set_config_values, self.cfg_path, ["llm.api_key={env:CORP_KEY}"])
+        rc, out = self.run_quiet(sec.set_config_values, self.cfg_path, ["llm.api_key={env:CORP_KEY}"])
         self.assertEqual((rc, self.user_cfg()["llm"]["api_key"]), (0, "{env:CORP_KEY}"))
         self.assertIn("값 있음", out)
         self.assertNotIn("sk-env-value", out)
@@ -1753,10 +1763,10 @@ class TestSetup(unittest.TestCase):
         cfg = cfg_for(os.path.join(self.tmp.name, "r.db"), llm={
             "base_url": "http://x/v1", "api_key": "{file:" + key_file + "}",
             "extra_headers": {"Authorization": "Bearer {env:CORP_KEY}", "X-Missing": "{env:NOPE_NOT_SET}"}})
-        llm = jaba.LLMClient(cfg)
+        llm = sec.LLMClient(cfg)
         self.assertEqual((llm.api_key, llm.extra_headers), ("sk-file-key", {"Authorization": "Bearer sk-env", "X-Missing": ""}))
-        self.assertEqual(jaba.resolve_refs("{file:no-such-file.txt}"), "")
-        self.assertEqual(jaba.resolve_refs("{literal} {env:CORP_KEY}"), "{literal} sk-env")
+        self.assertEqual(sec.resolve_refs("{file:no-such-file.txt}"), "")
+        self.assertEqual(sec.resolve_refs("{literal} {env:CORP_KEY}"), "{literal} sk-env")
 
     def start_fake_llm(self):
         s = socket.socket()
@@ -1781,10 +1791,10 @@ class TestSetup(unittest.TestCase):
         db, rules = os.path.join(self.tmp.name, "s.db"), os.path.join(self.tmp.name, "rules.json")
         argv = ["--config", self.cfg_path, "--set", "calendar.local_db=" + json.dumps(db), "--set", "learn_file=" + json.dumps(rules),
                 "--set", "llm.proxy=", "--setup"]
-        orig = jaba.run_setup
-        jaba.run_setup = lambda path, p, m, force: orig(path, p, m, force, dirs=[self.proj])
+        orig = sec.run_setup
+        sec.run_setup = lambda path, p, m, force: orig(path, p, m, force, dirs=[self.proj])
         try:
-            rc, out = self.run_quiet(jaba.main, argv)
+            rc, out = self.run_quiet(sec.main, argv)
             self.assertEqual(rc, 0, out)
             self.assertIn("결과: OK", out)
             self.assertIn("기본 응답 OK", out)
@@ -1793,86 +1803,195 @@ class TestSetup(unittest.TestCase):
             c = self.user_cfg()["llm"]
             self.assertEqual((c["base_url"], c["model"], c["api_key"], c["proxy"]),
                              (f"http://127.0.0.1:{port}/v1", "사내-LLM", "sk-top-secret-xyz", ""))
-            rc, out = self.run_quiet(jaba.main, ["--config", self.cfg_path, "--setup"])
+            rc, out = self.run_quiet(sec.main, ["--config", self.cfg_path, "--setup"])
             self.assertEqual(rc, 0, out)
             self.assertIn("이미 있음", out)  # 두 번째부터는 그대로 둔다 (--force 로만 다시)
         finally:
-            jaba.run_setup = orig
+            sec.run_setup = orig
 
     def test_setup_needs_choice(self):
         two = {"provider": {p: {"npm": "@ai-sdk/openai-compatible", "options": {"baseURL": f"https://{p}/v1"},
                                 "models": {"m": {}}} for p in ("corp1", "corp2")}}
         self.write(self.global_cfg(), json.dumps(two))
-        rc, out = self.run_quiet(jaba.run_setup, self.cfg_path, dirs=[self.proj])
+        rc, out = self.run_quiet(sec.run_setup, self.cfg_path, dirs=[self.proj])
         self.assertEqual(rc, 3)
         self.assertIn("--provider 로 고르세요: corp1, corp2", out)
         self.assertEqual(self.user_cfg()["llm"]["base_url"], "")  # 아무것도 안 바꿈
 
     def test_autostart(self):
-        jaba.IS_WINDOWS = False
-        self.assertEqual(self.run_quiet(jaba.set_autostart, True)[0], 1)
-        jaba.IS_WINDOWS = True
+        sec.IS_WINDOWS = False
+        self.assertEqual(self.run_quiet(sec.set_autostart, True)[0], 1)
+        sec.IS_WINDOWS = True
         startup = os.path.join(self.tmp.name, "Startup")
         os.makedirs(startup)
         calls = []
-        saved = (jaba.startup_dir, jaba.ensure_launcher, jaba.subprocess.run)
+        saved = (sec.startup_dir, sec.ensure_launcher, sec.subprocess.run)
 
         def fake_run(args, **kw):
             calls.append((args, kw))
-            open(kw["env"]["JABA_LNK"], "wb").close()
+            open(kw["env"]["SECRETARY_LNK"], "wb").close()
             return types.SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
-        jaba.startup_dir, jaba.ensure_launcher, jaba.subprocess.run = (lambda: startup), (lambda: None), fake_run
+        sec.startup_dir, sec.ensure_launcher, sec.subprocess.run = (lambda: startup), (lambda: None), fake_run
         try:
-            rc, out = self.run_quiet(jaba.set_autostart, True)
-            lnk = os.path.join(startup, "jaba.lnk")
+            rc, out = self.run_quiet(sec.set_autostart, True)
+            lnk = os.path.join(startup, "secretary-1.lnk")
             self.assertEqual(rc, 0, out)
             self.assertTrue(os.path.exists(lnk))
             args, kw = calls[0]
             self.assertEqual(args[:4], ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command"])
             self.assertIn("$s.Arguments='--no-window'", args[4])
             self.assertIn("$s.WindowStyle=7", args[4])
-            self.assertEqual(kw["env"]["JABA_BAT"], os.path.join(jaba.BASE_DIR, "jaba.bat"))
-            rc, out = self.run_quiet(jaba.set_autostart, False)
+            self.assertEqual(kw["env"]["SECRETARY_BAT"], os.path.join(sec.BASE_DIR, "secretary-1.bat"))
+            rc, out = self.run_quiet(sec.set_autostart, False)
             self.assertEqual(rc, 0)
             self.assertFalse(os.path.exists(lnk))
-            self.assertIn("등록돼 있지 않습니다", self.run_quiet(jaba.set_autostart, False)[1])
+            self.assertIn("등록돼 있지 않습니다", self.run_quiet(sec.set_autostart, False)[1])
         finally:
-            jaba.startup_dir, jaba.ensure_launcher, jaba.subprocess.run = saved
+            sec.startup_dir, sec.ensure_launcher, sec.subprocess.run = saved
 
     def test_launcher_regenerates_when_python_moved(self):
-        saved = jaba.BASE_DIR
-        jaba.BASE_DIR = self.tmp.name
-        bat = os.path.join(self.tmp.name, "jaba.bat")
+        saved = sec.BASE_DIR
+        sec.BASE_DIR = self.tmp.name
+        bat = os.path.join(self.tmp.name, "secretary-1.bat")
         try:
-            self.write(bat, '@echo off\r\nstart "jaba" /min "' + sys.executable + '" "%~dp0jaba.py" %*\r\n')
+            self.write(bat, '@echo off\r\nstart "secretary-1" /min "' + sys.executable + '" "%~dp0secretary-1.py" %*\r\n')
             with contextlib.redirect_stdout(io.StringIO()):
-                jaba.ensure_launcher()
+                sec.ensure_launcher()
             with open(bat, encoding="utf-8") as f:
                 self.assertIn(sys.executable, f.read())  # 파이썬이 그대로 있으면 손대지 않음
-            self.write(bat, '@echo off\r\nstart "jaba" /min "C:\\Old\\Python37\\python.exe" "%~dp0jaba.py" %*\r\n')
+            self.write(bat, '@echo off\r\nstart "secretary-1" /min "C:\\Old\\Python37\\python.exe" "%~dp0secretary-1.py" %*\r\n')
             with contextlib.redirect_stdout(io.StringIO()):
-                jaba.ensure_launcher()
+                sec.ensure_launcher()
             with open(bat, encoding="utf-8", errors="replace") as f:
                 self.assertNotIn("Python37", f.read())  # 사라진 파이썬 → 다시 만든다
         finally:
-            jaba.BASE_DIR = saved
+            sec.BASE_DIR = saved
+
+
+class TestLegacyJaba(unittest.TestCase):
+    """이름을 바꾸기 전(jaba) 설치에서 넘어올 때: 파일 · 실행기 · 켜져 있는 예전 비서"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.saved = sec.BASE_DIR
+        sec.BASE_DIR = self.tmp.name
+
+    def tearDown(self):
+        sec.BASE_DIR = self.saved
+        self.tmp.cleanup()
+
+    def path(self, name):
+        return os.path.join(self.tmp.name, name)
+
+    def write(self, name, text):
+        with open(self.path(name), "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def test_migrate_files_and_config(self):
+        cfg = self.path("config.json")
+        with open(cfg, "w", encoding="utf-8") as f:  # 첫 실행 때 기본값 전체가 적힌 예전 config.json
+            json.dump(sec.deep_merge(sec.DEFAULT_CONFIG, {"calendar": {"local_db": "jaba.db"},
+                                                          "learn_file": "jaba_rules.json", "wiki_file": "jaba_wiki.json"}), f)
+        cal = sec.LocalCalendar(self.path("jaba.db"))
+        cal.create_event("주간 회의", datetime(2026, 9, 28, 10), datetime(2026, 9, 28, 11))
+        cal.close()
+        self.write("jaba_rules.json", '{"rules": []}')
+        with contextlib.redirect_stdout(io.StringIO()):
+            moved = sec.migrate_legacy(cfg)
+        self.assertEqual(moved, ["jaba.db → secretary-1.db", "jaba_rules.json → secretary-1-rules.json"])
+        self.assertFalse(os.path.exists(self.path("jaba.db")))
+        loaded, _ = sec.load_config(cfg)
+        self.assertEqual((loaded["calendar"]["local_db"], loaded["learn_file"], loaded["wiki_file"]),
+                         ("secretary-1.db", "secretary-1-rules.json", "secretary-1-wiki.json"))
+        cal = sec.LocalCalendar(self.path("secretary-1.db"))
+        try:
+            self.assertEqual([e.title for e in cal.list_events(datetime(2026, 9, 28), datetime(2026, 9, 29))], ["주간 회의"])
+        finally:
+            cal.close()
+        self.assertEqual(sec.migrate_legacy(cfg), [])  # 두 번째부터는 할 일 없음
+
+    def test_migrate_leaves_custom_paths_and_conflicts(self):
+        cfg = self.path("config.json")
+        with open(cfg, "w", encoding="utf-8") as f:
+            json.dump({"calendar": {"local_db": "D:/my/cal.db"}, "learn_file": "jaba_rules.json"}, f)
+        self.write("jaba_rules.json", "old")
+        self.write("secretary-1-rules.json", "new")   # 둘 다 있으면 고르지 않는다
+        self.write("jaba_wiki.json", "wiki")           # 설정에 없으면 기본값(새 이름)으로 옮긴다
+        with contextlib.redirect_stdout(io.StringIO()):
+            moved = sec.migrate_legacy(cfg)
+        self.assertEqual(moved, ["jaba_wiki.json → secretary-1-wiki.json"])
+        with open(cfg, encoding="utf-8") as f:
+            user = json.load(f)
+        self.assertEqual((user["calendar"]["local_db"], user["learn_file"]), ("D:/my/cal.db", "jaba_rules.json"))
+        self.assertNotIn("wiki_file", user)
+
+    def test_old_launcher_is_removed(self):
+        self.write("jaba.bat", '@echo off\r\nstart "jaba" /min "python" "%~dp0jaba.py" %*\r\n')
+        self.write("mine.bat", "@echo off")
+        with contextlib.redirect_stdout(io.StringIO()):
+            sec.ensure_launcher()
+        self.assertFalse(os.path.exists(self.path("jaba.bat")))
+        self.assertTrue(os.path.exists(self.path("secretary-1.bat")))
+        self.assertTrue(os.path.exists(self.path("mine.bat")))
+
+    def test_stops_running_old_jaba(self):
+        """예전 비서는 ping 에 app=jaba, 화면에 jaba-token, 끄기에 X-Jaba-Token 을 쓴다"""
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        stopped = threading.Event()
+
+        class Old(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def reply(self, body, ctype="application/json"):
+                data = body.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self):
+                if self.path == "/api/ping":
+                    return self.reply(json.dumps({"app": "jaba", "version": "0.4.0"}))
+                self.reply('<meta name="jaba-token" content="t0k">', "text/html")
+
+            def do_POST(self):
+                self.rfile.read(int(self.headers.get("Content-Length") or 0))
+                ok = self.path == "/api/shutdown" and self.headers.get("X-Jaba-Token") == "t0k"
+                self.reply("{}")
+                if ok:
+                    stopped.set()
+                    threading.Thread(target=srv.shutdown, daemon=True).start()
+
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Old)
+        port = srv.server_address[1]
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            self.assertIsNone(sec.find_running(port))                     # 새 이름만 찾으면 안 보이고
+            self.assertTrue(sec.find_running(port, (sec.LEGACY_APP,)))    # 예전 이름으로 찾으면 보인다
+            rc = sec.stop_running(port, quiet=True)
+        finally:
+            srv.server_close()
+        self.assertTrue(stopped.is_set())
+        self.assertEqual(rc, 0)
 
 
 class TestMisc(unittest.TestCase):
     def test_hotkey_parse(self):
-        self.assertEqual(jaba.parse_hotkey("ctrl+alt+j"), (0x3, ord("J")))
-        self.assertEqual(jaba.parse_hotkey("Win + Shift + F12"), (0xC, 0x7B))
-        self.assertEqual(jaba.parse_hotkey("ctrl+space"), (0x2, 0x20))
+        self.assertEqual(sec.parse_hotkey("ctrl+alt+j"), (0x3, ord("J")))
+        self.assertEqual(sec.parse_hotkey("Win + Shift + F12"), (0xC, 0x7B))
+        self.assertEqual(sec.parse_hotkey("ctrl+space"), (0x2, 0x20))
         for bad in ("j", "ctrl+", "ctrl+ㅈ", "ctrl+alt+enter"):
             with self.assertRaises(ValueError):
-                jaba.parse_hotkey(bad)
+                sec.parse_hotkey(bad)
 
     def test_extract_text_tool_calls(self):
         text = '앞말 {"tool":"list_events","args":{"start":"a","end":"b"}} 뒷말 {"name":"propose_delete","arguments":"{\\"event_id\\":\\"e2\\"}"} {"x":{"tool":"nope"}}'
-        calls = jaba.extract_text_tool_calls(text)
+        calls = sec.extract_text_tool_calls(text)
         self.assertEqual([(c.name, c.args) for c in calls],
                          [("list_events", {"start": "a", "end": "b"}), ("propose_delete", {"event_id": "e2"})])
-        self.assertEqual(jaba.extract_text_tool_calls("그냥 {중괄호} 문장"), [])
+        self.assertEqual(sec.extract_text_tool_calls("그냥 {중괄호} 문장"), [])
 
     def test_install_doc_matches_cli(self):
         """INSTALL.md 는 에이전트가 그대로 따라 하는 문서라서, 적힌 명령·출력 문구가 코드와 어긋나면 안 된다."""
@@ -1881,7 +2000,7 @@ class TestMisc(unittest.TestCase):
             self.skipTest("INSTALL.md 없음")
         with open(path, encoding="utf-8") as f:
             doc = f.read()
-        with open(os.path.join(ROOT, "jaba.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "secretary-1.py"), encoding="utf-8") as f:
             src = f.read()
         flags = set(re.findall(r"(?<![\w-])--[a-z][a-z-]+", doc)) - {"--user"}  # --user 는 pip 옵션
         self.assertEqual(sorted(f for f in flags if f'add_argument("{f}"' not in src), [])
@@ -1889,18 +2008,18 @@ class TestMisc(unittest.TestCase):
                     "을 찾지 못했습니다", "값이 비어 있음!", "/v1 이 필요한지 확인", "api_key 또는 extra_headers",
                     "미설정 → config.json 의 llm.base_url", "서버가 tools 를 거부", "텍스트로 출력함", "모델이 도구를 쓰지 않음",
                     "윈도우 알림 OK", "윈도우 알림 실패", "자동 실행 등록:", "실행 중: ", "꺼져 있음", "형식 오류",
-                    "API 키는 --set 으로 넣지 않습니다", "D:\\OPENCODE\\jaba"):
+                    "API 키는 --set 으로 넣지 않습니다", "D:\\OPENCODE\\secretary-1"):
             self.assertIn(msg, doc, msg)
             if not msg.startswith("D:"):
                 self.assertIn(msg, src, msg)
 
     def test_yes_no_regex(self):
         for y in ("ㅇㅇ", "네", "확정!", "OK", "좋아~", "응ㅋㅋ"):
-            self.assertTrue(jaba.YES_RE.match(y), y)
+            self.assertTrue(sec.YES_RE.match(y), y)
         for n in ("ㄴㄴ", "취소", "아니요.", "no"):
-            self.assertTrue(jaba.NO_RE.match(n), n)
+            self.assertTrue(sec.NO_RE.match(n), n)
         for x in ("네 근데 4시로", "확정하지 마", "아니 3시 말고 4시"):
-            self.assertFalse(jaba.YES_RE.match(x) or jaba.NO_RE.match(x), x)
+            self.assertFalse(sec.YES_RE.match(x) or sec.NO_RE.match(x), x)
 
 
 
@@ -1915,9 +2034,9 @@ class TestWikiBook(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_series_and_event_lookup_and_reload(self):
-        wb = jaba.WikiBook(self.path)
-        s = wb.save(jaba.WikiBook._fill({"title": "주간 스크럼", "scope": "series", "prep": ["지난주 번다운"]}), "원문1")
-        e = wb.save(jaba.WikiBook._fill({"title": "김과장 미팅", "scope": "event", "event_id": "L7", "goal": "단가"}))
+        wb = sec.WikiBook(self.path)
+        s = wb.save(sec.WikiBook._fill({"title": "주간 스크럼", "scope": "series", "prep": ["지난주 번다운"]}), "원문1")
+        e = wb.save(sec.WikiBook._fill({"title": "김과장 미팅", "scope": "event", "event_id": "L7", "goal": "단가"}))
         self.assertEqual((s["id"], e["id"]), ("w1", "w2"))
         self.assertEqual(wb.find_for("L99", "주간스크럼 ")["id"], "w1")   # 띄어쓰기 달라도 같은 회의
         self.assertEqual(wb.find_for("L7", "김과장미팅")["id"], "w2")
@@ -1925,16 +2044,16 @@ class TestWikiBook(unittest.TestCase):
         self.assertIsNone(wb.find_for("L8", "김과장 미팅"))                # 전용 위키는 그 일정에만
         self.assertEqual([p["id"] for p in wb.search("번다운")], ["w1"])
         self.assertEqual(wb.get("w1")["sources"][0]["text"], "원문1")
-        again = jaba.WikiBook(self.path)
+        again = sec.WikiBook(self.path)
         self.assertEqual([p["id"] for p in again.all()], ["w2", "w1"])
-        self.assertEqual(again.save(jaba.WikiBook._fill({"title": "새", "notes": "x"}))["id"], "w3")
+        self.assertEqual(again.save(sec.WikiBook._fill({"title": "새", "notes": "x"}))["id"], "w3")
         self.assertEqual(again.remove("w1")["title"], "주간 스크럼")
         with self.assertRaises(KeyError):
             again.get("w1")
 
     def test_event_page_matches_start_after_rename_and_search_plain_text(self):
-        wb = jaba.WikiBook(self.path)
-        wb.save(jaba.WikiBook._fill({"title": "미팅", "scope": "event", "event_id": "L7", "match": "김과장 미팅",
+        wb = sec.WikiBook(self.path)
+        wb.save(sec.WikiBook._fill({"title": "미팅", "scope": "event", "event_id": "L7", "match": "김과장 미팅",
                                      "event_start": "2026-09-28T15:00", "links": ["\\\\fs01\\영업\\견적서.xlsx"]}))
         self.assertEqual(wb.find_id("L7", "김과장 미팅 (변경)", "2026-09-28T15:00"), "w1")  # 제목이 바뀌어도 같은 시각이면
         self.assertEqual(wb.find_id("L7", "치과", "2026-10-01T09:00"), "")
@@ -1942,8 +2061,8 @@ class TestWikiBook(unittest.TestCase):
         self.assertEqual(wb.search('"'), [])
 
     def test_direct_edit(self):
-        wb = jaba.WikiBook(self.path)
-        w = wb.save(jaba.WikiBook._fill({"title": "주간 스크럼", "scope": "series", "prep": ["번다운"], "goal": "공유"}), "원문")
+        wb = sec.WikiBook(self.path)
+        w = wb.save(sec.WikiBook._fill({"title": "주간 스크럼", "scope": "series", "prep": ["번다운"], "goal": "공유"}), "원문")
         e = wb.edit(w["id"], {"title": "스크럼", "prep": "번다운\n\n  블로커 목록 \n번다운", "goal": ""})
         self.assertEqual((e["title"], e["prep"], e["goal"], e["match"]), ("스크럼", ["번다운", "블로커 목록"], "", "주간 스크럼"))
         self.assertEqual(len(e["sources"]), 1)  # 손으로 고친 건 원문 기록을 늘리지 않음
@@ -1958,32 +2077,32 @@ class TestWikiBook(unittest.TestCase):
     def test_failed_write_changes_nothing_and_error_clears(self):
         with open(self.path, "w", encoding="utf-8") as f:
             f.write("{깨짐")
-        wb = jaba.WikiBook(self.path)
+        wb = sec.WikiBook(self.path)
         self.assertTrue(wb.error)
         real = os.replace
 
         def boom(a, b):
             raise PermissionError("백신이 잡고 있음")
-        jaba.os.replace = boom
+        sec.os.replace = boom
         try:
             with self.assertRaises(PermissionError):
-                wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))
+                wb.save(sec.WikiBook._fill({"title": "t", "notes": "n"}))
         finally:
-            jaba.os.replace = real
+            sec.os.replace = real
         self.assertEqual((wb.count(), wb.seq), (0, 0))  # 메모리에도 반영 안 됨
-        self.assertEqual(wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))["id"], "w1")
+        self.assertEqual(wb.save(sec.WikiBook._fill({"title": "t", "notes": "n"}))["id"], "w1")
         self.assertEqual(wb.error, "")  # 한 번 저장되면 시작 때 오류는 지운다
 
     def test_sources_capped_and_broken_file(self):
-        wb = jaba.WikiBook(self.path)
-        p = wb.save(jaba.WikiBook._fill({"title": "t", "notes": "n"}))
+        wb = sec.WikiBook(self.path)
+        p = wb.save(sec.WikiBook._fill({"title": "t", "notes": "n"}))
         for i in range(40):
             p = wb.save(p, f"말{i}")
-        self.assertEqual(len(p["sources"]), jaba.WikiBook.MAX_SOURCES)
+        self.assertEqual(len(p["sources"]), sec.WikiBook.MAX_SOURCES)
         self.assertEqual(p["sources"][-1]["text"], "말39")
         with open(self.path, "w", encoding="utf-8") as f:
             f.write("{깨짐")
-        broken = jaba.WikiBook(self.path)
+        broken = sec.WikiBook(self.path)
         self.assertEqual(broken.all(), [])
         self.assertIn("새로 시작", broken.error)
         self.assertTrue(os.path.exists(self.path + ".broken"))
@@ -1992,8 +2111,8 @@ class TestWikiBook(unittest.TestCase):
 class TestAgentWiki(AgentBase):
     def agent(self, steps, mode="native"):
         self.llm = ScriptLLM(steps, mode)
-        self.wiki = jaba.WikiBook(os.path.join(self.tmp.name, "wiki.json"))
-        return jaba.Agent(self.cfg, self.cal, self.llm, jaba.RuleBook(self.cfg["learn_file"]), self.wiki)
+        self.wiki = sec.WikiBook(os.path.join(self.tmp.name, "wiki.json"))
+        return sec.Agent(self.cfg, self.cal, self.llm, sec.RuleBook(self.cfg["learn_file"]), self.wiki)
 
     def test_propose_confirm_read_and_merge(self):
         ev = self.cal.create_event(title="김과장 미팅", start=self.day.replace(hour=15), end=self.day.replace(hour=16))
@@ -2159,7 +2278,7 @@ class TestAgentWiki(AgentBase):
     def test_wiki_command(self):
         ag = self.agent([])
         self.assertEqual(ag.chat("/위키")["open_wiki"], "list")
-        self.wiki.save(jaba.WikiBook._fill({"title": "주간 스크럼", "agenda": ["블로커"]}))
+        self.wiki.save(sec.WikiBook._fill({"title": "주간 스크럼", "agenda": ["블로커"]}))
         r = ag.chat("/위키 스크럼")
         self.assertEqual(r["open_wiki"], "w1")
         self.assertEqual(ag.chat("/위키 W1")["open_wiki"], "w1")
@@ -2170,9 +2289,9 @@ class TestAgentWiki(AgentBase):
         start = datetime(2026, 9, 28, 15, 0)
         ev = Event(id="A", title="김과장 미팅", start=start, end=start + timedelta(hours=1), location="3A")
         self.agent([])
-        self.wiki.save(jaba.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서", "노트북"]}))
+        self.wiki.save(sec.WikiBook._fill({"title": "김과장 미팅", "prep": ["견적서", "노트북"]}))
         n = FakeNotifier()
-        sch = jaba.AlertScheduler(self.cfg, FakeCal([ev]), n, Clock(start - timedelta(minutes=15)), wiki=self.wiki)
+        sch = sec.AlertScheduler(self.cfg, FakeCal([ev]), n, Clock(start - timedelta(minutes=15)), wiki=self.wiki)
         item = sch.tick()[0]
         self.assertEqual(item["wiki"], "w1")
         self.assertTrue(n.shown[0][1].endswith("· 준비: 견적서, 노트북"))

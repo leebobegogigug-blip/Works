@@ -1,12 +1,12 @@
-# jaba 설치 가이드 — OpenCode 에이전트용
+# Secretary–1 설치 가이드 — OpenCode 에이전트용
 
 > **사람용 한 줄:** OpenCode 에 아래 프롬프트를 붙여넣으면 이 문서대로 설치합니다. `<저장소 주소>`만 바꾸세요.
 >
 > ```text
-> jaba 를 설치해줘. 설치 위치는 D:\OPENCODE\jaba 야.
-> 1. 코드 받기: git clone <저장소 주소> "D:\OPENCODE\jaba"
->    (git 이 안 되면 D:\OPENCODE\jaba-repo.zip 을 D:\OPENCODE 에 풀어)
-> 2. 그다음 D:\OPENCODE\jaba\INSTALL.md 를 끝까지 읽고 그 순서대로만 진행해.
+> Secretary–1 을 설치해줘. 설치 위치는 D:\OPENCODE\secretary-1 야.
+> 1. 코드 받기: git clone <저장소 주소> "D:\OPENCODE\secretary-1"
+>    (git 이 안 되면 D:\OPENCODE\secretary-1-repo.zip 을 D:\OPENCODE 에 풀어)
+> 2. 그다음 D:\OPENCODE\secretary-1\INSTALL.md 를 끝까지 읽고 그 순서대로만 진행해.
 >    API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에서는 나한테 물어봐.
 > ```
 
@@ -16,7 +16,7 @@
 
 ## 0. 목표와 규칙
 
-**목표**: `D:\OPENCODE\jaba` 에 jaba 를 설치하고, 점검을 통과시키고, 실행 중인 상태로 끝낸다.
+**목표**: `D:\OPENCODE\secretary-1` 에 Secretary–1 을 설치하고, 점검을 통과시키고, 실행 중인 상태로 끝낸다.
 
 **규칙 — 반드시 지킬 것**
 
@@ -43,7 +43,7 @@ python --version
 먼저 이미 받았는지 확인한다 (시작 프롬프트대로 clone 했다면 `True`):
 
 ```text
-python -c "import os; print(os.path.isfile(r'D:\OPENCODE\jaba\jaba.py'))"
+python -c "import os; print(os.path.isfile(r'D:\OPENCODE\secretary-1\secretary-1.py'))"
 ```
 
 `True` 면 2단계는 끝, 3단계로 간다. `False` 면 아래 A 또는 B 로 받는다.
@@ -58,27 +58,27 @@ python -c "import os; os.makedirs(r'D:\OPENCODE', exist_ok=True); print('OK')"
 **A. git (기본)** — 사용자가 준 저장소 주소로:
 
 ```text
-git clone <저장소 주소> "D:\OPENCODE\jaba"
+git clone <저장소 주소> "D:\OPENCODE\secretary-1"
 ```
 
-**B. zip** — git 이 없거나 막혔고 `D:\OPENCODE\jaba-repo.zip` 이 있을 때:
+**B. zip** — git 이 없거나 막혔고 `D:\OPENCODE\secretary-1-repo.zip` 이 있을 때:
 
 ```text
-python -c "import zipfile; zipfile.ZipFile(r'D:\OPENCODE\jaba-repo.zip').extractall(r'D:\OPENCODE'); print('OK')"
+python -c "import zipfile; zipfile.ZipFile(r'D:\OPENCODE\secretary-1-repo.zip').extractall(r'D:\OPENCODE'); print('OK')"
 ```
 
 받은 뒤 위의 확인 명령을 다시 실행해서 `True` 가 나와야 한다.
 
-> 저장소 맨 위가 아니라 하위 폴더에 jaba 가 있으면 (예: `Works/jaba`) 저장소를 `D:\OPENCODE\<저장소 이름>` 에 clone 하고,
-> 이 문서의 `D:\OPENCODE\jaba` 를 **모두 그 하위 폴더 경로로 바꿔서** 진행한다.
+> 저장소 맨 위가 아니라 하위 폴더에 Secretary–1 이 있으면 (예: `Works/secretary-1`) 저장소를 `D:\OPENCODE\<저장소 이름>` 에 clone 하고,
+> 이 문서의 `D:\OPENCODE\secretary-1` 를 **모두 그 하위 폴더 경로로 바꿔서** 진행한다.
 
 ## 3. 설정 가져오기 + 점검
 
 ```text
-python "D:\OPENCODE\jaba\jaba.py" --setup
+python "D:\OPENCODE\secretary-1\secretary-1.py" --setup
 ```
 
-하는 일: `config.json` · `jaba.bat` 만들기 → OpenCode 설정에서 사내 LLM 의 주소 · 모델 · 키 · 헤더를 `config.json` 에 옮기기 (키는 표시 안 함) → LLM · 캘린더 점검.
+하는 일: `config.json` · `secretary-1.bat` 만들기 → OpenCode 설정에서 사내 LLM 의 주소 · 모델 · 키 · 헤더를 `config.json` 에 옮기기 (키는 표시 안 함) → LLM · 캘린더 점검.
 OpenCode 설정은 `%USERPROFILE%\.config\opencode\opencode.json(c)`, `D:\OPENCODE\opencode.json(c)`, `OPENCODE_CONFIG`, 로그인 정보 `%USERPROFILE%\.local\share\opencode\auth.json` 에서 찾는다.
 
 마지막 줄의 **결과**로 판단한다.
@@ -86,10 +86,10 @@ OpenCode 설정은 `%USERPROFILE%\.config\opencode\opencode.json(c)`, `D:\OPENCO
 | 마지막 줄 | 할 일 |
 |---|---|
 | `결과: OK` | 4단계로 |
-| `결과: 확인 필요` + `provider 가 여러 개입니다 → … : a, b` | **[질문]** 사내 LLM 이 어느 것인지 묻고 → `python "D:\OPENCODE\jaba\jaba.py" --setup --provider "a"` |
-| `결과: 확인 필요` + `모델이 여러 개입니다 → … : x, y` | **[질문]** 어느 모델을 쓸지 묻고 → `python "D:\OPENCODE\jaba\jaba.py" --setup --provider "a" --model "x"` |
+| `결과: 확인 필요` + `provider 가 여러 개입니다 → … : a, b` | **[질문]** 사내 LLM 이 어느 것인지 묻고 → `python "D:\OPENCODE\secretary-1\secretary-1.py" --setup --provider "a"` |
+| `결과: 확인 필요` + `모델이 여러 개입니다 → … : x, y` | **[질문]** 어느 모델을 쓸지 묻고 → `python "D:\OPENCODE\secretary-1\secretary-1.py" --setup --provider "a" --model "x"` |
 | `결과: 확인 필요` + `OpenCode 설정 파일…을 찾지 못했습니다` 또는 `OpenAI 호환 provider … 가 없습니다` | [LLM 을 직접 넣기](#llm-을-직접-넣기) |
-| `결과: 점검 실패` | [문제 해결](#문제-해결) 표대로 고치고 `python "D:\OPENCODE\jaba\jaba.py" --check` → `결과: OK` 가 될 때까지 |
+| `결과: 점검 실패` | [문제 해결](#문제-해결) 표대로 고치고 `python "D:\OPENCODE\secretary-1\secretary-1.py" --check` → `결과: OK` 가 될 때까지 |
 
 참고: `도구 호출: 텍스트로 출력함 → 자동으로 json 모드로 동작` 은 실패가 아니다 (그대로 동작함). 고정하려면 `--set "llm.tool_mode=json"`.
 
@@ -98,50 +98,50 @@ OpenCode 설정은 `%USERPROFILE%\.config\opencode\opencode.json(c)`, `D:\OPENCO
 **[질문]** 사용자에게 사내 LLM 주소(보통 `…/v1` 로 끝남)와 모델 이름을 받는다 (**키는 받지 않는다**).
 
 ```text
-python "D:\OPENCODE\jaba\jaba.py" --set "llm.base_url=<주소>" --set "llm.model=<모델 이름>"
+python "D:\OPENCODE\secretary-1\secretary-1.py" --set "llm.base_url=<주소>" --set "llm.model=<모델 이름>"
 ```
 
 키가 필요한 서버면 사용자에게 둘 중 하나를 안내한다.
 
-- 메모장으로 `D:\OPENCODE\jaba\config.json` 을 열어 `"api_key": ""` 의 따옴표 안에 직접 붙여넣고 저장.
-- 키가 이미 사용자 환경변수(예: `CORP_LLM_KEY`)에 있으면 → `python "D:\OPENCODE\jaba\jaba.py" --set "llm.api_key={env:CORP_LLM_KEY}"`
+- 메모장으로 `D:\OPENCODE\secretary-1\config.json` 을 열어 `"api_key": ""` 의 따옴표 안에 직접 붙여넣고 저장.
+- 키가 이미 사용자 환경변수(예: `CORP_LLM_KEY`)에 있으면 → `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "llm.api_key={env:CORP_LLM_KEY}"`
 
-그다음 `python "D:\OPENCODE\jaba\jaba.py" --check` → `결과: OK`.
+그다음 `python "D:\OPENCODE\secretary-1\secretary-1.py" --check` → `결과: OK`.
 
 ## 4. (선택) Outlook 일정과 연결
 
-**[질문]** "일정을 클래식 Outlook 과 연결할까요, jaba 자체 달력(기본)을 쓸까요?"
+**[질문]** "일정을 클래식 Outlook 과 연결할까요, Secretary–1 자체 달력(기본)을 쓸까요?"
 Outlook 을 원하고 PC 에 **클래식** Outlook 이 있을 때만 (새 Outlook 은 지원 안 함):
 
 ```text
 python -m pip install pywin32
-python "D:\OPENCODE\jaba\jaba.py" --set "calendar.backend=outlook" --check
+python "D:\OPENCODE\secretary-1\secretary-1.py" --set "calendar.backend=outlook" --check
 ```
 
 - `pip` 가 권한 오류(`Permission denied` · `Access is denied`)면 `python -m pip install --user pywin32` 로 한 번만 다시.
 - `pip` 가 네트워크 오류(사내망)면 더 시도하지 말고 기본 달력으로 두고 보고한다.
-- `캘린더 : 실패` 가 나오면 → `python "D:\OPENCODE\jaba\jaba.py" --set "calendar.backend=local"` 로 되돌리고 보고한다.
-- 연결됐으면 사용자에게 "jaba 로 일정 하나를 만들어 Outlook 화면의 시간과 같은지 확인해 달라"고 안내한다.
+- `캘린더 : 실패` 가 나오면 → `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "calendar.backend=local"` 로 되돌리고 보고한다.
+- 연결됐으면 사용자에게 "Secretary–1 로 일정 하나를 만들어 Outlook 화면의 시간과 같은지 확인해 달라"고 안내한다.
 
 ## 5. 윈도우 알림 확인
 
 ```text
-python "D:\OPENCODE\jaba\jaba.py" --test-notify
+python "D:\OPENCODE\secretary-1\secretary-1.py" --test-notify
 ```
 
-- `윈도우 알림 OK` → **[질문]** "화면 오른쪽 아래에 'jaba 알림 테스트' 알림이 떴나요?"
+- `윈도우 알림 OK` → **[질문]** "화면 오른쪽 아래에 'Secretary–1 알림 테스트' 알림이 떴나요?"
   - 안 보였다면 → 윈도우 설정의 알림 · 방해 금지(집중 지원)가 켜져 있는지 사용자에게 확인을 부탁한다.
-- `윈도우 알림 실패` → 회사 정책으로 막힌 것. `python "D:\OPENCODE\jaba\jaba.py" --set "alerts.windows_toast=false"` 로 끄고 (jaba 창 안의 알림만 사용) 사용자에게 알린다.
+- `윈도우 알림 실패` → 회사 정책으로 막힌 것. `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "alerts.windows_toast=false"` 로 끄고 (비서 창 안의 알림만 사용) 사용자에게 알린다.
 
-알림 규칙: 장소가 있는 일정은 15 · 5 · 1분 전, 장소가 없는 일정은 5 · 1분 전. **jaba 가 켜져 있을 때만** 온다.
+알림 규칙: 장소가 있는 일정은 15 · 5 · 1분 전, 장소가 없는 일정은 5 · 1분 전. **비서가 켜져 있을 때만** 온다.
 
 ## 6. 자동 실행 (권장)
 
-**[질문]** "로그인할 때 jaba 를 자동으로 켤까요? (창 없이 켜지고, 알림은 켜져 있을 때만 옵니다)"
+**[질문]** "로그인할 때 Secretary–1 을 자동으로 켤까요? (창 없이 켜지고, 알림은 켜져 있을 때만 옵니다)"
 예라면:
 
 ```text
-python "D:\OPENCODE\jaba\jaba.py" --autostart on
+python "D:\OPENCODE\secretary-1\secretary-1.py" --autostart on
 ```
 
 `자동 실행 등록:` 이 나오면 성공. 실패하면 출력에 나온 "직접" 방법을 사용자에게 전달한다.
@@ -149,22 +149,22 @@ python "D:\OPENCODE\jaba\jaba.py" --autostart on
 ## 7. 실행하고 확인
 
 ```text
-python -c "import os; os.startfile(r'D:\OPENCODE\jaba\jaba.bat')"
-python "D:\OPENCODE\jaba\jaba.py" --status
+python -c "import os; os.startfile(r'D:\OPENCODE\secretary-1\secretary-1.bat')"
+python "D:\OPENCODE\secretary-1\secretary-1.py" --status
 ```
 
-- `실행 중: http://127.0.0.1:…/` → **[질문]** "jaba 창이 떴나요? 창을 닫았다가 **Ctrl+Alt+J** 로 다시 불러 보세요."
-- `꺼져 있음` → `--status` 를 한 번 더 실행한다. 그래도 꺼져 있으면 에이전트 셸이 끝나면서 같이 꺼진 것일 수 있다. 사용자에게 `D:\OPENCODE\jaba\jaba.bat` 을 직접 더블클릭해 달라고 하고, 다시 `--status` 로 확인한다.
+- `실행 중: http://127.0.0.1:…/` → **[질문]** "Secretary–1 창이 떴나요? 창을 닫았다가 **Ctrl+Alt+J** 로 다시 불러 보세요."
+- `꺼져 있음` → `--status` 를 한 번 더 실행한다. 그래도 꺼져 있으면 에이전트 셸이 끝나면서 같이 꺼진 것일 수 있다. 사용자에게 `D:\OPENCODE\secretary-1\secretary-1.bat` 을 직접 더블클릭해 달라고 하고, 다시 `--status` 로 확인한다.
 
-jaba 를 켜면 작업 표시줄에 최소화된 `jaba` 콘솔 창이 생긴다. **그 창을 닫으면 jaba 가 꺼진다.**
+Secretary–1 을 켜면 작업 표시줄에 최소화된 `secretary-1` 콘솔 창이 생긴다. **그 창을 닫으면 비서가 꺼진다.**
 
 ## 8. 완료 보고
 
 아래 형식으로 사용자에게 보고한다. **키 값은 쓰지 않는다.**
 
 ```text
-jaba 설치 완료
-- 위치     : D:\OPENCODE\jaba (jaba 버전 · python "D:\OPENCODE\jaba\jaba.py" --version)
+Secretary–1 설치 완료
+- 위치     : D:\OPENCODE\secretary-1 (버전 · python "D:\OPENCODE\secretary-1\secretary-1.py" --version)
 - 파이썬   : (1단계 결과)
 - LLM      : (주소) · (모델) · 키 (설정됨 / 참조 / 없음)
 - 점검     : 기본 응답 OK · 도구 호출 (OK / json 모드)
@@ -179,7 +179,7 @@ jaba 설치 완료
 
 ## 문제 해결
 
-`--setup` / `--check` 출력에 나온 문구로 찾는다. 고친 뒤에는 항상 `python "D:\OPENCODE\jaba\jaba.py" --check` 로 확인한다.
+`--setup` / `--check` 출력에 나온 문구로 찾는다. 고친 뒤에는 항상 `python "D:\OPENCODE\secretary-1\secretary-1.py" --check` 로 확인한다.
 
 | 출력에 보이는 것 | 조치 |
 |---|---|
@@ -194,34 +194,52 @@ jaba 설치 완료
 | `포트 … 를 열 수 없습니다` | `--set "port=8775"` |
 | `단축키 … 등록 실패` | 다른 프로그램이 같은 키를 씀 → **[질문]** 원하는 키 → `--set "hotkey=ctrl+alt+k"` |
 | `설정 오류: … 형식 오류` (config.json 이 깨짐) | 사용자가 메모장으로 고치거나, `config.json` 을 `config.bak.json` 으로 이름을 바꾸고 3단계부터 다시 |
-| 파이썬을 다시 깐 뒤 `jaba.bat` 이 안 켜짐 | `--setup` 한 번 실행 (`jaba.bat` 을 새로 만든다) |
+| 파이썬을 다시 깐 뒤 `secretary-1.bat` 이 안 켜짐 | `--setup` 한 번 실행 (`secretary-1.bat` 을 새로 만든다) |
 | `--set` 이 `API 키는 --set 으로 넣지 않습니다` | 정상 동작 (키가 명령 기록에 남지 않게 막음). 메모장 방법 또는 `{env:이름}` 참조 사용 |
 
-`--set` 은 모든 셸에서 `python "D:\OPENCODE\jaba\jaba.py" --set "키=값"` 형태로 쓴다. 틀린 값은 저장되지 않고 되돌려진다.
+`--set` 은 모든 셸에서 `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "키=값"` 형태로 쓴다. 틀린 값은 저장되지 않고 되돌려진다.
 
 ## 업데이트
 
 사용자가 업데이트를 요청했을 때:
 
 ```text
-python "D:\OPENCODE\jaba\jaba.py" --stop
-git -C "D:\OPENCODE\jaba" pull
-python "D:\OPENCODE\jaba\jaba.py" --check
-python -c "import os; os.startfile(r'D:\OPENCODE\jaba\jaba.bat')"
-python "D:\OPENCODE\jaba\jaba.py" --status
+python "D:\OPENCODE\secretary-1\secretary-1.py" --stop
+git -C "D:\OPENCODE\secretary-1" pull
+python "D:\OPENCODE\secretary-1\secretary-1.py" --check
+python -c "import os; os.startfile(r'D:\OPENCODE\secretary-1\secretary-1.bat')"
+python "D:\OPENCODE\secretary-1\secretary-1.py" --status
 ```
 
-zip 으로 받았다면 `git pull` 대신 새 `jaba-repo.zip` 을 `D:\OPENCODE` 에 두고 2단계 B 의 압축 해제 명령을 실행한다.
-`config.json` · `jaba.db`(일정) · `jaba_rules.json`(학습 규칙) · `jaba_wiki.json`(일정 위키)은 저장소에도 zip 에도 없어서 그대로 남는다.
+zip 으로 받았다면 `git pull` 대신 새 `secretary-1-repo.zip` 을 `D:\OPENCODE` 에 두고 2단계 B 의 압축 해제 명령을 실행한다.
+`config.json` · `secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)은 저장소에도 zip 에도 없어서 그대로 남는다.
+
+### 예전 이름(jaba)에서 넘어올 때
+
+`D:\OPENCODE\jaba` 에 예전 이름으로 설치돼 있으면, 폴더는 그대로 두고 그 안에서 업데이트한다 (위 명령의 `D:\OPENCODE\secretary-1` 을 `D:\OPENCODE\jaba` 로 바꿔서).
+
+```text
+python "D:\OPENCODE\jaba\jaba.py" --stop
+git -C "D:\OPENCODE\jaba" pull
+python "D:\OPENCODE\jaba\secretary-1.py" --check
+```
+
+`secretary-1.py` 를 처음 실행하면 알아서 옮긴다. 에이전트가 따로 할 일은 없다.
+
+- 켜져 있는 예전 비서를 끄고 → `jaba.db` · `jaba_rules.json` · `jaba_wiki.json` 을 새 이름으로 바꾸고 `config.json` 도 맞춘다 (일정 · 학습 · 위키 그대로)
+- `jaba.bat` 을 지우고 `secretary-1.bat` 을 만든다 · 자동 실행(`jaba.lnk`)도 `secretary-1.lnk` 로 바꿔 단다
+- 환경변수 `JABA_API_KEY` 같은 예전 이름도 계속 읽는다 (새 이름은 `SECRETARY_API_KEY`)
+
+그다음은 위와 같이 `secretary-1.bat` 실행 → `--status`.
 
 ## 제거
 
 ```text
-python "D:\OPENCODE\jaba\jaba.py" --stop
-python "D:\OPENCODE\jaba\jaba.py" --autostart off
+python "D:\OPENCODE\secretary-1\secretary-1.py" --stop
+python "D:\OPENCODE\secretary-1\secretary-1.py" --autostart off
 ```
 
-그다음 **[질문]** "`jaba.db`(일정) · `jaba_rules.json`(학습 규칙) · `jaba_wiki.json`(일정 위키)을 백업할까요?" → 사용자 확인 후에만 `D:\OPENCODE\jaba` 폴더를 지운다.
+그다음 **[질문]** "`secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)을 백업할까요?" → 사용자 확인 후에만 `D:\OPENCODE\secretary-1` 폴더를 지운다.
 
 ## 참고: 명령 모음
 

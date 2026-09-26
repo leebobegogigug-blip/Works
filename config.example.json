@@ -3,6 +3,7 @@
     "base_url": "",
     "api_key": "",
     "model": "",
+    "models": [],
     "tool_mode": "auto",
     "temperature": 0.2,
     "max_tokens": 2048,
@@ -13,7 +14,7 @@
   },
   "calendar": {
     "backend": "local",
-    "local_db": "jaba.db"
+    "local_db": "secretary-1.db"
   },
   "work_hours": {
     "start": "09:00",
@@ -43,8 +44,8 @@
     "poll_sec": 10
   },
   "reminder_minutes": 10,
-  "learn_file": "jaba_rules.json",
-  "wiki_file": "jaba_wiki.json",
+  "learn_file": "secretary-1-rules.json",
+  "wiki_file": "secretary-1-wiki.json",
   "theme": "dark",
   "port": 8765,
   "hotkey": "ctrl+alt+j",
