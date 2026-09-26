@@ -173,6 +173,25 @@ class TestConfig(unittest.TestCase):
                 json.dump({"theme": " System "}, f)
             self.assertEqual(sec.load_config(path)[0]["theme"], "system")
 
+    def test_company_name_is_a_setting_not_in_the_repo(self):
+        self.assertEqual(sec.DEFAULT_CONFIG["company"], "")                    # 저장소에는 회사 이름이 없다 (W-12)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "config.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"company": "  작은 회사 </script>  "}, f)
+            cfg, _ = sec.load_config(path)
+            self.assertEqual(cfg["company"], "작은 회사 </script>")
+            app_cfg = cfg_for(os.path.join(d, "s.db"), open_window=False, hotkey="", company=cfg["company"])
+            html = sec.App(app_cfg).render_index().decode("utf-8")   # DB 는 임시 폴더에 (프로그램 폴더에 만들지 않게)
+            self.assertNotIn("작은 회사 </script>", html)                     # 설정 글자가 스크립트를 닫지 못한다
+            self.assertIn('"company": "작은 회사 <\\/script>"', html)
+            self.assertIn('<i></i><span class="brand" id="brand" hidden></span><em>T−</em>', html)
+            for bad in ("가" * 25, "줄\n바꿈", 3):
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump({"company": bad}, f)
+                with self.assertRaises(sec.ConfigError, msg=repr(bad)):
+                    sec.load_config(path)
+
     def test_env_override(self):
         with tempfile.TemporaryDirectory() as d:
             os.environ["JABA_API_KEY"] = "secret-from-old-env"   # 예전 이름의 환경 변수는 더 읽지 않는다

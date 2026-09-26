@@ -51,6 +51,7 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 | `reminder_minutes` | Secretary–1 로 만든 Outlook 일정의 Outlook 자체 알림(분). 알림이 겹치면 `0` |
 | `work_hours` | 업무시간·요일 — 빈 시간 찾기와 경고 기준 |
 | `theme` | `dark`(기본, 검정 바탕) · `light`(밝은 회색 본체) · `system` — 둘 다 네이비 주색 · 라임 강조 |
+| `company` | `01 NEXT` 줄 끝에 작게 넣는 회사 이름 (24자까지 · 비우면 없음). 저장소에는 넣지 않고 이 PC 설정에만 둡니다 — `--set "company=회사이름"` |
 | `hotkey` | 전역 단축키 (기본 `ctrl+alt+j`, `""`이면 끔) |
 
 전체 기본값은 [`config.example.json`](../config.example.json), 설명은 `secretary-1.py` 맨 위에 있습니다.

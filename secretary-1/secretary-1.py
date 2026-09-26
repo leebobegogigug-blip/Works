@@ -138,6 +138,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "learn_file": "secretary-1-rules.json",
     "wiki_file": "secretary-1-wiki.json",
     "theme": "dark",
+    "company": "",
     "port": 8765,
     "hotkey": "ctrl+alt+j",
     "open_window": True,
@@ -231,6 +232,11 @@ def validate_config(cfg: Dict[str, Any]) -> None:
     cfg["theme"] = str(cfg.get("theme") or "dark").strip().lower()
     if cfg["theme"] not in ("dark", "light", "system"):
         raise ConfigError('theme 는 "dark", "light", "system" 중 하나여야 합니다')
+    company = cfg.get("company")   # 화면 위 이름 아래에 작게 넣는 회사 이름 — 저장소에는 넣지 않고 이 PC 설정에만
+    if company is not None and (not isinstance(company, str) or len(company.strip()) > 24
+                                or re.search(r"[\x00-\x1f\x7f]", company)):
+        raise ConfigError("company 는 24자까지의 글자여야 합니다 (예: --set company=회사이름 · 비우려면 --set company=)")
+    cfg["company"] = (company or "").strip()
     al = cfg.get("alerts")
     if not isinstance(al, dict):
         raise ConfigError("alerts 는 { } 객체여야 합니다")
@@ -2667,7 +2673,7 @@ class App:
 
     def render_index(self) -> bytes:
         al = self.cfg.get("alerts") or {}
-        boot = {"version": VERSION, "title": TITLE,
+        boot = {"version": VERSION, "title": TITLE, "company": self.cfg.get("company") or "",
                 "alerts": {"enabled": bool(al.get("enabled", True)), "with_location": al.get("with_location", []),
                            "without_location": al.get("without_location", []),
                            "poll_ms": int(float(al.get("poll_sec", 10)) * 1000)}}
@@ -4141,6 +4147,7 @@ body.off::after{content:"Secretary–1 · off — secretary-1.bat 으로 다시 
 .lbl b{background:var(--prime);color:var(--prime-ink);padding:0 3px;text-shadow:none;letter-spacing:0}
 .lbl i{flex:1;height:1px;background:var(--prime)}
 .lbl em{font-style:normal;color:var(--ink-2)}
+.lbl .brand{color:var(--ink-2);text-transform:none;letter-spacing:0;text-shadow:var(--b);white-space:nowrap}  /* 회사 이름 (config.company) — 줄이 짧아질 뿐 배치는 그대로 */
 .chat .lbl{margin:12px 0 2px}
 
 /* 01 화면: 모서리 재단선 · 흰 숫자 · 라임은 콜론만 */
@@ -4279,7 +4286,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:va
     </span>
     <span class="clock"><span id="clock-date"></span><span id="clock-time" role="img" aria-label="--:--"></span></span>
   </header>
-  <div class="lbl"><b>01</b>next<i></i><em>T−</em></div>
+  <div class="lbl"><b>01</b>next<i></i><span class="brand" id="brand" hidden></span><em>T−</em></div>
   <section class="lcd" id="next-box" aria-label="다음 일정">
     <i class="crop ca"></i><i class="crop cb"></i><i class="crop cc"></i><i class="crop cd"></i>
     <div class="lcd-top"><span id="next-k">next</span><span id="next-meta"></span><button class="wk" id="next-wiki" type="button" title="이 일정 위키 (Alt+W)" hidden>위키</button><span id="next-when"></span></div>
@@ -4345,6 +4352,7 @@ const TOKEN = document.querySelector('meta[name="secretary-token"]').content;
 let BOOT = {};
 try { BOOT = JSON.parse(document.getElementById('boot').textContent || '{}'); } catch (e) {}
 const TITLE = BOOT.title || 'Secretary–1 · 일정 비서';
+if (BOOT.company) { const b = document.getElementById('brand'); b.textContent = BOOT.company; b.hidden = false; }
 const ALERTS = BOOT.alerts || {with_location: [15, 5, 1], without_location: [5, 1], poll_ms: 10000, enabled: true};
 const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const WD = ['일','월','화','수','목','금','토'];

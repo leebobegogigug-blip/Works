@@ -94,6 +94,8 @@ OpenCode 설정은 `%USERPROFILE%\.config\opencode\opencode.json(c)`, `D:\OPENCO
 
 참고: `도구 호출: 텍스트로 출력함 → 자동으로 json 모드로 동작` 은 실패가 아니다 (그대로 동작함). 고정하려면 `--set "llm.tool_mode=json"`.
 
+**[질문]** "화면에 회사 이름을 작게 넣을까요? (01 NEXT 줄 끝)" → 넣는다면 `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "company=<회사 이름>"` (24자까지 · 이 PC 의 `config.json` 에만 저장)
+
 ### LLM 을 직접 넣기
 
 **[질문]** 사용자에게 사내 LLM 주소(보통 `…/v1` 로 끝남)와 모델 이름을 받는다 (**키는 받지 않는다**).

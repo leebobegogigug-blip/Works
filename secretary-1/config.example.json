@@ -47,6 +47,7 @@
   "learn_file": "secretary-1-rules.json",
   "wiki_file": "secretary-1-wiki.json",
   "theme": "dark",
+  "company": "",
   "port": 8765,
   "hotkey": "ctrl+alt+j",
   "open_window": true,
