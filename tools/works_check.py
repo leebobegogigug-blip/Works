@@ -219,7 +219,7 @@ def public_commands(repo: Repo) -> List[Dict[str, object]]:
     for ln, cells in section_rows(repo.text("docs/REGISTRY.md"), "공개 명령")[1:]:
         if len(cells) < 5:
             continue
-        users = [unquote(u) for u in re.split(r"[,·]", cells[4]) if unquote(u)]
+        users = [unquote(u) for u in re.split(r"[,·]", cells[4]) if unquote(u) not in ("", "—", "-", "없음")]
         out.append({"app": unquote(cells[0]), "command": unquote(cells[1]), "format": cells[3].strip(),
                     "users": users, "line": ln})
     return out

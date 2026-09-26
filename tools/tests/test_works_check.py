@@ -276,6 +276,10 @@ class Violations(Base):
         repo = self.two_apps(commands=self.COMMAND.replace("`demo-2` |", "`demo-9` |"),
                              provider_manual=MANUAL + "\n## 공개 명령\n`--export-things`\n")
         self.assertEqual([f.msg for f in wc.check_public_commands(repo)], ["공개 명령을 쓰는 앱 demo-9 가 앱 대장에 없습니다"])
+        for none in ("—", "-", "없음"):   # 아직 쓰는 앱이 없는 공개 명령
+            repo = self.two_apps(commands=self.COMMAND.replace("`demo-2` |", f"{none} |"),
+                                 provider_manual=MANUAL + "\n## 공개 명령\n`--export-things`\n")
+            self.assertEqual(wc.check_public_commands(repo), [], none)
 
     def test_llm_config_follows_spec(self):
         ok = '{"llm": {"base_url": "", "api_key": "", "model": ""}}'
