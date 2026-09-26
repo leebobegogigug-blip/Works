@@ -248,12 +248,17 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 - **the world reacts**: NPCs comment when a mission is done, each chapter zone hides two story events, NPCs you have met react
   to real opencode events (night errors, 429s, big todo lists, compaction, long builds, Friday deploys — once per 25 min),
   visit your room, and a shard shelf fills up on the wall.
-- **side episodes** (`E`): six supporting-cast stories unlock as chapters are cleared (immediately during a waiting week,
-  otherwise a few days apart); each is a short scene, a small goal and a decoration. Finished NPCs join chapter boss fights.
+- **side episodes** (`E`): six supporting-cast stories unlock one per two chapters cleared, one at a time (7 days apart,
+  3 during a waiting week); each is a short scene, a small goal and a decoration. Finished NPCs join chapter boss fights.
 - **choices & endings**: six epilogues end with a choice (`1` `2`); the majority picks one of three final epilogues.
 - **after the season**: a weekly *debt repayment* boss — pay principal with gold (`P`, 5% per step, up to 60% a week)
   to weaken it, fight with `B`. Premium decorations in the shop soak up late-game gold.
 - **catch-up**: a pet more than 4 levels under the current chapter's zone boss gets ×1.5 EXP (`과외 ×1.5` chip).
+- **R&D** (`5` forge → `R&D`): permanent upgrades bought with gold (EXP, slower needs, drops, telegraph window, auto-answer);
+  each step costs ×1.8 — the late-game gold sink.
+- **season 2 「Esc를 찾아서」 (THE LAST ESCAPE KEY)** starts after season 1's epilogue (2 chapters at once, then weekly).
+  Chapters ship in batches of four; a chapter that is not in your version yet waits as *준비 중* and starts on the update
+  if its release date has passed. The weekly debt fight keeps running (`B` = chapter boss when signalled, else debt).
 - balance is measured with `tools/tq_sim.py` (three token profiles on the real engine; `--duel` replays boss fights).
 - **news LED**: a new chapter, a ready boss or a waiting epilogue lights the LED next to `7스토리`, shows a `STORY` chip at home,
   and the ranch cards show each pet's chapter and mission count.
@@ -315,7 +320,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 172 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 182 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `terminal-1.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `terminal-1.ps1` with Windows PowerShell 5.1
 - works rules check (repo root): `python tools/works_check.py` — see [RULES.md](../../RULES.md)

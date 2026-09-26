@@ -107,6 +107,7 @@ class Player:
         if g.battle or g.mg:
             return
         self.gear()
+        self.research()
         self.missions()
         self.story()
         if not g.expd and not g.battle:
@@ -200,6 +201,17 @@ class Player:
             info = g.enhance_info(gg)
             if info and info["have"] >= info["need"] and g.s["gold"] >= info["gold"] * 2.5:
                 g.enhance("equip", slot)
+
+    # --- 사내 R&D: 골드가 넉넉하면(값의 5배) 한 단계씩
+    def research(self):
+        g = self.g
+        if not hasattr(g, "rnd_cost"):
+            return
+        for key in ("exp", "care", "auto", "window", "drop"):
+            cost = g.rnd_cost(key)
+            if cost is not None and g.s["gold"] >= cost * 5:
+                g.rnd_buy(key)
+                return
 
     # --- 스토리 미션 중 손으로 채울 수 있는 것 (화면에 보이니 사람도 이렇게 한다)
     def missions(self):

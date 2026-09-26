@@ -962,6 +962,7 @@ ACHIEVEMENTS = [
     ("gim_perfect3", "패턴 리더", "챕터 보스의 예고를 전부 받아치고 이기기 3번", 1500, "패턴 리더"),
     ("side_all", "조연의 친구", "사이드 에피소드 6편을 모두 마치기", 3000, "모두의 친구"),
     ("debt4", "무부채 경영", "시즌 후 주간 부채 상환 4번", 4000, "무부채 경영"),
+    ("rnd_all", "사내 연구소장", "사내 R&D 를 모두 최대 단계로", 10000, "연구소장"),
 ]
 
 # ============================================================== 일일 퀘스트
@@ -1762,9 +1763,12 @@ NPC_VISITS = [
 # ============================================================== 사이드 에피소드 (v5): 기다리는 주를 채우는 조연 이야기
 # need: 이 챕터(0부터)를 깨면 열린다 · goal: 시작한 뒤부터 세는 목표 (STORY_STAT_TEXT 의 스탯)
 # 한 번에 하나씩, 목록 순서대로. 끝내면 보상 + 그 NPC 가 챕터 보스전에 동료로 온다 (help)
-# 다음 챕터를 기다리는 주(phase wait)엔 바로 오고, 아니면 SIDE_GAP 간격으로 온다
+# 한 편씩 간격을 두고 온다: 챕터를 SIDE_EVERY 개 더 깨야 다음 편, 그리고 다음 챕터를 기다리는 주(phase wait)엔 SIDE_GAP_WAIT,
+# 아니면 SIDE_GAP (시뮬레이션: 4일 간격만 두면 25일째에 6편이 다 끝나 뒤쪽 대기 주가 비었다)
 # help: 챕터 보스전 지원 — kind attack(공격) · heal(펫 HP 회복) · guard(보스 공격력 ↓) , art: 2줄 미니 그림
-SIDE_GAP = 4 * 86400
+SIDE_EVERY = 2
+SIDE_GAP = 7 * 86400
+SIDE_GAP_WAIT = 3 * 86400
 SIDE_EPISODES = [
     dict(id="e_duck", npc="duck", need=0, title="꽥의 의미", goal=dict(s="pats", n=10),
          intro=[("narr", "밤이 깊었다. 러버덕이 모니터 앞에서 혼자 꽥꽥거리고 있다."),
@@ -1875,3 +1879,28 @@ ENDINGS = {
 DEBT = dict(mid="sb12", base=100000, growth=0.12, step=0.05, max_pay=0.6, lvl_add=8,
             reward=dict(gold=0, exp=0.6, mats={"boss_core": 2, "legacy_scroll": 1}),
             lines=[("debt", "또 왔구나. 이번 주 이자다."), ("pet:proud", "조금씩, 매일 갚기로 했잖아!")])
+
+
+# ============================================================== 시즌 (v5 · 시즌 2 엔진)
+# CHAPTERS 는 모든 시즌의 챕터를 이어 붙인 목록 (챕터 i = 지역 i). first: 시즌 첫 챕터 번호 · n: 시즌 챕터 수(계획)
+# 아직 만들지 않은 챕터는 CHAPTERS 에 없다 → 그 앞에서 '준비 중'으로 기다린다 (4장씩 나눠 출시)
+STORY_SEASONS = [
+    dict(STORY, first=0, n=12, shard="커밋 조각", done="모든 빌드가 초록불"),
+    dict(season=2, title="Esc를 찾아서", en="THE LAST ESCAPE KEY", fast=2, every=7, first=12, n=12, shard="Esc 조각",
+         done="Esc 키가 돌아왔다",
+         teaser="금요일 밤 11시 58분, 누군가 세상의 모든 키보드에서 Esc 키를 뽑아 갔다. 그 순간부터 모든 에이전트가 --yes 로 돈다."),
+]
+# 시즌 최종 챕터 → 고른 길에 따라 붙는 에필로그 단락
+ENDINGS_BY_CH = {"c12": ENDINGS}
+
+# ============================================================== 사내 R&D (v5): 골드로 사는 영구 강화 — 시즌 1 끝의 골드 100만+ 를 쓸 곳
+# per: 단계당 효과 · max: 최대 단계 · base: 1단계 값 (단계마다 x1.8)
+RND = {
+    "exp": dict(name="경험치 연구", desc="경험치 +{v}%", per=1, max=10, base=30000),
+    "care": dict(name="사내 복지", desc="포만 · 기분 · 체력이 {v}% 덜 닳는다", per=2, max=5, base=30000),
+    "drop": dict(name="전리품 분석", desc="몬스터 드롭 확률 +{v}%", per=3, max=5, base=40000),
+    "window": dict(name="반응 속도 훈련", desc="보스 예고 대응 창 +{v}초", per=0.5, max=4, base=40000),
+    "auto": dict(name="자동 대응 학습", desc="보스 예고 자동 대응 +{v}%", per=2, max=5, base=50000),
+}
+RND_GROWTH = 1.8
+

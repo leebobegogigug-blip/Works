@@ -63,8 +63,9 @@ TOKEN QUEST · 채널마다 펫 한 마리 · -PETNAME<br>
 새벽 에러엔 온콜 늑대가 · 429 엔 드래곤의 메아리가<br>
 사이드 에피소드 6 · 끝낸 조연은 보스전 동료<br>
 선택 6곳 · 엔딩 셋 · 시즌 후 주간 부채 상환<br>
+사내 R&D · 골드로 영구 강화 · 시즌 2 「Esc를 찾아서」 준비 중<br>
 은퇴 · 명예의 전당 · 다음 세대<br>
-테스트 172 · WINDOWS + UBUNTU CI
+테스트 182 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -261,7 +262,7 @@ TOKEN QUEST 7장 「야근의 탑」의 챕터 보스는 크런치 타임 거인
 <tr><td>보안</td><td>서버 비밀번호는 명령줄 대신 파일로 · compose 로 보낸 글은 디스크에 남기지 않음</td></tr>
 <tr><td>저장</td><td><code>%LOCALAPPDATA%\terminal-1\</code> — <code>instances.json</code> · <code>pet-*.json</code> · <code>raid-*.json</code> · <code>poll-*.json</code></td></tr>
 <tr><td>화면</td><td>Terminal-1 Black 색 테마 · GNU Unifont 15.1.01 추천 · 폭 1칸 아이콘만</td></tr>
-<tr><td>테스트</td><td>unittest 172 · <code>terminal-1.ps1</code> 실제 실행(pwsh · 가짜 wt) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
+<tr><td>테스트</td><td>unittest 182 · <code>terminal-1.ps1</code> 실제 실행(pwsh · 가짜 wt) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>

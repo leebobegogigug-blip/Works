@@ -30,7 +30,7 @@ PART_NAMES = {"intro": "PROLOGUE", "boss": "BOSS", "outro": "EPILOGUE", "replay"
 SUBTABS = {
     "bag": ["장비", "소모품", "재료", "꾸미기"],
     "shop": ["구매", "판매"],
-    "forge": ["강화", "제작"],
+    "forge": ["강화", "제작", "R&D"],
     "dex": ["프로필", "퀘스트", "일기", "몬스터", "진화", "전당", "업적", "설정"],
 }
 DEX_PROFILE, DEX_QUEST, DEX_DIARY, DEX_MON, DEX_FORMS, DEX_HALL, DEX_ACH, DEX_SET = range(8)
@@ -557,11 +557,16 @@ class PetUI:
                 res = g.enhance(where, key, self.protect)
                 if res:
                     self.enh_show = (res, time.time())
-        else:
+        elif self.sub["forge"] == 1:
             rows = g.recipe_list()
             c = self._cursor("forge1", len(rows), k)
             if k == "ENTER" and rows:
                 g.craft(rows[c]["id"])
+        else:
+            keys = list(D.RND)
+            c = self._cursor("forge2", len(keys), k)
+            if k == "ENTER":
+                g.rnd_buy(keys[c])
 
     # --- 도감
     SETTINGS = [("auto_exp", "자동 원정 (AI가 일하면 출발, 응답 오면 귀환)"), ("auto_battle", "자동 전투"),
@@ -660,14 +665,15 @@ class PetUI:
             self._story_enter(i)
         elif k == "e":
             self._side_open()
-        elif k == "p" and st["phase"] == "end":
+        elif k == "p" and g.debt_info():
             g.debt_pay()
-        elif k == "b" and st["phase"] == "end":
+        elif k == "b" and st["phase"] != "boss" and g.debt_info():
             ok, why = g.can_debt_boss()
             if not ok:
                 self._toast(why, 4)
                 return
-            self.scene = dict(ch=len(D.CHAPTERS) - 1, part="debt", lines=g._resolve_lines(D.DEBT["lines"]), idx=0,
+            self.scene = dict(ch=D.STORY_SEASONS[0]["first"] + D.STORY_SEASONS[0]["n"] - 1, part="debt",
+                              lines=g._resolve_lines(D.DEBT["lines"]), idx=0,
                               t0=time.time(), then="debt")
         elif k == "b":
             if i != st["ch"]:
@@ -1032,8 +1038,10 @@ class PetUI:
             return [("←→", "구매/판매"), ("↑↓", "선택"), ("↵", "구매" if self.sub["shop"] == 0 else "판매")]
         if tab == "forge":
             if self.sub["forge"] == 0:
-                return [("←→", "강화/제작"), ("↵", "강화"), ("P", "러버덕 보호 " + on(self.protect))]
-            return [("←→", "강화/제작"), ("↵", "제작")]
+                return [("←→", "강화/제작/R&D"), ("↵", "강화"), ("P", "러버덕 보호 " + on(self.protect))]
+            if self.sub["forge"] == 2:
+                return [("←→", "강화/제작/R&D"), ("↑↓", "연구"), ("↵", "투자")]
+            return [("←→", "강화/제작/R&D"), ("↵", "제작")]
         if tab == "story":
             b = g.battle
             if b and b.get("story") is not None:
@@ -1044,10 +1052,9 @@ class PetUI:
             pairs = [("←→", "챕터"), ("↵", "대화")]
             if self._story_idx() == s["ch"] and s["phase"] == "boss":
                 pairs.append(("B", "보스 도전!", P3["lime"]))
-            if s["phase"] == "end":
-                di = g.debt_info()
-                if di and not di["cleared"]:
-                    pairs += [("B", "부채 상환전", P3["lime"]), ("P", "원금 갚기")]
+            di = g.debt_info()
+            if di and not di["cleared"] and s["phase"] != "boss":
+                pairs += [("B", "부채 상환전", P3["lime"]), ("P", "원금 갚기")]
             si = g.side_info()
             if si:
                 pairs.append(("E", "사이드" + (" ●" if si["phase"] != "play" else ""), P3["navy4"]))
@@ -1289,7 +1296,7 @@ class PetUI:
             elif s_["phase"] == "boss":
                 msg = f"{WH}{B}챕터 보스 도전 가능{RST}"
             else:
-                msg = f"{G4}새 챕터 CH{s_['ch'] + 1:02d}{RST}"
+                msg = f"{G4}새 챕터 {P.ch_tag(s_['ch'])}{RST}"
             parts.append((chip("STORY", "black", "lime") if blink else chip("STORY", "lime", "navy2")) + f" {msg} {G1}[7]{RST}")
         if not side:
             S = g.stats()
@@ -1441,8 +1448,9 @@ class PetUI:
         # 커밋 조각 선반 (벽 가운데 위): 모은 조각은 초록불
         st = g.story()
         top_y = y0 + 1
-        if st and st.get("cleared") and W >= 30 and not egg:
-            n_sh, n_all = len(st["cleared"]), len(D.CHAPTERS)
+        se = P.season_of(st["ch"]) if st else None
+        if st and se and P.season_cleared(st, se) and W >= 30 and not egg:
+            n_sh, n_all = P.season_cleared(st, se), se["n"]
             shelf = f"{NV3}[{RST}" + "".join((LIME if not dark else G0) + "▮" + RST if k < n_sh else NV2 + "·" + RST
                                               for k in range(n_all)) + f"{NV3}]{RST}"
             cv.ansi(x0 + (W - n_all - 2) // 2, top_y, shelf)
@@ -1652,7 +1660,7 @@ class PetUI:
             if g.battle.get("raid"):
                 tag = chip("RAID", "black", "white")
             elif g.battle.get("story") is not None:
-                tag = chip(f"CH{g.battle['story'] + 1:02d}", "black", "white")
+                tag = chip(P.ch_tag(g.battle["story"]).replace(" ", ""), "black", "white")
                 boss = True
             else:
                 tag = {"boss": chip("BOSS", "black", "white"), "mini": chip("MINI", "black", "gray")}.get(m["rank"], "")
@@ -1805,7 +1813,7 @@ class PetUI:
             if not info["released"]:
                 # 아직 공개 전: 스토리 챕터가 열리는 날
                 when = self._release_text(i).split(" · ")[0] if self._release_text(i) else "이전 챕터 클리어 후"
-                row += f"{G1}CH{i + 1:02d} · {when}{RST}" if wide else f"{G1}CH{i + 1:02d}{RST}"
+                row += f"{G1}{P.ch_tag(i)} · {when}{RST}" if wide else f"{G1}{P.ch_tag(i)}{RST}"
                 rows.append(row)
                 continue
             if wide:
@@ -1838,7 +1846,8 @@ class PetUI:
             lines += wrap(f"{G}{z['desc']}{RST}", W)
             if not info["released"]:
                 rt = self._release_text(c)
-                lines.append(f"{chip('LOCK', 'black', 'white')} {WH}스토리 CH{c + 1:02d} 「{D.CHAPTERS[c]['title']}」이 열리면 공개{RST}"
+                title = D.CHAPTERS[c]["title"] if c < len(D.CHAPTERS) else "준비 중"
+                lines.append(f"{chip('LOCK', 'black', 'white')} {WH}스토리 {P.ch_tag(c)} 「{title}」이 열리면 공개{RST}"
                              + (f" {G1}· {rt}{RST}" if rt else ""))
             elif not info["unlocked"]:
                 need = [] if info["prev_ok"] else ["이전 지역 보스 격파"]
@@ -1984,10 +1993,12 @@ class PetUI:
             return chip("BOSS", "black", "white") if blink else chip("BOSS", "white", "navy2")
         return chip("PLAY", "black", "navy4")
 
-    def _shard_strip(self, st, now, n=None):
-        """커밋 조각 12칸 LED: 모은 조각 라임 · 지금 챕터 깜빡 · 나머지 네이비"""
+    def _shard_strip(self, st, now, n=None, se=None):
+        """조각 12칸 LED (시즌마다): 모은 조각 라임 · 지금 챕터 깜빡 · 나머지(준비 중 포함) 네이비"""
+        se = se or P.season_of(st["ch"])
         out = []
-        for k, c in enumerate(D.CHAPTERS):
+        for k in range(se["first"], se["first"] + se["n"]):
+            c = D.CHAPTERS[k] if k < len(D.CHAPTERS) else {"id": None}
             if c["id"] in st["cleared"]:
                 out.append(f"{LIME}▮")
             elif k == st["ch"] and st["phase"] in ("play", "boss"):
@@ -2004,10 +2015,11 @@ class PetUI:
             return
         st = g.story()
         now = time.time()
-        n = len(D.CHAPTERS)
-        head_l = f"{chip('S' + str(D.STORY['season']), 'black', 'lime')} {WH}{B}{D.STORY['title']}{RST}"
+        se = P.season_of(self._story_idx()) if st else D.STORY_SEASONS[0]     # 보고 있는 챕터의 시즌
+        n = se["n"]
+        head_l = f"{chip('S' + str(se['season']), 'black', 'lime')} {WH}{B}{se['title']}{RST}"
         if W >= 64:
-            head_l += f" {G1}{D.STORY['en']}{RST}"
+            head_l += f" {G1}{se['en']}{RST}"
         if not st:
             cv.ansi_clip(x0, y0, head_l, W)
             lines = [sect(1, "CHAPTER", W),
@@ -2024,7 +2036,7 @@ class PetUI:
         cleared = c["id"] in st["cleared"]
         future = i > cur
         # 머리줄: S1 초록불을 찾아서 ········ ‹ 07/12 ›
-        pager = f"{G1}‹{RST} {LIME}{B}{i + 1:02d}{RST}{G1}/{n} ›{RST}"
+        pager = f"{G1}‹{RST} {LIME}{B}{P.ch_no(i):02d}{RST}{G1}/{n} ›{RST}"
         cv.ansi(x0 + W - vlen(pager), y0, pager)
         cv.ansi_clip(x0, y0, head_l, W - vlen(pager) - 1)
         self._anchor(x0 + W - vlen(pager) - 1, y0, "pages")
@@ -2037,12 +2049,12 @@ class PetUI:
         self._modbox(cv, x0, y, bw, box_h, 1, "CHAPTER", right=self._story_chip(st, i, now))
         self._anchor(x0 + title_end(1, "CHAPTER", boxed=True), y, "chapter")
         iw = bw - 4
-        body = [f"{LIME}{B}CH{i + 1:02d}{RST} {WH}{B}{c['title']}{RST}" + (f" {G1}{c['en']}{RST}" if vlen(c['title']) + vlen(c['en']) + 7 <= iw else "")]
+        body = [f"{LIME}{B}CH{P.ch_no(i):02d}{RST} {WH}{B}{c['title']}{RST}" + (f" {G1}{c['en']}{RST}" if vlen(c['title']) + vlen(c['en']) + 7 <= iw else "")]
         if future:
             rt = self._release_text(i)
             body += [f"{G}{ln}{RST}" for ln in wrap_words(c["teaser"], iw)]
             cta = (f"{chip('LOCK', 'gray4', 'navy1', False)} {G4}{rt}{RST}" if rt else
-                   f"{chip('LOCK', 'gray4', 'navy1', False)} {G4}CH{cur + 1:02d}를 끝내면 열려요{RST}")
+                   f"{chip('LOCK', 'gray4', 'navy1', False)} {G4}{P.ch_tag(cur)}를 끝내면 열려요{RST}")
         else:
             body += [f"{G}{ln}{RST}" for ln in wrap_words(c["summary"], iw)]
             if cleared:
@@ -2061,11 +2073,11 @@ class PetUI:
             cv.ansi_clip(x0 + 2, y + 1 + k, ln, iw)
         cv.ansi_clip(x0 + 2, y + box_h - 2, cta, iw)
         if side:
-            self._shards_box(cv, x0 + bw + 1, y, sw - 1, box_h, st, now)
+            self._shards_box(cv, x0 + bw + 1, y, sw - 1, box_h, st, now, se=se)
             self._anchor(x0 + bw + 1 + title_end(2, "SHARDS", boxed=True), y, "shards")
         y += box_h
         if not side and y < end:
-            cv.ansi_clip(x0, y, f"{G1}SHARDS{RST} {self._shard_strip(st, now)} {G4}{len(st['cleared']):02d}{RST}{G1}/{n}{RST}", W)
+            cv.ansi_clip(x0, y, f"{G1}SHARDS{RST} {self._shard_strip(st, now, se=se)} {G4}{P.season_cleared(st, se):02d}{RST}{G1}/{n}{RST}", W)
             self._anchor(x0 + 6, y, "shards")
             y += 1
         # ---- 03 MISSIONS
@@ -2076,7 +2088,7 @@ class PetUI:
             cv.ansi(x0, y, sect(4, "NEXT", W))
             self._anchor(x0 + title_end(4, "NEXT") + 1, y, "next")
             y += 1
-            for ln in self._next_lines(st, W)[: max(0, min(2, end - y - 2) if end - y > 3 else 1)]:
+            for ln in self._next_lines(st, W)[: max(0, min(3, end - y - 3) if end - y > 4 else 1)]:
                 cv.ansi_clip(x0, y, ln, W)
                 y += 1
         # ---- 05 LOG
@@ -2092,23 +2104,24 @@ class PetUI:
                 stamp = time.strftime("%m/%d %H:%M", time.localtime(ts)) if W >= 56 else time.strftime("%H:%M", time.localtime(ts))
                 cv.ansi_clip(x0, y + 1 + k, f"{NV3}{stamp}{RST} {tc}{t}{RST}", W)
 
-    def _shards_box(self, cv, x, y, w, h, st, now):
-        """02 SHARDS: 모은 커밋 조각 수 (세그먼트) + 12칸 LED + 마지막 해시"""
-        k = len(st["cleared"])
+    def _shards_box(self, cv, x, y, w, h, st, now, se=None):
+        """02 SHARDS: 이 시즌에 모은 조각 수 (세그먼트) + 12칸 LED + 마지막 해시"""
+        se = se or P.season_of(st["ch"])
+        k = P.season_cleared(st, se)
         self._modbox(cv, x, y, w, h, 2, "SHARDS")
         ix, iy = x + 2, y + 1
         if h >= 6:
             for r, ln in enumerate(seg_lines(f"{k:02d}", P3["lime"], ghost=P3["navy1"])):
                 cv.ansi(ix, iy + r, ln)
-            cv.ansi(ix + seg_width(f"{k:02d}") + 1, iy + 2, f"{G1}/{len(D.CHAPTERS)}{RST}")
+            cv.ansi(ix + seg_width(f"{k:02d}") + 1, iy + 2, f"{G1}/{se['n']}{RST}")
             iy += 3
         else:
-            cv.ansi(ix, iy, f"{LIME}{B}{k:02d}{RST}{G1}/{len(D.CHAPTERS)}{RST}")
+            cv.ansi(ix, iy, f"{LIME}{B}{k:02d}{RST}{G1}/{se['n']}{RST}")
             iy += 1
         if iy < y + h - 1:
-            cv.ansi(ix, iy, self._shard_strip(st, now))
+            cv.ansi(ix, iy, self._shard_strip(st, now, se=se))
             iy += 1
-        last = next((c for c in reversed(D.CHAPTERS) if c["id"] in st["cleared"]), None)
+        last = next((c for c in reversed(D.CHAPTERS[se["first"]:se["first"] + se["n"]]) if c["id"] in st["cleared"]), None)
         if iy < y + h - 1:
             cv.ansi_clip(ix, iy, f"{G1}#{RST}{G4}{last['hash']}{RST}" if last else f"{G1}#-------{RST}", w - 4)
 
@@ -2192,30 +2205,44 @@ class PetUI:
             state = {"new": f"{LIME}새 이야기 [E]{RST}", "done": f"{LIME}{B}목표 달성! 마무리 [E]{RST}"}.get(
                 si["phase"], f"{G4}{si['text']} {si['prog']}/{si['target']}{RST}")
             out.append(f"{NV4}◇ SIDE{RST} {G4}{B}{si['ep']['title']}{RST} {G1}· {si['npc']} ·{RST} {state}")
-        return out + self._main_next_lines(st, W)
+        main = self._main_next_lines(st, W)
+        return main[:1] + out + main[1:]
 
     def _main_next_lines(self, st, W):
-        n = len(D.CHAPTERS)
+        g = self.g
+        se = P.season_of(st["ch"])
+        di = g.debt_info()
+        debt = []
+        if di and not di["cleared"]:
+            debt = [f"{G1}$ 부채 원금{RST} {G4}{P.fmt_num(di['principal'])}G{RST} {G1}· 미리 갚음{RST} "
+                    f"{LIME}{int(di['paid'] * 100)}%{RST} {G1}· [P] 5% 갚기 {P.fmt_num(di['cost'])}G · [B] 상환전{RST}"]
+        elif di:
+            debt = [f"{G1}$ 이번 주 부채 상환 완료 ({di['weeks']}주째) · 다음 주 월요일에 이자가 붙어요{RST}"]
         if st["phase"] == "end":
-            di = self.g.debt_info()
-            head = f"{LIME}{B}시즌 {D.STORY['season']} 완결!{RST} {G}기술 부채는 매주 이자가 붙어요{RST}"
-            if not di:
-                return [head]
-            if di["cleared"]:
-                return [head, f"{G1}$ 이번 주 상환 완료 ({di['weeks']}주째) · 다음 주 월요일에 이자가 붙어요{RST}"]
-            return [head, f"{G1}$ 원금{RST} {G4}{P.fmt_num(di['principal'])}G{RST} {G1}· 미리 갚음{RST} "
-                          f"{LIME}{int(di['paid'] * 100)}%{RST} {G1}· [P] 5% 갚기 {P.fmt_num(di['cost'])}G · [B] 상환전{RST}"]
+            head = f"{LIME}{B}시즌 {se['season']} 완결!{RST} {G}{se['done']}{RST}"
+            nxt_se = next((x for x in D.STORY_SEASONS if x["first"] == se["first"] + se["n"]), None)
+            if nxt_se and not g.story_ready(nxt_se["first"]):
+                return [head, f"{NV4}S{nxt_se['season']}{RST} {G4}{B}「{nxt_se['title']}」{RST} {G1}준비 중 · "
+                              f"{nxt_se.get('teaser', '')}{RST}"] + debt
+            if nxt_se and st.get("pending") is not None:
+                return [head, f"{LIME}에필로그를 보면 시즌 {nxt_se['season']} 「{nxt_se['title']}」이 시작돼요 [↵]{RST}"] + debt
+            return [head] + (debt or [f"{G}기술 부채는 매주 이자가 붙어요{RST}"])
         j = st["ch"] + 1
-        if j >= n:
-            return [f"{G}마지막 챕터예요. 보스를 쓰러뜨리면 시즌 {D.STORY['season']} 완결!{RST}"]
+        if P.season_final(st["ch"]):
+            return [f"{G}마지막 챕터예요. 보스를 쓰러뜨리면 시즌 {se['season']} 완결!{RST}"] + debt
+        if not g.story_ready(j):
+            return [f"{NV4}{P.ch_tag(j)}{RST} {G4}{B}다음 장은 준비 중이에요{RST} {G1}· 업데이트로 이어집니다 "
+                    f"(공개일이 지나 있으면 받자마자 시작){RST}"] + debt
         nxt = D.CHAPTERS[j]
         rt = self._release_text(j)
         if st["phase"] == "wait":
             when = rt or "곧 열려요"
         else:
             when = (rt + " · 이번 챕터를 끝내면 시작") if rt else "이번 챕터를 끝내면 바로 시작"
-        return [f"{NV4}CH{j + 1:02d}{RST} {G4}{B}{nxt['title']}{RST} {G1}·{RST} {LIME3}{when}{RST}",
-                f"{G1}{nxt['teaser']} · 새 지역 {D.ZONES[j]['name']} (LV{D.ZONES[j]['lvl']}~){RST}"]
+        zname = D.ZONES[j]["name"] if j < len(D.ZONES) else ""
+        zlv = D.ZONES[j]["lvl"] if j < len(D.ZONES) else ""
+        return [f"{NV4}{P.ch_tag(j)}{RST} {G4}{B}{nxt['title']}{RST} {G1}·{RST} {LIME3}{when}{RST}",
+                f"{G1}{nxt['teaser']} · 새 지역 {zname} (LV{zlv}~){RST}"] + debt
 
     def _draw_story_battle(self, cv, x0, y0, W, H, gnow):
         """챕터 보스전: 레이드 화면과 같은 틀 + 챕터 번호 · 페이즈"""
@@ -2223,7 +2250,7 @@ class PetUI:
         b = g.battle
         m = b["mon"]
         i = b["story"]
-        tag = chip("WEEKLY DEBT", "black", "lime") if b.get("debt") else chip(f"CH{i + 1:02d} BOSS", "black", "lime")
+        tag = chip("WEEKLY DEBT", "black", "lime") if b.get("debt") else chip(f"{P.ch_tag(i)} BOSS", "black", "lime")
         head = f"{tag} {WH}{B}{m['name']}{RST}  {G1}ROUND{RST} {G4}{b['round'] + 1}{RST}"
         if b.get("phase2"):
             head += "  " + (chip("PHASE 2", "black", "white") if b.get("p2_done") else f"{G1}PHASE 1/2{RST}")
@@ -2367,7 +2394,7 @@ class PetUI:
         elif part == "debt":
             head = f"{chip('DEBT', 'black', 'lime')} {WH}{B}주간 부채 상환{RST} {G1}· WEEKLY DEBT{RST}"
         else:
-            head = f"{chip(f'CH{i + 1:02d}', 'black', 'lime')} {WH}{B}{c['title']}{RST} {G1}· {PART_NAMES.get(part, part.upper())}{RST}"
+            head = f"{chip(P.ch_tag(i), 'black', 'lime')} {WH}{B}{c['title']}{RST} {G1}· {PART_NAMES.get(part, part.upper())}{RST}"
         cnt = f"{G4}{idx + 1:02d}{RST}{G1}/{len(lines):02d}{RST}"
         strip = segbar(idx + 1, len(lines), min(len(lines), max(4, (W - 30) // 2)), on=P3["lime"]) if W >= 56 else ""
         right = cnt + (" " + strip if strip else "")
@@ -2553,7 +2580,7 @@ class PetUI:
         if x + vlen(mat_txt) + 2 <= x0 + W:
             cv.ansi(x0 + W - vlen(mat_txt), y0, mat_txt)
             self._anchor(x0 + W - vlen(mat_txt) - 2, y0, "mats")
-        nm = "GEAR" if self.sub["forge"] == 0 else "RECIPES"
+        nm = ("GEAR", "RECIPES", "R&D")[self.sub["forge"]]
         cv.ansi_clip(x0, y0 + 1, sect(1, nm, W), W)
         self._anchor(x0 + title_end(1, nm), y0 + 1, "list")
         y0 += 1
@@ -2610,6 +2637,8 @@ class PetUI:
                     cv.ansi_clip(x0, yy, f"{chip('MAX', 'black', 'lime')} {LIME}{B}최대 강화 +10 달성!{RST}", W)
             if self.enh_show:
                 self._forge_fx(cv, x0, y0, W, H)
+        elif self.sub["forge"] == 2:
+            self._draw_rnd(cv, x0, y, W, y0 + H - y)
         else:
             rows_raw = g.recipe_list()
             rows = []
@@ -2629,6 +2658,28 @@ class PetUI:
                                  for k, v in rc["need"].items())
                 for i, ln in enumerate(wrap_sep(f"{G1}보유{RST} {have}", W, "  ")[:2]):
                     cv.ansi(x0, y0 + H - 2 + i, ln)
+
+    def _draw_rnd(self, cv, x0, y, W, h):
+        """사내 R&D: 골드로 사는 영구 강화 (단계 · 효과 · 다음 값)"""
+        g = self.g
+        keys = list(D.RND)
+        rows = []
+        for key in keys:
+            r, lv = D.RND[key], g.rnd_level(key)
+            cost = g.rnd_cost(key)
+            eff = r["desc"].format(v=f"{g.rnd_value(key):g}")
+            nxt = f"{G4}{P.fmt_num(cost)}G{RST}" if cost is not None else chip("MAX", "black", "lime")
+            ok = cost is not None and g.s["gold"] >= cost
+            rows.append(f"{LIME if lv else G4}{r['name']}{RST} {segbar(lv, r['max'], r['max'], on=P3['lime'])} "
+                        f"{G1}{eff}{RST} {NV4}›{RST} {nxt}" + (f" {chip('OK', 'black', 'lime')}" if ok else ""))
+        c = min(self.cur.get("forge2", 0), len(keys) - 1)
+        self.cur["forge2"] = c
+        self._list(cv, x0, y, W, max(1, h - 2), rows, c)
+        r = D.RND[keys[c]]
+        per = f"{r['per']:g}"
+        tip = (f"{G1}단계마다{RST} {G4}{r['desc'].format(v=per)}{RST} {G1}· 최대 {r['max']}단계 · 값은 단계마다 "
+               f"×{D.RND_GROWTH:g} · 보유 {P.fmt_num(g.s['gold'])}G{RST}")
+        cv.ansi_clip(x0, y + h - 1, tip, W)
 
     def _forge_fx(self, cv, x0, y0, W, H):
         """강화 연출: 네이비 패널에서 게이지가 차오르고(깡!) → 세그먼트 숫자로 결과"""
@@ -3091,11 +3142,12 @@ class PetUI:
             self._center_box(cv, W, H, "WEEKLY DEBT", lines, tone="lime" if s.get("win") else "navy4")
             return
         if s.get("story"):
-            n = len(D.CHAPTERS)
+            se = P.season_of(s["ch"])
+            n = se["n"]
             if s.get("win"):
-                lines = [f"{LIME}{B}CH{s['ch'] + 1:02d} CLEAR{RST} {G4}「{s['title']}」{RST} {G1}· {s['boss']} 격파{RST}",
-                         ("seg", f"{s['shards']:02d}", P3["lime"], f"/{n} 커밋 조각"),
-                         f"{G1}조각{RST} {LIME}#{s['ch'] + 1}{RST} {G4}{s['hash']}{RST}  {G1}+{RST}{G4}{P.fmt_num(s['gold'])}G{RST}"
+                lines = [f"{LIME}{B}{P.ch_tag(s['ch'])} CLEAR{RST} {G4}「{s['title']}」{RST} {G1}· {s['boss']} 격파{RST}",
+                         ("seg", f"{s['shards']:02d}", P3["lime"], f"/{n} {se['shard']}"),
+                         f"{G1}조각{RST} {LIME}#{P.ch_no(s['ch'])}{RST} {G4}{s['hash']}{RST}  {G1}+{RST}{G4}{P.fmt_num(s['gold'])}G{RST}"
                          f"  {G1}+{RST}{G4}{P.fmt_num(s['exp'])}EXP{RST}"]
                 ok, n_t = s.get("gim") or (0, 0)
                 if n_t:
@@ -3499,7 +3551,8 @@ def render_ranch(scopes, W, H, reg_colors=None, anchors=None):
             so = sm["story"]
             state = {"boss": f"{WH}◆ 보스{RST}", "wait": f"{LIME3}√ 다음 주{RST}", "end": f"{LIME}완결{RST}"}.get(
                 so.get("phase"), f"{G1}{so.get('done', 0)}/{so.get('total', 0)}{RST}")
-            cv.ansi_clip(x + 1, y + 5, f"{NV4}CH{so.get('ch', 1):02d}{RST} {G4}{so.get('title', '')}{RST} {state}", card_w - 3)
+            tag = so.get("tag") or f"CH{so.get('ch', 1):02d}"      # 예전 창이 쓴 요약엔 tag 가 없다
+            cv.ansi_clip(x + 1, y + 5, f"{NV4}{tag}{RST} {G4}{so.get('title', '')}{RST} {state}", card_w - 3)
         else:
             cv.ansi_clip(x + 1, y + 5, f"{G1}KO{RST} {G4}{sm.get('kills', 0)}{RST} {G1}· TOKENS{RST} {G4}{P.fmt_num(sm.get('tok_today', 0))}{RST}", card_w - 3)
     return cv.lines()

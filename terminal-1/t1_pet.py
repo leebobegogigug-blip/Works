@@ -413,7 +413,37 @@ def new_story(now, fast=None):
     return {"start": day_key(now), "fast": fast, "rel": fast, "ch": 0, "phase": "play", "since": now,
             "base": {}, "mdone": [], "bonus": False, "bonus_n": 0, "seen": [], "cleared": [], "log": [],
             "fails": 0, "fail_lvl": 0, "pending": None, "heir": False, "sev": [],
-            "side": None, "side_done": [], "side_t": 0, "choices": {}, "debt": None}
+            "side": None, "side_done": [], "side_t": 0, "side_at": -9, "choices": {}, "debt": None}
+
+
+def season_of(i):
+    """챕터 번호(전체, 0부터) → 그 챕터가 속한 시즌 정보"""
+    for se in D.STORY_SEASONS:
+        if se["first"] <= i < se["first"] + se["n"]:
+            return se
+    return D.STORY_SEASONS[-1]
+
+
+def ch_no(i):
+    """시즌 안에서의 챕터 번호 (1부터)"""
+    return i - season_of(i)["first"] + 1
+
+
+def ch_tag(i):
+    """화면 · 기록용 챕터 이름: 시즌 1 은 CH07, 그 뒤 시즌은 S2 CH03"""
+    se = season_of(i)
+    return f"CH{ch_no(i):02d}" if se["season"] == 1 else f"S{se['season']} CH{ch_no(i):02d}"
+
+
+def season_final(i):
+    """시즌의 마지막 챕터인가"""
+    return ch_no(i) == season_of(i)["n"]
+
+
+def season_cleared(st, se):
+    """그 시즌에서 깬 챕터 수"""
+    ids = {c["id"] for c in D.CHAPTERS[se["first"]:se["first"] + se["n"]]}
+    return sum(1 for c in (st or {}).get("cleared", []) if c in ids)
 
 
 def fmt_age(sec):
@@ -500,6 +530,8 @@ def new_state(scope, name, now):
         "anniv_w": 0,
         # v4
         "story": None,              # 메인 스토리 (부화하면 시작, new_story 참고)
+        # v5
+        "rnd": {},                  # 사내 R&D 단계 {키: 단계}
     }
 
 
@@ -780,6 +812,9 @@ class PetGame:
     def _sanitize(self, quiet=False):
         """없어진 아이템/형태 같은 이상한 값 정리 (옛 저장 호환). 없어진 물건은 골드로 환불"""
         s, refund = self.s, 0
+        rnd = s.get("rnd")
+        s["rnd"] = {k: int(max(0, min(D.RND[k]["max"], v))) for k, v in (rnd.items() if isinstance(rnd, dict) else [])
+                    if k in D.RND and isinstance(v, int) and not isinstance(v, bool)}
         inv = s["inv"]
         for key in ("items", "mats"):
             if not isinstance(inv.get(key), dict):
@@ -1202,8 +1237,10 @@ class PetGame:
 
     # ------------------------------------------------------------ 능력치
     def _mods(self, key, default=1.0):
-        """장신구 + 배치한 꾸미기의 배율 효과 곱"""
+        """장신구 + 배치한 꾸미기의 배율 효과 곱 (+ 사내 복지 R&D)"""
         v = default
+        if key in ("full_decay", "mood_decay", "energy_decay"):
+            v *= 1 - self.rnd_value("care") / 100
         acc = self.s["equip"].get("acc")
         srcs = ([acc["id"]] if acc else []) + list(self.s["inv"]["placed"])
         for iid in srcs:
@@ -1241,7 +1278,39 @@ class PetGame:
             m *= 0.8
         if self.catching_up():
             m *= D.STORY["catchup"]
-        return m
+        return m * (1 + self.rnd_value("exp") / 100)
+
+    # ------------------------------------------------------------ 사내 R&D (골드로 사는 영구 강화)
+    def rnd_level(self, key):
+        return int((self.s.get("rnd") or {}).get(key, 0))
+
+    def rnd_value(self, key):
+        return D.RND[key]["per"] * self.rnd_level(key)
+
+    def rnd_cost(self, key):
+        """다음 단계 값 (최대면 None)"""
+        r, lv = D.RND[key], self.rnd_level(key)
+        return None if lv >= r["max"] else int(r["base"] * D.RND_GROWTH ** lv)
+
+    def rnd_buy(self, key):
+        r = D.RND.get(key)
+        if not r:
+            return False
+        cost = self.rnd_cost(key)
+        if cost is None:
+            return self._nope(f"{r['name']}은(는) 최대 단계예요")
+        if self.s["gold"] < cost:
+            return self._nope(f"골드가 부족해요 ({fmt_num(cost)}G 필요)")
+        self.s["gold"] -= cost
+        self.s.setdefault("rnd", {})[key] = self.rnd_level(key) + 1
+        self.inc("rnd_spent", cost)
+        v = self.rnd_value(key)
+        self.note(f"R&D: {r['name']} {self.rnd_level(key)}단계 (-{fmt_num(cost)}G) → " + r["desc"].format(v=f"{v:g}"))
+        self.flash(f"⚗ {r['name']} {self.rnd_level(key)}단계! " + r["desc"].format(v=f"{v:g}"), "#95D85A", 4)
+        if all(self.rnd_level(k) >= D.RND[k]["max"] for k in D.RND):
+            self.unlock("rnd_all")
+        self.mark()
+        return True
 
     def catching_up(self):
         """과외: 지금 챕터 지역 보스를 넘기엔 레벨이 한참 모자라면 경험치 보정 (조금 쓰는 사람도 이야기를 따라가게)"""
@@ -3419,7 +3488,7 @@ class PetGame:
             self.s["gold"] += gold
         drops = []
         for iid, ch in D.MONSTERS[mid]["drops"]:
-            if self.rng.random() < ch * (1 + S["luk"] * 0.01):
+            if self.rng.random() < ch * (1 + S["luk"] * 0.01) * (1 + self.rnd_value("drop") / 100):
                 (self._carry_add if e else self.add_item)(iid)
                 drops.append(item_name(iid))
         self.inc("kills")
@@ -4082,9 +4151,10 @@ class PetGame:
         for k in ("fast", "rel", "ch", "fails", "fail_lvl", "bonus_n"):
             st[k] = int(st[k])
         n = len(D.CHAPTERS)
-        st["fast"] = int(max(1, min(n, st["fast"])))
         st["ch"] = int(max(0, min(n - 1, st["ch"])))
-        st["rel"] = int(max(st["fast"], min(n, st["rel"])))
+        se = season_of(st["ch"])
+        st["fast"] = int(max(1, min(se["n"], st["fast"])))
+        st["rel"] = int(max(se["first"] + st["fast"], min(n, st["rel"])))
         if st["phase"] not in ("play", "boss", "wait", "end"):
             st["phase"] = "play"
         try:
@@ -4132,36 +4202,55 @@ class PetGame:
         return max(0, (datetime.date.fromtimestamp(now or self.now()) - d0).days)
 
     def story_released_n(self, now=None):
-        """지금까지 공개된 챕터 수 = 들어갈 수 있는 지역 수 (한 번 열린 건 시계가 뒤로 가도 닫히지 않는다)"""
+        """지금까지 공개된 챕터 수(전체) = 들어갈 수 있는 지역 수 (한 번 열린 건 시계가 뒤로 가도 닫히지 않는다)
+        start · fast 는 지금 시즌 기준. 아직 만들지 않은 챕터는 공개되지 않는다"""
         st = self.story()
         if not st:
             return D.STORY["fast"]
-        n = min(len(D.CHAPTERS), st["fast"] + self._story_days(now) // D.STORY["every"])
+        se = season_of(st["ch"])
+        avail = min(len(D.CHAPTERS), se["first"] + se["n"])
+        n = min(avail, se["first"] + st["fast"] + self._story_days(now) // se["every"])
         if n > st.get("rel", 0):
             st["rel"] = n
         return st["rel"]
 
     def story_release_date(self, i):
-        """챕터 i(0부터)가 공개되는 날 (datetime.date). 처음부터 열려 있는 챕터는 None"""
+        """챕터 i(0부터)가 공개되는 날 (datetime.date). 처음부터 열려 있거나 다른 시즌이면 None"""
         st = self.story()
-        if not st or i < st["fast"]:
+        if not st:
+            return None
+        se = season_of(st["ch"])
+        if season_of(i) is not se or i < se["first"] + st["fast"]:
             return None
         try:
             d0 = datetime.date.fromisoformat(st["start"])
         except (TypeError, ValueError):
             return None
-        return d0 + datetime.timedelta(days=D.STORY["every"] * (i - st["fast"] + 1))
+        return d0 + datetime.timedelta(days=se["every"] * (i - se["first"] - st["fast"] + 1))
+
+    def story_ready(self, i):
+        """챕터 i 가 이 버전에 들어 있나 (4장씩 나눠 출시 — 없으면 '준비 중')"""
+        return 0 <= i < len(D.CHAPTERS)
+
+    def _season_begin(self, i, now):
+        """다음 시즌 시작: 공개 일정을 오늘부터 다시 센다"""
+        st, se = self.story(), season_of(i)
+        st.update(start=day_key(now), fast=se["fast"], rel=max(st.get("rel", 0), se["first"] + se["fast"]))
+        self._story_log(f"시즌 {se['season']} 「{se['title']}」 시작")
+        self.flash(f"◈ 시즌 {se['season']} 「{se['title']}」 시작! ◈ [7] 스토리", "#6ABA23", 9)
+        self.notify("새 시즌", f"시즌 {se['season']} {se['title']}", "success")
+        self._story_begin(i, now)
 
     def _story_begin(self, i, now, quiet=False):
         st = self.story()
         c = D.CHAPTERS[i]
         st.update(ch=i, phase="play", since=now, mdone=[], bonus=False, fails=0, fail_lvl=0,
                   base=dict(self.s["stats"]))
-        self._story_log(f"CH{i + 1:02d} 「{c['title']}」 시작")
+        self._story_log(f"{ch_tag(i)} 「{c['title']}」 시작")
         if not quiet:
-            self.flash(f"◈ 새 챕터! CH{i + 1:02d} 「{c['title']}」 ◈ [7] 스토리", "#6ABA23", 7)
-            self.note(f"스토리 CH{i + 1:02d} 「{c['title']}」이(가) 열렸다 — {c['teaser']}")
-            self.notify("새 챕터", f"CH{i + 1:02d} {c['title']}", "success")
+            self.flash(f"◈ 새 챕터! {ch_tag(i)} 「{c['title']}」 ◈ [7] 스토리", "#6ABA23", 7)
+            self.note(f"스토리 {ch_tag(i)} 「{c['title']}」이(가) 열렸다 — {c['teaser']}")
+            self.notify("새 챕터", f"{ch_tag(i)} {c['title']}", "success")
             if not self.is_egg():
                 self.say("story_new", dur=9)
         self.mark()
@@ -4216,8 +4305,8 @@ class PetGame:
         c = D.CHAPTERS[st["ch"]]
         ms = self.story_missions()
         req = [m for m in ms if not m["opt"]]
-        return dict(ch=st["ch"] + 1, title=c["title"], phase=st["phase"], done=sum(m["done"] for m in req), total=len(req),
-                    shards=len(st["cleared"]))
+        return dict(ch=st["ch"] + 1, tag=ch_tag(st["ch"]), title=c["title"], phase=st["phase"],
+                    done=sum(m["done"] for m in req), total=len(req), shards=season_cleared(st, season_of(st["ch"])))
 
     def _tick_story(self, now):
         st = self.story()
@@ -4232,10 +4321,14 @@ class PetGame:
         rel = self.story_released_n(now)
         i = st["ch"]
         self._tick_side(now)
+        self.debt_info()                # 주가 바뀌면 이자가 붙는다 (시즌 1 완결 뒤)
         if st["phase"] == "end":
-            self.debt_info()            # 주가 바뀌면 이자가 붙는다
+            # 다음 시즌이 이 버전에 들어 있고, 완결 에필로그를 봤으면 시작
+            if self.story_ready(i + 1) and st.get("pending") is None and not self.is_egg():
+                self._season_begin(i + 1, now)
+            return
         if st["phase"] == "wait":
-            if i + 1 < len(D.CHAPTERS) and i + 1 < rel:
+            if self.story_ready(i + 1) and i + 1 < rel:
                 self._story_begin(i + 1, now)
             return
         if st["phase"] not in ("play", "boss"):
@@ -4259,7 +4352,7 @@ class PetGame:
             st["phase"] = "boss"
             name = D.MONSTERS[c["boss"]["mid"]]["name"]
             self.flash(f"◆ 챕터 보스 신호! {name} ◆ [7] 스토리 → [B] 도전", "#F2F2F3", 7)
-            self.note(f"CH{i + 1:02d} 미션을 모두 끝냈다! 챕터 보스 {name}의 신호가 잡혔다")
+            self.note(f"{ch_tag(i)} 미션을 모두 끝냈다! 챕터 보스 {name}의 신호가 잡혔다")
             self._story_log(f"보스 신호 포착 · {name}")
             self.notify("챕터 보스", f"{self.p['name']}: {name}에게 도전할 수 있어요", "warning")
             if not self.is_egg():
@@ -4283,7 +4376,7 @@ class PetGame:
             self.add_item(iid)
             loot.append(item_name(iid))
         self.flash(f"☼ 보너스 미션 달성! +{gold}G" + (f" · {', '.join(loot)}" if loot else ""), "#6ABA23", 6)
-        self.note(f"CH{i + 1:02d} 보너스 미션 달성 (+{gold}G{', ' + ', '.join(loot) if loot else ''})")
+        self.note(f"{ch_tag(i)} 보너스 미션 달성 (+{gold}G{', ' + ', '.join(loot) if loot else ''})")
         self._story_log("보너스 미션 달성")
         if st["bonus_n"] >= 6:
             self.unlock("story_bonus")
@@ -4307,8 +4400,9 @@ class PetGame:
                 lines = list(D.HEIR_LINES if fam.get("gen", 1) <= 2 else D.HEIR_LINES_OLD) + lines
         if part == "outro":
             cid = c["id"]
-            if i == len(D.CHAPTERS) - 1 and cid in st.get("cleared", []):
-                lines = lines[:-2] + list(D.ENDINGS[self.story_path()]) + lines[-2:]
+            ends = D.ENDINGS_BY_CH.get(cid)
+            if ends and cid in st.get("cleared", []):
+                lines = lines[:-2] + list(ends[self.story_path()]) + lines[-2:]
             if cid in D.CHOICES and cid in st.get("cleared", []) and cid not in st.get("choices", {}):
                 return self._resolve_lines(lines) + [("choice", cid, None)]
         return self._resolve_lines(lines)
@@ -4368,14 +4462,15 @@ class PetGame:
         st = self.story()
         ep, sd = self.side_ep()
         if not ep:
-            # 기다리는 주(다음 챕터 공개 대기)엔 바로, 아니면 며칠 간격으로 하나씩 — 조연 이야기가 한꺼번에 몰리지 않게
-            if st["phase"] != "wait" and 0 <= now - st.get("side_t", 0) < D.SIDE_GAP:
-                return
+            # 한 편씩 간격을 두고: 기다리는 주(다음 챕터 공개 대기)엔 SIDE_GAP_WAIT, 아니면 SIDE_GAP — 뒤쪽 대기 주까지 남게
+            gap = D.SIDE_GAP_WAIT if st["phase"] == "wait" else D.SIDE_GAP
+            if 0 <= now - st.get("side_t", 0) < gap or len(st["cleared"]) < st.get("side_at", -9) + D.SIDE_EVERY:
+                return          # 챕터 두 개에 한 편 — 시즌 끝까지 조연 이야기가 남게
             nxt = next((e for e in D.SIDE_EPISODES if e["id"] not in st["side_done"]
                         and D.CHAPTERS[e["need"]]["id"] in st["cleared"]), None)
             if nxt:
                 st["side"] = dict(id=nxt["id"], phase="new", base={})
-                st["side_t"] = now
+                st["side_t"], st["side_at"] = now, len(st["cleared"])
                 who = D.NPCS[nxt["npc"]]["name"]
                 self.flash(f"◇ 사이드 에피소드 「{nxt['title']}」 · {who} [7] → [E]", "#75A1C7", 6)
                 self.note(f"사이드 에피소드 도착: {who} 「{nxt['title']}」")
@@ -4433,9 +4528,14 @@ class PetGame:
         return [dict(e["help"], npc=e["npc"], color=D.NPCS[e["npc"]]["color"]) for e in eps[-3:]]
 
     # ------------------------------------------------------------ 시즌 후: 주간 부채 상환
+    def debt_done_s1(self):
+        st = self.story()
+        s1 = D.STORY_SEASONS[0]
+        return bool(st) and D.CHAPTERS[s1["first"] + s1["n"] - 1]["id"] in st.get("cleared", [])
+
     def debt_info(self):
         st = self.story()
-        if not st or st["phase"] != "end":
+        if not st or not self.debt_done_s1():
             return None
         now = self.now()
         wk = week_key(now)
@@ -4497,7 +4597,8 @@ class PetGame:
         ms["name"] = "기술 부채 (이번 주 이자)"
         self.battle = dict(mid=mid, mon=ms, pst={}, round=0, next=now + 1.5, over=None, end_at=0.0, last_dmg=0,
                            cd={}, pair=0, wait_since=now, last_round_at=0.0, defend=False, enrage=0,
-                           story=len(D.CHAPTERS) - 1, debt=True, phase2=None, p2_done=False, mid_said=True,
+                           story=D.STORY_SEASONS[0]["first"] + D.STORY_SEASONS[0]["n"] - 1, debt=True, phase2=None,
+                           p2_done=False, mid_said=True,
                            gim=self._gim_new(mid, fails), tele=None)
         self._story_helpers_join(self.battle)
         if self.s["call"]:
@@ -4574,7 +4675,7 @@ class PetGame:
         if self.is_egg() or not st:
             return False, "알이 깨면 스토리가 시작돼요"
         if st["phase"] == "end":
-            return False, "시즌 1 완결! 다음 시즌을 기다려 주세요"
+            return False, f"시즌 {season_of(st['ch'])['season']} 완결! 다음 시즌을 기다려 주세요"
         if st["phase"] == "wait":
             return False, "다음 챕터가 열리길 기다리는 중이에요"
         if st["phase"] != "boss":
@@ -4627,7 +4728,7 @@ class PetGame:
             self.s["call"] = None
         self.inc("story_fights")
         self.flash(f"◆ 챕터 보스! vs {ms['name']} (LV{ms['level']})", "#F2F2F3", 4)
-        self.note(f"CH{i + 1:02d} 챕터 보스전: {ms['name']} (Lv.{ms['level']}) — 지면 HP만 줄어요 (기절 페널티 없음)")
+        self.note(f"{ch_tag(i)} 챕터 보스전: {ms['name']} (Lv.{ms['level']}) — 지면 HP만 줄어요 (기절 페널티 없음)")
         gd = D.GIMMICKS.get(bd["mid"])
         if gd:
             self.note(f"기믹 「{gd['name']}」: 보스가 큰 기술을 예고하면 알맞은 키로 대응! (안 보면 자동 대응)")
@@ -4737,24 +4838,26 @@ class PetGame:
         st["pending"] = i
         if r.get("ach"):
             self.unlock(r["ach"])
-        n_sh = len(st["cleared"])
-        self.flash(f"☼ CH{i + 1:02d} CLEAR! 커밋 조각 #{i + 1} 확보 ({n_sh}/{len(D.CHAPTERS)}) ☼ +{gold}G", "#6ABA23", 7)
-        self.note(f"CH{i + 1:02d} 「{c['title']}」 클리어! 커밋 조각 #{i + 1} ({c['hash']}) · +{gold}G +{exp}EXP"
+        se = season_of(i)
+        n_sh = season_cleared(st, se)
+        shard = f"{se['shard']} #{ch_no(i)}"
+        self.flash(f"☼ {ch_tag(i)} CLEAR! {shard} 확보 ({n_sh}/{se['n']}) ☼ +{gold}G", "#6ABA23", 7)
+        self.note(f"{ch_tag(i)} 「{c['title']}」 클리어! {shard} ({c['hash']}) · +{gold}G +{exp}EXP"
                   + (f" · {', '.join(loot)}" if loot else ""))
-        self.notify("챕터 클리어", f"{p['name']}: CH{i + 1:02d} {c['title']} — 커밋 조각 #{i + 1}", "success")
-        self._story_log(f"CH{i + 1:02d} 클리어 · 커밋 조각 #{i + 1} {c['hash']}")
+        self.notify("챕터 클리어", f"{p['name']}: {ch_tag(i)} {c['title']} — {shard}", "success")
+        self._story_log(f"{ch_tag(i)} 클리어 · {shard} {c['hash']}")
         if not self.is_egg():
             self.say("story_clear", dur=8)
         self.last_summary = (dict(story=True, win=True, ch=i, title=c["title"], boss=D.MONSTERS[c["boss"]["mid"]]["name"],
                                   gold=gold, exp=exp, loot=loot, hash=c["hash"], shards=n_sh,
                                   gim=(gm.get("ok", 0), gm.get("n", 0)), perfect=perfect), now + 9)
-        if i + 1 >= len(D.CHAPTERS):
-            st["phase"] = "end"
-            self._story_log(f"시즌 {D.STORY['season']} 「{D.STORY['title']}」 완결")
-        elif i + 1 < self.story_released_n(now):
+        if season_final(i):
+            st["phase"] = "end"            # 시즌 완결 (다음 시즌이 들어 있으면 에필로그를 본 뒤 시작)
+            self._story_log(f"시즌 {se['season']} 「{se['title']}」 완결")
+        elif self.story_ready(i + 1) and i + 1 < self.story_released_n(now):
             self._story_begin(i + 1, now)
         else:
-            st["phase"] = "wait"
+            st["phase"] = "wait"           # 다음 공개일 · 또는 다음 장이 아직 준비 중
         self.mark()
 
     # ------------------------------------------------------------ 챕터 보스 기믹 (예고 → 대응 창 → 결과)
@@ -4805,8 +4908,8 @@ class PetGame:
             fmt["clue"], ans = self.rng.choice(D.ZERO_DAY_CLUES)
         text = gd["warn"].format(**fmt)
         watching = now - self.last_input < 60
-        win = D.GIM_WINDOW["watch" if watching else "away"]
-        auto_p = min(0.95, gd["auto"] + D.GIM_RETRO["auto"] * gm["retro"])
+        win = D.GIM_WINDOW["watch" if watching else "away"] + self.rnd_value("window")
+        auto_p = min(0.95, gd["auto"] + D.GIM_RETRO["auto"] * gm["retro"] + self.rnd_value("auto") / 100)
         b["tele"] = dict(text=text, hint=gd.get("hint", ""), opts=list(gd["opts"]), ans=ans, why=why, t0=now,
                          until=now + win, auto_p=auto_p)
         b["next"] = now + win + 0.6
