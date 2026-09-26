@@ -1,3 +1,7 @@
 # 예전에 D:\OPENCODE 안에 따로 받거나 남은 폴더 (git status 가 깨끗해야 설치 안내가 pull 을 진행한다)
 /jaba/
 /ocmux/
+
+# 저장소 도구(tools/)의 파이썬 캐시 — 앱 폴더는 각자의 .gitignore 가 막는다
+__pycache__/
+*.py[cod]

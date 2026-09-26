@@ -14,6 +14,7 @@ t1_term.py - Terminal–1 공용 터미널 유틸 + 디자인 시스템 (Python 
   - 한글(동아시아 wide) 폭 계산: vlen / clip / pad / wrap
   - 키 입력: Windows(msvcrt) / POSIX(termios) 공통 토큰화, 한글 자판 → 영문 키 정규화
 """
+import json
 import os
 import re
 import shutil
@@ -67,16 +68,36 @@ def bg(hexcolor):
 
 # ---------------------------------------------------------------- data folder
 APP = "terminal-1"
-OLD_APP = "ocmux"   # 이름을 바꾸기 전. terminal-1.ps1 이 처음 실행될 때 폴더째 옮긴다
+VERSION = "1.1.0"   # 앱 버전은 여기 하나 (terminal-1 version · t1_monitor.py --version 이 이 값을 읽는다)
 
 
 def data_dir():
-    """레지스트리 · 펫 저장 · 로그 폴더: %LOCALAPPDATA%\\terminal-1 (Windows 밖에선 ~/.local/share/terminal-1).
-    옛 ocmux 창이 열려 있어 아직 못 옮겼으면 옛 폴더를 그대로 쓴다 (terminal-1.ps1 과 같은 규칙).
-    옮기는 건 terminal-1.ps1 만 한다: 칸마다 제각각 옮기다 옛 창과 저장이 갈라지지 않게"""
+    """레지스트리 · 펫 저장 · 로그 폴더: %LOCALAPPDATA%\\terminal-1 (Windows 밖에선 ~/.local/share/terminal-1)"""
     base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), ".local", "share")
-    new, old = os.path.join(base, APP), os.path.join(base, OLD_APP)
-    return old if not os.path.isdir(new) and os.path.isdir(old) else new
+    return os.path.join(base, APP)
+
+
+_COMPANY = {"mtime": None, "name": ""}
+
+
+def company():
+    """overview 머리줄에 작게 넣는 회사 이름 — 데이터 폴더의 settings.json (terminal-1 company "이름" 이 쓴다).
+    저장소에는 넣지 않고 이 PC 에만 둔다. 제어 문자(ANSI 등)는 지우고 24자까지. 없으면 "" """
+    path = os.path.join(data_dir(), "settings.json")
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return ""
+    if _COMPANY["mtime"] != mtime:
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                d = json.load(f)
+            name = d.get("company") if isinstance(d, dict) else ""
+            name = re.sub(r"[\x00-\x1f\x7f]", "", name).strip()[:24] if isinstance(name, str) else ""
+        except (OSError, ValueError):
+            name = ""
+        _COMPANY.update(mtime=mtime, name=name)
+    return _COMPANY["name"]
 
 
 # ---------------------------------------------------------------- palette: NAVY / LIME / GRAY
@@ -97,13 +118,15 @@ THEME = {"GRN": P3["lime"], "YEL": P3["lime3"], "RED": P3["white"], "BLU": P3["n
 RED, GRN, YEL, BLU, MAG, CYN = (_tc(THEME[k]) for k in ("RED", "GRN", "YEL", "BLU", "MAG", "CYN"))
 # 인스턴스(탭) 태그 색: 3색 계열 안에서 서로 구분되게
 PALETTE = ["#3F77A6", "#A5AAAE", "#75A1C7", "#6ABA23", "#B8CEE0", "#81888D", "#95D85A", "#45741B"]  # 네이비가 주색 · 라임은 강조라 1번 자리에서 뺌
-# 예전(파랑/분홍) 탭 색 → 새 팔레트 (instances.json 에 남아 있는 옛 색을 읽을 때 바꿔 준다)
-LEGACY_COLORS = dict(zip(["#3B82F6", "#EC4899", "#6366F1", "#F472B6", "#0EA5E9", "#DB2777", "#818CF8", "#D946EF"], PALETTE))
 
 
 def fix_color(c):
-    """옛 팔레트 색이면 새 색으로, 아니면 그대로"""
-    return LEGACY_COLORS.get((c or "").upper(), c)
+    """팔레트 밖의 탭 색(손으로 고친 instances.json 등)은 팔레트 안의 색으로 — 같은 값이면 늘 같은 색.
+    terminal-1.ps1 의 Get-PaletteColor 와 같은 규칙 (대문자 값의 UTF-8 바이트 합 % 팔레트 수). 비어 있으면 그대로"""
+    if not c:
+        return c
+    u = str(c).upper()
+    return u if u in PALETTE else PALETTE[sum(u.encode("utf-8")) % len(PALETTE)]
 
 # 게임/UI용 이름 있는 색 (예전 이름은 새 팔레트로 연결해 둔다)
 C = {

@@ -1,0 +1,22 @@
+# ── 개인 설정 · 데이터: 커밋 금지 (데이터는 %LOCALAPPDATA%\{{APP}}\ 에 두지만, 혹시 옆에 생겨도 올라가지 않게)
+config.json
+*.db
+*.db-journal
+*.broken
+*.tmp
+
+# ── Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── 테스트 산출물
+shots/
+
+# ── OS · 편집기
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

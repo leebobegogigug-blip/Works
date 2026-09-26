@@ -369,6 +369,7 @@ body.off::after{content:"Secretary–1 · off — secretary-1.bat 으로 다시 
 .lbl b{background:var(--prime);color:var(--prime-ink);padding:0 3px;text-shadow:none;letter-spacing:0}
 .lbl i{flex:1;height:1px;background:var(--prime)}
 .lbl em{font-style:normal;color:var(--ink-2)}
+.lbl .brand{color:var(--ink-2);text-transform:none;letter-spacing:0;text-shadow:var(--b);white-space:nowrap}  /* 회사 이름 (config.company) — 줄이 짧아질 뿐 배치는 그대로 */
 .chat .lbl{margin:12px 0 2px}
 
 /* 01 화면: 모서리 재단선 · 흰 숫자 · 라임은 콜론만 */
@@ -507,7 +508,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:va
     </span>
     <span class="clock"><span id="clock-date"></span><span id="clock-time" role="img" aria-label="--:--"></span></span>
   </header>
-  <div class="lbl"><b>01</b>next<i></i><em>T−</em></div>
+  <div class="lbl"><b>01</b>next<i></i><span class="brand" id="brand" hidden></span><em>T−</em></div>
   <section class="lcd" id="next-box" aria-label="다음 일정">
     <i class="crop ca"></i><i class="crop cb"></i><i class="crop cc"></i><i class="crop cd"></i>
     <div class="lcd-top"><span id="next-k">next</span><span id="next-meta"></span><button class="wk" id="next-wiki" type="button" title="이 일정 위키 (Alt+W)" hidden>위키</button><span id="next-when"></span></div>
@@ -573,6 +574,7 @@ const TOKEN = document.querySelector('meta[name="secretary-token"]').content;
 let BOOT = {};
 try { BOOT = JSON.parse(document.getElementById('boot').textContent || '{}'); } catch (e) {}
 const TITLE = BOOT.title || 'Secretary–1 · 일정 비서';
+if (BOOT.company) { const b = document.getElementById('brand'); b.textContent = BOOT.company; b.hidden = false; }
 const ALERTS = BOOT.alerts || {with_location: [15, 5, 1], without_location: [5, 1], poll_ms: 10000, enabled: true};
 const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const WD = ['일','월','화','수','목','금','토'];

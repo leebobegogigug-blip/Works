@@ -51,6 +51,7 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 | `reminder_minutes` | Secretary–1 로 만든 Outlook 일정의 Outlook 자체 알림(분). 알림이 겹치면 `0` |
 | `work_hours` | 업무시간·요일 — 빈 시간 찾기와 경고 기준 |
 | `theme` | `dark`(기본, 검정 바탕) · `light`(밝은 회색 본체) · `system` — 둘 다 네이비 주색 · 라임 강조 |
+| `company` | `01 NEXT` 줄 끝에 작게 넣는 회사 이름 (24자까지 · 비우면 없음). 저장소에는 넣지 않고 이 PC 설정에만 둡니다 — `--set "company=회사이름"` |
 | `hotkey` | 전역 단축키 (기본 `ctrl+alt+j`, `""`이면 끔) |
 
 전체 기본값은 [`config.example.json`](../config.example.json), 설명은 `secretary-1.py` 맨 위에 있습니다.
@@ -73,27 +74,21 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 | 03 | **LOG** | `시각 · 기호 · 내용` 로그 줄 · 제안 카드 · 도구 호출 줄 |
 | 04 | **DECK** | 노브 네 개(Alt+1~4) · 고무 키 M 학습 · W 위키 |
 
-## 디자인 — Terminal–1 과 같은 규칙
+## 디자인
 
-Secretary–1 과 [Terminal–1](../../terminal-1/README.md)은 같은 디자인 규칙을 씁니다.
-Teenage Engineering 같은 소형 하드웨어 계측기의 화면 문법에서 영감을 받았고, 특정 제품의 화면이나 로고를 가져오지 않았으며 해당 회사와는 관련이 없습니다.
+works 공통 규격(원칙 일곱 가지 · 팔레트 · 아이콘)은 [docs/DESIGN.md](../../docs/DESIGN.md) 에 있습니다. Secretary–1 에서는 이렇게 보입니다.
 
-| # | 규칙 | Secretary–1 에서 |
+| # | 원칙 | Secretary–1 에서 |
 |---|---|---|
-| 1 | **팔레트 = 네이비 · 라임 · 회색** | 네이비는 뼈대 · 버튼 · 라벨, 라임은 '지금' · '켜짐' · '대기'만, 회색은 글자. 빨강은 없고 경고는 가장 밝은 글자색 + `ERR` 칩 |
-| 2 | **색 = 조작** | 노브 ①파랑 ②라임 ③흰색 ④회색 = Terminal–1 인코더와 같은 순서. 번호표도 그 색 |
-| 3 | **번호 붙은 구역** | `01 NEXT` · `02 TODAY` · `03 LOG` · `04 DECK` · 서랍 `01` `02` `03` |
+| 1 | **한 화면 = 한 모드** | 다음 일정까지 남은 시간 하나를 7세그먼트로 크게 · 노브 네 개 |
+| 2 | **색 = 조작** | 노브 ①파랑 ②라임 ③흰색 ④회색 — works 공통 인코더 순서. 번호표도 그 색 |
+| 3 | **번호 붙은 구역** | `01 NEXT` · `02 TODAY` · `03 LOG` · `04 DECK` · 서랍 `01` `02` `03` · `/도움` |
 | 4 | **엔지니어링을 숨기지 않기** | 로그 줄의 도구 호출(`└ → propose_create`) · LED `llm` `cal` · 모델 드롭다운 |
 | 5 | **즉각 반응** | 누른 노브의 눈금이 돈다 · 확정 도장 · 되돌리기 초읽기 |
 | 6 | **사각 격자** | 8px 점 격자 · 각진 모서리 · 가는 선 · 앞자리 0 |
 | 7 | **캐릭터** | Secretary–1 의 얼굴 — 네모 화면 · 노브 · 안테나 불빛. 표정 8가지 |
 
-| 색 | hex | 쓰임 |
-|---|---|---|
-| 네이비 | `#002341` · `#1F507A` · `#3F77A6` | 본체 테두리 · 번호 라벨 · 버튼 · 카드 머리띠 · 일정 막대 |
-| 라임 | `#6ABA23` | 지금 · 켜짐 · 대기 점 · 확정 도장(다크) · 노브 ② |
-| 회색 | `#A5AAAE` · `#81888D` · `#5C6166` | 글자 단계 · 노브 ④ |
-| 흰색 · 파랑 | `#F2F2F3` · `#75A1C7` | 숫자 · 노브 ③ · 노브 ① |
+경고는 빨강 대신 가장 밝은 글자색 + `ERR` 칩으로 합니다. 테마는 `dark`(기본) · `light` · `system` 셋 다 있습니다.
 
 ## 개발
 
@@ -102,23 +97,46 @@ Teenage Engineering 같은 소형 하드웨어 계측기의 화면 문법에서 
 | UI 수정 | `ui.html` 수정 → `python build.py` (secretary-1.py에 내장됨 · `INDEX_HTML`을 직접 고치지 말 것) |
 | 반영 확인 | `python build.py --check` (UI · 폰트 둘 다) |
 | 폰트 다시 만들기 (선택) | `pip install fonttools` → `python tools/make_font.py <unifont.otf>` → `python build.py` |
-| 테스트 | `python -m unittest tests.test_secretary` (표준 라이브러리만) |
+| 테스트 | `python -m unittest tests.test_secretary` (표준 라이브러리만 · 공개 명령은 `ExportEvents`) |
+| works 규칙 검사 | 저장소 루트에서 `python tools/works_check.py` ([RULES.md](../../RULES.md)) |
 | 브라우저 E2E (선택 · CI 에서는 자동) | `pip install playwright` → `python -m playwright install chromium` → `python tests/e2e_ui.py` (시간대는 알아서 낮으로 맞춤) |
 
 `tests/fake_llm_server.py`는 OpenAI 호환 가짜 서버라서 사내 LLM 없이도 전체 흐름을 돌려볼 수 있습니다.
-CI(`.github/workflows/test.yml`)는 Windows · Ubuntu × Python 3.10 · 3.13 에서 `build.py --check` 와 단위 테스트를, Ubuntu 에서 브라우저 E2E 를 돌립니다.
+CI(`.github/workflows/secretary-1.yml`)는 Windows · Ubuntu × Python 3.8 · 3.13 에서 `build.py --check` 와 단위 테스트를, Ubuntu 에서 브라우저 E2E 를 돌립니다.
+
+## 공개 명령
+
+다른 works 도구가 Secretary–1 의 일정을 읽는 유일한 길입니다 ([RULES.md › W-01](../../RULES.md#w-01-폴더--앱--명령) · [대장 › 공개 명령](../../docs/REGISTRY.md#공개-명령)). 처음에는 Report–1 의 주간보고용으로 만들었고, 지금은 쓰는 도구가 없습니다 (Report–1 이 붙여 넣기 보고서로 바뀜).
+
+```text
+python secretary-1.py --export-events --from 2026-09-21 --to 2026-09-27
+```
+
+```json
+{"app": "secretary-1", "version": "0.7.0", "format": 1, "backend": "local",
+ "from": "2026-09-21T00:00", "to": "2026-09-28T00:00",
+ "events": [{"id": "L1", "title": "주간회의", "start": "2026-09-21T10:00", "end": "2026-09-21T11:00",
+             "all_day": false, "location": "3A", "recurring": false}]}
+```
+
+- `--from` · `--to` 는 `YYYY-MM-DD`, 두 날 모두 포함합니다. 설정한 캘린더(local · outlook)를 그대로 읽습니다
+- **읽기만 합니다.** 설정 · 일정 DB 를 만들거나 고치지 않고, 실행기 만들기도 하지 않습니다. 비서가 켜져 있어도 됩니다
+- 일정의 **메모는 내주지 않습니다.** 제목 · 시각 · 장소 · 종일 · 반복 여부만
+- 표준 출력에 UTF-8 JSON 한 줄. 실패하면 `"error"` 와 함께 종료 코드 1, 날짜가 틀리면 2
+- 모양을 바꾸면 `format` 을 올립니다 (`EXPORT_FORMAT`). 부르는 쪽은 모르는 `format` 이면 일정 없이 동작합니다
 
 ## 커밋하면 안 되는 것
 
 `config.json`(API 키) · `secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키) · `secretary-1.bat`(PC별 경로) — 모두 `.gitignore`에 들어 있습니다.
 
-예전 이름(jaba)의 `jaba.db` · `jaba_rules.json` · `jaba_wiki.json` · `jaba.bat` · 자동 실행 `jaba.lnk` 는 `secretary-1.py` 를 처음 실행할 때 새 이름으로 옮겨집니다 (켜져 있는 예전 비서는 먼저 끕니다). 환경변수 `JABA_*` 도 계속 읽고, 새 이름은 `SECRETARY_BASE_URL` · `SECRETARY_API_KEY` · `SECRETARY_MODEL` 입니다.
+환경변수는 `SECRETARY_BASE_URL` · `SECRETARY_API_KEY` · `SECRETARY_MODEL` 입니다. 예전 이름(jaba)에서 자동으로 옮기는 기능과 `JABA_*` 환경변수는 0.7.0 에서 없앴습니다 — `config.json` 에 적힌 예전 파일 이름은 그대로 읽습니다 ([INSTALL.md › 예전 이름(jaba) 설치](../INSTALL.md#예전-이름jaba-설치)).
 
 ## 알려진 한계
 
 - Outlook: 반복 일정·회의 초대는 읽기만 하고(변경은 Outlook에서) 초대 메일은 보내지 않습니다. 새 Outlook은 지원하지 않습니다
 - 윈도우 알림은 PowerShell로 띄웁니다. 회사 정책이 막으면 앱 안 알림으로만 동작합니다 (`--test-notify`로 확인)
 - 알림은 Secretary–1 이 켜져 있을 때만 옵니다
+- 설정 · 일정 · 학습 규칙 · 위키 파일은 프로그램 폴더(`D:\OPENCODE\secretary-1`)에 있습니다. works 규칙은 저장소 밖(`%LOCALAPPDATA%`)이지만, 이름을 바꾸며 이미 한 번 옮긴 파일을 또 옮기지 않으려고 그대로 둡니다 ([예외 대장](../../docs/REGISTRY.md#예외-대장)). `.gitignore` 로 커밋은 막혀 있지만, `git clean -xfd` 같은 명령은 이 파일들을 지웁니다
 - 픽셀 폰트는 윈도우 배율 100%·200%에서 가장 선명하고, 125%·150%에선 살짝 부드럽게 보입니다. 한자·이모지는 시스템 글꼴로 나옵니다
 
 ## 라이선스

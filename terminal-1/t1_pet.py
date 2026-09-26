@@ -67,7 +67,7 @@ ENEMY_LINES = ["{m}의 공격!", "{m}이(가) 달려들었다!", "{m}이(가) �
 
 # ============================================================== 경로 / 입출력
 def data_dir():
-    from t1_term import data_dir as where   # 폴더 규칙(옛 이름 ocmux 폴더 포함)은 한곳에서
+    from t1_term import data_dir as where   # 폴더 규칙은 한곳에서
     return where()
 
 

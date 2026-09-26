@@ -94,6 +94,8 @@ OpenCode 설정은 `%USERPROFILE%\.config\opencode\opencode.json(c)`, `D:\OPENCO
 
 참고: `도구 호출: 텍스트로 출력함 → 자동으로 json 모드로 동작` 은 실패가 아니다 (그대로 동작함). 고정하려면 `--set "llm.tool_mode=json"`.
 
+**[질문]** "화면에 회사 이름을 작게 넣을까요? (01 NEXT 줄 끝)" → 넣는다면 `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "company=<회사 이름>"` (24자까지 · 이 PC 의 `config.json` 에만 저장)
+
 ### LLM 을 직접 넣기
 
 **[질문]** 사용자에게 사내 LLM 주소(보통 `…/v1` 로 끝남)와 모델 이름을 받는다 (**키는 받지 않는다**).
@@ -197,6 +199,7 @@ Secretary–1 설치 완료
 | `설정 오류: … 형식 오류` (config.json 이 깨짐) | 사용자가 메모장으로 고치거나, `config.json` 을 `config.bak.json` 으로 이름을 바꾸고 3단계부터 다시 |
 | 파이썬을 다시 깐 뒤 `secretary-1.bat` 이 안 켜짐 | `--setup` 한 번 실행 (`secretary-1.bat` 을 새로 만든다) |
 | `--set` 이 `API 키는 --set 으로 넣지 않습니다` | 정상 동작 (키가 명령 기록에 남지 않게 막음). 메모장 방법 또는 `{env:이름}` 참조 사용 |
+| `git pull` 이 `untracked working tree files would be overwritten` 와 함께 `AGENTS.md` · `CLAUDE.md` 를 보여 줌 | `D:\OPENCODE` 에 사용자가 만든 같은 이름 파일이 있다 (opencode `/init` 등). **[질문]** "`D:\OPENCODE\AGENTS.md` 를 `AGENTS.local.md` 로 이름을 바꿔도 될까요?" → 바꾼 뒤 pull 을 다시 한다. 그 내용을 계속 쓰려면 opencode 설정의 `instructions` 에 `AGENTS.local.md` 를 넣도록 사용자에게 안내한다 (설정 파일은 에이전트가 고치지 않는다) |
 
 `--set` 은 모든 셸에서 `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "키=값"` 형태로 쓴다. 틀린 값은 저장되지 않고 되돌려진다.
 
@@ -215,23 +218,13 @@ python "D:\OPENCODE\secretary-1\secretary-1.py" --status
 zip 으로 받았다면 `git pull` 대신 새 zip 을 받아 `D:\OPENCODE` 에 덮어 풀어 달라고 사용자에게 부탁한다 (설정 · 데이터 파일은 zip 에 없어서 그대로 남는다).
 `config.json` · `secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)은 저장소에도 zip 에도 없어서 그대로 남는다.
 
-### 예전 이름(jaba)에서 넘어올 때
+### 예전 이름(jaba) 설치
 
-예전엔 jaba 저장소를 `D:\OPENCODE\jaba` 에 따로 받았다. 이제 Secretary–1 은 works 저장소의 `secretary-1` 폴더다.
+예전 이름에서 자동으로 옮기는 기능은 0.7.0 에서 없앴다. 에이전트는 파일을 직접 옮기지 않는다.
 
-```text
-python "D:\OPENCODE\jaba\jaba.py" --stop
-```
-
-(`jaba.py` 가 없으면 `secretary-1.py` 로 바꿔서 실행한다. 그다음 위 2단계대로 works 를 받거나 업데이트하고, 3단계 `--setup` 부터 진행한다.)
-
-`D:\OPENCODE\secretary-1\secretary-1.py` 를 처음 실행하면 알아서 옮긴다. 에이전트가 파일을 직접 옮기지 않는다.
-
-- 옆의 `D:\OPENCODE\jaba` 에서 `config.json` · 일정 · 학습 규칙 · 위키를 가져온다 (새 폴더에 `config.json` 이 아직 없을 때만, 덮어쓰지 않음)
-- 켜져 있는 예전 비서는 먼저 끈다 · 파일 이름을 `secretary-1.db` · `secretary-1-rules.json` · `secretary-1-wiki.json` 으로 바꾸고 `config.json` 도 맞춘다
-- 자동 실행(`jaba.lnk`)은 `secretary-1.lnk` 로 바꿔 단다 · 환경변수 `JABA_*` 도 계속 읽는다 (새 이름은 `SECRETARY_*`)
-
-옮긴 뒤 `D:\OPENCODE\jaba` 에는 예전 코드만 남는다. **[질문]** 사용자가 원할 때만 그 폴더를 지운다.
+- 이 폴더의 `config.json` 에 `jaba.db` 같은 예전 파일 이름이 적혀 있으면 그대로 읽는다 — 이미 여기서 쓰던 설치는 계속 동작한다
+- `D:\OPENCODE\jaba` 에 따로 받은 예전 설치가 남아 있으면 **[질문]** 사용자에게 알린다: "예전 폴더의 설정 · 일정은 자동으로 가져오지 않습니다. 쓰시려면 그 폴더의 `config.json` · `jaba.db` · `jaba_rules.json` · `jaba_wiki.json` 을 `D:\OPENCODE\secretary-1` 로 직접 옮겨 주세요 (옮기기 전에 예전 비서 창을 닫기)"
+- 환경변수는 `SECRETARY_*` 만 읽는다 (`JABA_*` 는 읽지 않음)
 
 ## 제거
 
@@ -240,7 +233,14 @@ python "D:\OPENCODE\secretary-1\secretary-1.py" --stop
 python "D:\OPENCODE\secretary-1\secretary-1.py" --autostart off
 ```
 
-그다음 **[질문]** "`secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)을 백업할까요?" → 사용자 확인 후에만 `D:\OPENCODE\secretary-1` 폴더를 지운다.
+그다음 **[질문]** "`secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)을 백업할까요?" → 백업이 끝났거나 필요 없다고 하면, 사용자 확인 후 설정 · 데이터 파일만 지운다 (`config.json` 에는 API 키가 들어 있다):
+
+```text
+python -c "import os; d=r'D:\OPENCODE\secretary-1'; [os.remove(os.path.join(d, f)) for f in ('config.json', 'secretary-1.db', 'secretary-1.db-journal', 'secretary-1-rules.json', 'secretary-1-wiki.json', 'secretary-1.bat') if os.path.exists(os.path.join(d, f))]"
+```
+
+프로그램 폴더 `D:\OPENCODE\secretary-1` 은 works 저장소의 일부라서 **지우지 않는다** — 지우면 git 이 '바뀐 파일' 로 보고 다른 works 도구의 업데이트(`git pull`)가 멈춘다. 켜지 않은 코드는 남아 있어도 아무 일도 하지 않는다.
+works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워집니다. `D:\OPENCODE` 를 지울까요?" → 확인 후 지운다.
 
 ## 참고: 명령 모음
 
@@ -253,3 +253,4 @@ python "D:\OPENCODE\secretary-1\secretary-1.py" --autostart off
 | `--autostart on` · `--autostart off` | 로그인할 때 자동 실행 등록 · 해제 |
 | `--status` · `--stop` | 실행 중인지 확인 · 끄기 |
 | `--version` | 버전 |
+| `--export-events --from 날짜 --to 날짜` | 공개 명령: 기간 안의 일정을 JSON 으로 (다른 works 도구가 읽음 · 읽기만) |

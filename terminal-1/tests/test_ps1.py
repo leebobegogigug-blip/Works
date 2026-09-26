@@ -85,6 +85,13 @@ class Ps1(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("terminal-1 add", r.stdout)   # 예전엔 pwsh 7 에서 출력을 받으면 빈 줄만 나왔다
 
+    def test_version(self):
+        r = self.run_ps("version")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        with open(os.path.join(HERE, "..", "t1_term.py"), encoding="utf-8") as f:
+            version = next(ln.split('"')[1] for ln in f if ln.startswith("VERSION = "))
+        self.assertEqual(r.stdout.strip(), "Terminal-1 " + version)   # t1_monitor.py --version 과 같은 값 하나
+
     def test_no_pet(self):
         r = self.run_ps("add", self.project("mon"), "-NoPet")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
@@ -92,23 +99,32 @@ class Ps1(unittest.TestCase):
         self.assertIn("t1_monitor.py usage", wt)
         self.assertNotIn("t1_monitor.py rpg", wt)  # 채널 탭 · overview 탭 모두 펫 칸 없음
 
-    def test_moves_data_from_old_ocmux_folder(self):
-        # 이름을 바꾸기 전(ocmux) 폴더: 레지스트리 · 펫 저장 · 헤드리스 로그가 그대로 따라와야 한다
+    def test_old_folder_left_alone_and_colors_kept_in_palette(self):
+        # 예전 이름(ocmux)의 폴더는 더 옮기지도 쓰지도 않는다 · 팔레트 밖 탭 색은 팔레트 안으로 (t1_term.fix_color 와 같은 색)
         old, new = os.path.join(self.appdata, "ocmux"), os.path.join(self.appdata, "terminal-1")
-        os.makedirs(os.path.join(old, "logs"))
-        with open(os.path.join(old, "instances.json"), "w", encoding="utf-8") as f:
-            json.dump([{"name": "api", "dir": self.tmp, "port": 4999, "url": "http://127.0.0.1:4999", "color": "#3F77A6",
-                        "headless": True, "pid": None, "logfile": os.path.join(old, "logs", "api.log"),
-                        "created": 0, "ch": 1}], f)
-        with open(os.path.join(old, "pet-api.json"), "w", encoding="utf-8") as f:
-            f.write("{}")
+        os.makedirs(old)
+        os.makedirs(new)
+        with open(os.path.join(new, "instances.json"), "w", encoding="utf-8") as f:
+            json.dump([{"name": "api", "dir": self.tmp, "port": 4999, "url": "http://127.0.0.1:4999", "color": "#ec4899",
+                        "headless": False, "pid": None, "logfile": None, "created": 0, "ch": 1}], f)
         r = self.run_ps("ls")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn("ocmux -> terminal-1", r.stdout)
-        self.assertFalse(os.path.exists(old))
-        self.assertTrue(os.path.exists(os.path.join(new, "pet-api.json")))
-        self.assertEqual(self.registry()[0]["logfile"], os.path.join(new, "logs", "api.log"))
-        self.assertNotIn("RENAME", self.run_ps("ls").stdout)   # 한 번만
+        self.assertTrue(os.path.isdir(old))
+        self.assertNotIn("RENAME", r.stdout)
+        palette = ["#3F77A6", "#A5AAAE", "#75A1C7", "#6ABA23", "#B8CEE0", "#81888D", "#95D85A", "#45741B"]
+        self.assertEqual(self.registry()[0]["color"], palette[sum(b"#EC4899") % len(palette)])
+
+    def test_company_name_setting(self):
+        path = os.path.join(self.appdata, "terminal-1", "settings.json")
+        r = self.run_ps("company", "Acme Co")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        with open(path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f), {"version": 1, "company": "Acme Co"})
+        self.assertIn("Acme Co", self.run_ps("company").stdout)                # 이름 없이 부르면 지금 값
+        self.assertNotEqual(self.run_ps("company", "x" * 25).returncode, 0)     # 24자까지
+        self.assertEqual(self.run_ps("company", "-").returncode, 0)             # - 로 지운다
+        with open(path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["company"], "")
 
     def test_rejects_bad_name_and_headless_percent_folder(self):
         r = self.run_ps("add", self.project("p"), "-Name", 'x"y')

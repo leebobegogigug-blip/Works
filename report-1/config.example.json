@@ -1,0 +1,51 @@
+{
+  "llm": {
+    "base_url": "",
+    "api_key": "",
+    "model": "",
+    "models": [],
+    "temperature": 0.2,
+    "max_tokens": 2048,
+    "timeout_sec": 90,
+    "extra_headers": {},
+    "proxy": null,
+    "ca_file": ""
+  },
+  "report": {
+    "forms": {
+      "현황 보고": [
+        "개요",
+        "현황",
+        "문제점",
+        "향후 계획"
+      ],
+      "이슈 보고": [
+        "현상",
+        "원인",
+        "영향",
+        "조치",
+        "요청 사항"
+      ],
+      "검토 보고": [
+        "검토 배경",
+        "검토 내용",
+        "대안",
+        "검토 의견"
+      ],
+      "회의 결과": [
+        "회의 개요",
+        "논의 내용",
+        "결정 사항",
+        "후속 조치"
+      ],
+      "자유 구성": []
+    },
+    "summary": true,
+    "budget_chars": 20000
+  },
+  "theme": "dark",
+  "company": "",
+  "port": 8775,
+  "open_window": true,
+  "idle_exit_min": 30
+}
