@@ -11,7 +11,7 @@ Every pane speaks the same design language. Press `?` in any pane (`F1` in compo
 
 Screenshots: [channel tab](images/channel-tab.png) · [overview tab](images/overview-tab.png) ·
 [TOKEN QUEST gallery](images/token-quest-gallery.png) · [TOKEN QUEST motion](images/token-quest-motion.png) ·
-[demo GIF](images/token-quest-demo.gif) · [guide](images/guide.png) · [main story](images/story.png) — Korean introduction: [README](../README.md)
+[demo GIF](images/token-quest-demo.gif) · [guide](images/guide.png) · [main story](images/story.png) — Korean manual: [README](../README.md) · product page: [repository home](../../README.md)
 
 ---
 
@@ -106,7 +106,8 @@ No product's screens or logos are copied.
 | | grays | `#35383B` → `#D4D6D8` | text, labels, dark keycaps |
 
 Palette = the three reference swatches (navy · lime · gray) plus their lighter/darker steps, on pure black.
-There is no red: warnings are the brightest white.
+Navy is the primary color (number badges, pane labels, bars); lime is only for *on / busy / selected*.
+There is no red: warnings are the brightest white. The schedule assistant [jaba](https://github.com/leebobegogigug-blip/jaba) uses the same palette and rules.
 
 ### 04.2 icon map
 
@@ -126,8 +127,8 @@ There is no red: warnings are the brightest white.
 | widget | looks like | used for |
 |---|---|---|
 | top bar | navy full-width line | channel chip · name · `sys` strip · LEDs · clock · `?` |
-| module | `01 ROOM ●` | numbered region + activity LED |
-| chip | ` BUSY ` ` PERM ` ` CALL ` | state (lime = on, white = warning, dark = off) |
+| module | `01 ROOM ●` | numbered region + activity LED (the number badge is navy) |
+| chip | ` BUSY ` ` PERM ` ` CALL ` · ` USAGE ` ` COMPOSE ` | state (lime = on, white = warning, dark = off) · pane labels are navy |
 | fader | `━━━━●────` | needs, EXP, timers — slides to the new value |
 | LED bar | `▮▮▮▮▯▯` | HP/MP, quest, floors, raid HP |
 | knob | `○◔◑◕●` | care, discipline, forge rate |

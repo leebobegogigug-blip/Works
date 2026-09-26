@@ -4,7 +4,7 @@ ocmux_pet_ui.py - TOKEN QUEST (TQ–1): 토큰펫 화면 (터미널 캔버스 �
 화면(모드): 1 홈 / 2 모험 / 3 가방 / 4 상점 / 5 공방 / 6 도감 / 7 스토리  — 한 화면 = 한 모드
 오버레이: 먹이·약·놀이 선택, 스킬·아이템 메뉴, 이벤트 선택지, 미니게임, 진화 연출, 귀환 결과, 환영 인사
 디자인 규칙은 ocmux_term.py 맨 위 참고:
-  - 색 = 조작: 포만①파랑 F · 기분②초록 P · 체력③흰색 Z · 건강④회색 M (페이더 색 = 키 색)
+  - 색 = 조작: 포만①파랑 F · 기분②라임 P · 체력③흰색 Z · 건강④회색 M (페이더 색 = 키 색)
   - `?` = 가이드: 화면의 번호 구역마다 번호표 + 범례 (그리는 쪽이 self._anchor() 로 위치를 알려 준다)
   - 방금 누른 키는 아래 키캡에 불이 들어오고, 새 기록이 생기면 LOG 구역 LED 가 켜진다
 """
@@ -165,7 +165,7 @@ GUIDE = {
     "room": ("ROOM", "펫이 사는 방. 오른쪽 위 미터 = AI 활동량, 아래 = 나이 · 무게. 원정 중엔 테이프 릴"),
     "level": ("LEVEL", "레벨(세그먼트) · EXP · HP/MP LED · 돌봄/훈육 노브 · 능력치 · GEN = 세대"),
     "hatch": ("HATCH", "부화 진행률. 3분이 지나고 첫 응답이 오면 깨어나요"),
-    "needs": ("NEEDS", "포만 1 파랑 · 기분 2 초록 · 체력 3 흰색 · 건강 4 회색. 같은 색 키 F · P · Z · M 이 올려요"),
+    "needs": ("NEEDS", "포만 1 파랑 · 기분 2 라임 · 체력 3 흰색 · 건강 4 회색. 같은 색 키 F · P · Z · M 이 올려요"),
     "status": ("STATUS", "허락 대기 · 호출 · 버그 · 태세 · 버프가 이 줄에 떠요"),
     "quest": ("QUEST", "opencode 할 일(todo) 진행도 = 메인 퀘스트"),
     "log": ("LOG", "최근 기록. 제목 옆 LED 가 켜지면 방금 새 줄"),
@@ -1189,7 +1189,7 @@ class PetUI:
         return (LIME if busy else NV2) + "".join(out) + RST
 
     def _vitals(self, cv, x0, y, W, now):
-        """페이더 4개. 색 = 조작: 포만①파랑(F) · 기분②초록(P) · 체력③흰색(Z) · 건강④회색(M).
+        """페이더 4개. 색 = 조작: 포만①파랑(F) · 기분②라임(P) · 체력③흰색(Z) · 건강④회색(M).
         색은 '어느 키가 바꾸는 값인가'를 뜻하고, 부족함은 숫자(20 미만이면 흰 블록 깜빡)로 보여 준다"""
         p = self.g.p
         cells_ = [("포만", "full"), ("기분", "mood"), ("체력", "energy"), ("건강", "health")]
@@ -1585,7 +1585,7 @@ class PetUI:
             if g.battle.get("raid"):
                 tag = chip("RAID", "black", "white")
             elif g.battle.get("story") is not None:
-                tag = chip(f"CH{g.battle['story'] + 1:02d}", "black", "lime")
+                tag = chip(f"CH{g.battle['story'] + 1:02d}", "black", "white")
                 boss = True
             else:
                 tag = {"boss": chip("BOSS", "black", "white"), "mini": chip("MINI", "black", "gray")}.get(m["rank"], "")
@@ -3083,7 +3083,7 @@ class PetUI:
         mg = g.mg
         kind = mg["kind"]
         name = dict((k, n) for k, n, _ in D.MINIGAMES)[kind]
-        cv.ansi_clip(x0, y0, f"{chip('GAME', 'black', 'lime')} {G4}{B}{name}{RST}", W)
+        cv.ansi_clip(x0, y0, f"{chip('GAME', 'white', 'navy2')} {G4}{B}{name}{RST}", W)
         if mg.get("phase") == "result":
             self._center_box(cv, W, H + 2, "RESULT", [f"{G4}{mg.get('summary', '')}{RST}"], footer=[("↵", "닫기")])
             return

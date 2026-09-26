@@ -13,7 +13,7 @@ import time
 
 import ocmux_pet as P
 import ocmux_pet_ui as UI
-from ocmux_term import HIDE, SHOW, RST, poll_keys, RawInput
+from ocmux_term import HIDE, SHOW, RST, PALETTE, poll_keys, RawInput
 
 
 class SignalBridge:
@@ -318,7 +318,7 @@ def run_ranch(a, M):
         rows = M.load_registry()
         for r in rows:
             if r.get("name"):
-                colors[r["name"]] = r.get("color") or "#6ABA23"
+                colors[r["name"]] = r.get("color") or PALETTE[0]
         scopes = [r["name"] for r in rows if r.get("name")]
         return UI.render_ranch(scopes, W, H, colors, anc)
 
