@@ -182,7 +182,11 @@ class TestConfig(unittest.TestCase):
             cfg, _ = sec.load_config(path)
             self.assertEqual(cfg["company"], "작은 회사 </script>")
             app_cfg = cfg_for(os.path.join(d, "s.db"), open_window=False, hotkey="", company=cfg["company"])
-            html = sec.App(app_cfg).render_index().decode("utf-8")   # DB 는 임시 폴더에 (프로그램 폴더에 만들지 않게)
+            app = sec.App(app_cfg)                               # DB 는 임시 폴더에 (프로그램 폴더에 만들지 않게)
+            try:
+                html = app.render_index().decode("utf-8")
+            finally:
+                app.cal.close()   # Windows 는 열린 DB 파일이 있으면 임시 폴더를 못 지운다
             self.assertNotIn("작은 회사 </script>", html)                     # 설정 글자가 스크립트를 닫지 못한다
             self.assertIn('"company": "작은 회사 <\\/script>"', html)
             self.assertIn('<i></i><span class="brand" id="brand" hidden></span><em>T−</em>', html)
