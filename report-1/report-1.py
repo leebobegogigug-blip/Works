@@ -23,6 +23,7 @@ Report–1 - 근거 달린 보고서 (내 PC에서만 · Python 3.8+ · 이 파�
   report.forms          양식 이름 → 칸 이름 목록 (빈 목록 = 칸을 LLM 이 정함) · report.summary 맨 위 요약 칸
   report.budget_chars   LLM 에 한 번에 보낼 자료 글자 수 한도 (사내 LLM 입력 한도에 맞춘다)
   theme · port(8775) · open_window · idle_exit_min(창을 닫고 이만큼 지나면 저절로 꺼짐, 0 = 안 꺼짐)
+  company               화면 위 이름 옆에 작게 넣는 회사 이름 (비우면 없음 · 저장소에는 넣지 않고 이 PC 설정에만)
 
 [보안 · 저장]
   127.0.0.1 에만 열리고 실행마다 새 토큰 · 밖으로 나가는 통신은 설정한 LLM 주소 하나
@@ -120,6 +121,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "budget_chars": 20000,
     },
     "theme": "dark",
+    "company": "",
     "port": 8775,
     "open_window": True,
     "idle_exit_min": 30,
@@ -239,6 +241,16 @@ def validate_config(cfg: Dict[str, Any]) -> None:
     cfg["theme"] = str(cfg.get("theme") or "dark").strip().lower()
     if cfg["theme"] not in ("dark", "light", "system"):
         raise ConfigError('theme 는 "dark", "light", "system" 중 하나여야 합니다')
+    cfg["company"] = check_company(cfg.get("company"))
+
+
+def check_company(value: Any) -> str:
+    """화면에 넣는 회사 이름 — 글자만, 24자까지 (비우면 없음)"""
+    if value is None:
+        return ""
+    if not isinstance(value, str) or len(value.strip()) > 24 or re.search(r"[\x00-\x1f\x7f]", value):
+        raise ConfigError("company 는 24자까지의 글자여야 합니다 (예: --set company=회사이름 · 비우려면 --set company=)")
+    return value.strip()
 
 
 def sections_of(cfg: Dict[str, Any], form: str) -> Tuple[List[str], bool]:
@@ -996,7 +1008,8 @@ class App:
     def render_index(self) -> bytes:
         boot = {"version": VERSION, "forms": [{"name": k, "sections": sections_of(self.cfg, k)[0],
                                               "free": sections_of(self.cfg, k)[1]} for k in self.forms],
-                "undo_sec": self.UNDO_SEC, "budget": self.budget, "max_paste": MAX_PASTE}
+                "undo_sec": self.UNDO_SEC, "budget": self.budget, "max_paste": MAX_PASTE,
+                "company": self.cfg.get("company") or ""}
         boot_js = json.dumps(boot, ensure_ascii=False).replace("</", "<\\/")
         html = INDEX_HTML.replace("__THEME__", self.cfg.get("theme") or "dark")
         return html.replace("__TOKEN__", self.token).replace("__BOOT__", boot_js).encode("utf-8")
@@ -2099,6 +2112,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,[contenteditable
 .bar{display:flex;align-items:center;gap:12px;padding:10px 24px 8px}
 .logo{font-size:32px;line-height:32px;text-shadow:2px 0 0 currentColor;white-space:nowrap}
 .logo::after{content:"_";color:var(--accent);animation:caret 1.06s steps(2) infinite}
+.brand{align-self:flex-end;margin:0 0 4px -4px;line-height:16px;color:var(--ink-2);text-shadow:var(--b);white-space:nowrap}  /* 회사 이름 (config.company) */
 .lcd{position:relative;display:flex;align-items:center;gap:10px;padding:4px 12px;background:var(--lcd);color:var(--lcd-ink);border:1px solid var(--lcd-edge);border-radius:10px;box-shadow:inset 0 2px 10px rgba(0,0,0,.75);min-width:0}
 .lcd::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px);pointer-events:none}
 #lcd-form{font-size:24px;line-height:32px;text-shadow:2px 0 0 currentColor;color:var(--k1);white-space:nowrap}
@@ -2267,7 +2281,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,[contenteditable
         <path class="mouth" d="M10 24h10" stroke-width="2.4"/>
       </svg>
     </div>
-    <div class="logo">REPORT–1</div>
+    <div class="logo">REPORT–1</div><div class="brand" id="brand" hidden></div>
     <div class="lcd"><span id="lcd-form">—</span><span id="lcd-meta">자료 0</span></div>
     <div class="leds">
       <span class="led" id="led-save" title="라임 = 보관됨 · 흰색 = 보관 안 한 자료 있음"><i></i>보관</span>
@@ -2696,6 +2710,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 $("#ver").textContent = `v${BOOT.version}`;
+if (BOOT.company) { $("#brand").textContent = BOOT.company; $("#brand").hidden = false; }
 renderKnobs(); renderDraft(); state(); load();
 setInterval(state, 20000);   // 창이 열려 있다는 신호 — 닫으면 idle_exit_min 뒤 서버가 꺼진다 (보관 안 한 자료가 있으면 기다린다)
 </script>

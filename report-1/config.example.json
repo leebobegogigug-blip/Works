@@ -44,6 +44,7 @@
     "budget_chars": 20000
   },
   "theme": "dark",
+  "company": "",
   "port": 8775,
   "open_window": true,
   "idle_exit_min": 30

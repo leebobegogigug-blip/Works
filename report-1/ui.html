@@ -63,6 +63,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,[contenteditable
 .bar{display:flex;align-items:center;gap:12px;padding:10px 24px 8px}
 .logo{font-size:32px;line-height:32px;text-shadow:2px 0 0 currentColor;white-space:nowrap}
 .logo::after{content:"_";color:var(--accent);animation:caret 1.06s steps(2) infinite}
+.brand{align-self:flex-end;margin:0 0 4px -4px;line-height:16px;color:var(--ink-2);text-shadow:var(--b);white-space:nowrap}  /* 회사 이름 (config.company) */
 .lcd{position:relative;display:flex;align-items:center;gap:10px;padding:4px 12px;background:var(--lcd);color:var(--lcd-ink);border:1px solid var(--lcd-edge);border-radius:10px;box-shadow:inset 0 2px 10px rgba(0,0,0,.75);min-width:0}
 .lcd::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px);pointer-events:none}
 #lcd-form{font-size:24px;line-height:32px;text-shadow:2px 0 0 currentColor;color:var(--k1);white-space:nowrap}
@@ -231,7 +232,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,[contenteditable
         <path class="mouth" d="M10 24h10" stroke-width="2.4"/>
       </svg>
     </div>
-    <div class="logo">REPORT–1</div>
+    <div class="logo">REPORT–1</div><div class="brand" id="brand" hidden></div>
     <div class="lcd"><span id="lcd-form">—</span><span id="lcd-meta">자료 0</span></div>
     <div class="leds">
       <span class="led" id="led-save" title="라임 = 보관됨 · 흰색 = 보관 안 한 자료 있음"><i></i>보관</span>
@@ -660,6 +661,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 $("#ver").textContent = `v${BOOT.version}`;
+if (BOOT.company) { $("#brand").textContent = BOOT.company; $("#brand").hidden = false; }
 renderKnobs(); renderDraft(); state(); load();
 setInterval(state, 20000);   // 창이 열려 있다는 신호 — 닫으면 idle_exit_min 뒤 서버가 꺼진다 (보관 안 한 자료가 있으면 기다린다)
 </script>

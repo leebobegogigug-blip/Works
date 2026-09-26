@@ -83,6 +83,8 @@ python "D:\OPENCODE\report-1\report-1.py" --set "report.forms.<양식 이름>=<�
 
 (예: `--set "report.forms.주간 점검=현황;이슈;다음 주 계획"` · 쓰지 않는 기본 양식은 `--set "report.forms.검토 보고="` 로 지운다)
 
+**[질문]** "화면 위 이름 옆에 회사 이름을 작게 넣을까요?" → 넣는다면 `python "D:\OPENCODE\report-1\report-1.py" --set "company=<회사 이름>"` (24자까지 · 이 PC 설정에만 저장)
+
 ## 4. 시작 메뉴 바로가기 (선택)
 
 **[질문]** "시작 메뉴에 Report–1 바로가기를 만들까요? (지울 때는 --shortcut off)"

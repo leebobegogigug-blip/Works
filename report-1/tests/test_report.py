@@ -642,6 +642,19 @@ class Cli(Base):
             del os.environ["REPORT_TEST_KEY"]
             os.environ.pop("REPORT_API_KEY", None)
 
+    def test_company_name_is_a_setting_not_in_the_repo(self):
+        self.assertEqual(rp.DEFAULT_CONFIG["company"], "")                    # 저장소에는 회사 이름이 없다 (W-12)
+        app = rp.App(base_cfg(self.home, company="  작은 회사 <b>  "), os.path.join(self.home, "c.json"))
+        html = app.render_index().decode("utf-8")
+        self.assertIn('"company": "작은 회사 <b>"', html)                      # 화면이 textContent 로 넣는다 (HTML 로 해석 안 됨)
+        self.assertIn('<div class="brand" id="brand" hidden></div>', html)
+        self.assertIn("$(\"#brand\").textContent = BOOT.company", html)
+        for bad in ("가" * 25, "줄\n바꿈", 3):
+            with self.assertRaises(rp.ConfigError, msg=repr(bad)):
+                base_cfg(self.home, company=bad)
+        self.assertEqual(run_cli("--set", "company=Example Co", env=self.env())[0], 0)
+        self.assertEqual(self.saved()["company"], "Example Co")
+
     def test_bad_forms_config_is_refused(self):
         for bad in ({}, {"": ["a"]}, {"A": "a;b"}, {"A": [f"칸{i}" for i in range(9)]}, {"A": ["가" * 21]}, [["a"]]):
             cfg = rp.deep_merge(rp.DEFAULT_CONFIG, {})

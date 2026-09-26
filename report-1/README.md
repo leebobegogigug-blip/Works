@@ -44,7 +44,7 @@ LLM 이 없으면 기본 초안 · 자료를 그대로 묶기<br>
 결재판 얼굴 · 붙여 넣으면 받아먹음<br>
 다크 · 라이트 · 시스템 테마 · 빨강 없음<br>
 설치는 OPENCODE 에게 · INSTALL.MD<br>
-단위 · 통합 테스트 36 · 브라우저 E2E · WINDOWS + UBUNTU CI
+단위 · 통합 테스트 37 · 브라우저 E2E · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -120,7 +120,7 @@ Report–1 은 works 시스템의 한 부품입니다.<br>
 <tr><td>네트워크</td><td><code>127.0.0.1</code> 전용 · 실행마다 새 토큰 · 밖으로는 설정한 LLM 주소 하나</td></tr>
 <tr><td>키</td><td><code>Ctrl+V</code> 붙여 넣기 · <code>Ctrl+Enter</code> 초안 · <code>Ctrl+S</code> 보관 · <code>Ctrl+Shift+Enter</code> 확정 · <code>Ctrl+Z</code> 되돌리기 · <code>Alt+1–4</code> 노브</td></tr>
 <tr><td>글꼴</td><td>GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 (<a href="fonts/OFL.txt">fonts/OFL.txt</a>)</td></tr>
-<tr><td>테스트</td><td>단위 · 통합 36 · 브라우저 E2E · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
+<tr><td>테스트</td><td>단위 · 통합 37 · 브라우저 E2E · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>
