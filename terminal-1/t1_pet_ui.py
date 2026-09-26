@@ -43,7 +43,7 @@ BG_NAVY, BG_NAVY1, BG_NAVY2, BG_LIME, BG_GRAY = (bg(P3["navy"]), bg(P3["navy1"])
                                                  bg(P3["gray"]))
 BG_WHITE, BG_G0 = bg(P3["white"]), bg(P3["gray0"])
 STATUS_NAMES = {"poison": "버그감염", "curse": "저주", "def_up": "방어↑", "spd_up": "속도↑", "focus": "집중",
-                "stun": "멈춤", "sleep": "졸음", "confuse": "혼란"}
+                "stun": "멈춤", "sleep": "졸음", "confuse": "혼란", "def_down": "방어↓"}
 SICK_NAMES = {"cold": "감기", "overfed": "배탈", "burnout": "번아웃"}
 _SGR = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -335,6 +335,10 @@ class PetUI:
         tab = TABS[self.tab][0]
         if tab == "adv" and g.event and not g.event.get("result") and k in ("1", "2", "3"):
             g.event_choose(int(k) - 1)
+            return
+        tl = g.battle.get("tele") if g.battle else None
+        if tl and tab in ("adv", "story") and k in [o for o, _ in tl["opts"]]:
+            g.gim_answer(k)
             return
         if k in ("TAB", "BTAB") or (len(k) == 1 and k in TAB_KEYS):
             self._switch_tab(k)
@@ -680,22 +684,14 @@ class PetUI:
         self._scene_start(i, "intro")
 
     def _scene_lines(self, i, part):
-        c = D.CHAPTERS[i]
-        if part == "intro":
-            return list(c["intro"])
-        if part == "boss":
-            return list(c["boss"]["intro"])
-        if part == "outro":
-            return list(c["outro"])
-        return list(c["intro"]) + [("narr", "· · ·")] + list(c["boss"]["intro"]) + [("narr", "· · ·")] + list(c["outro"])
+        return self.g.story_scene(i, part)       # [(말하는 이, 문장, 표정)] — 성격 · 형태 · 세대 반영
 
     def _scene_start(self, i, part, then=None):
         self.scene = dict(ch=i, part=part, lines=self._scene_lines(i, part), idx=0, t0=time.time(), then=then)
         self.overlay = None
 
-    def _scene_text(self, spk_text):
-        spk, text = spk_text
-        return P.fix_josa(text.replace("{name}", self.g.p["name"]))
+    def _scene_text(self, line):
+        return line[1]
 
     def _scene_key(self, k):
         sc = self.scene
@@ -833,7 +829,7 @@ class PetUI:
         if g.welcome or (g.last_summary and g.last_summary[1] > gnow) or self.story_view is not None:
             return
         st = g.story()
-        if not st:
+        if not st or g.is_egg():
             return
         if st.get("pending") is not None:
             self._scene_start(st["pending"], "outro")
@@ -969,6 +965,9 @@ class PetUI:
             # 색 = 조작: 페이더 색과 같은 키 (포만① F · 기분② P · 체력③ Z · 건강④ M)
             return [("F", "밥", ENC[0]), ("P", "놀기", ENC[1]), ("Z", "잠", ENC[2]), ("M", "약", ENC[3]),
                     ("C", "청소"), ("J", "쓰담"), ("G", "훈육")]
+        tl = g.battle.get("tele") if g.battle else None
+        if tl and tab in ("adv", "story"):
+            return [(k.upper(), label, P3["white"]) for k, label in tl["opts"]] + [("", "예고! 골라서 받아치기")]
         if tab == "adv":
             if g.battle and g.battle.get("story") is not None:
                 return [("A", "공격"), ("S", "스킬"), ("D", "방어"), ("I", "템"), ("R", "물러나기"), ("T", "자동 " + on(st["auto_battle"]))]
@@ -2104,8 +2103,15 @@ class PetUI:
                 cv.ansi_clip(x0 + 1, y, f"{G1}›{RST} {WH}{why}{RST}", W - 1)
                 y += 1
             elif st.get("fails"):
-                cv.ansi_clip(x0 + 1, y, f"{G1}› 패배 {st['fails']}번 (LV{st.get('fail_lvl', 0)}) · 레벨·장비를 올리면 쉬워져요{RST}", W - 1)
+                k = min(st["fails"], D.GIM_RETRO["cap"])
+                cv.ansi_clip(x0 + 1, y, f"{G1}› 회고 {k}번 · 보스 HP −{int(D.GIM_RETRO['hp'] * k * 100)}% · "
+                                        f"자동 대응 +{int(D.GIM_RETRO['auto'] * k * 100)}% · 예고에 직접 대응하면 더 쉬워요{RST}", W - 1)
                 y += 1
+            else:
+                gd = D.GIMMICKS.get(bd["mid"])
+                if gd:
+                    cv.ansi_clip(x0 + 1, y, f"{G1}› 기믹 「{gd['name']}」 · 보스가 예고하면 키를 골라 받아치기{RST}", W - 1)
+                    y += 1
         return y
 
     def _next_lines(self, st, W):
@@ -2133,6 +2139,11 @@ class PetUI:
         head = f"{chip(f'CH{i + 1:02d} BOSS', 'black', 'lime')} {WH}{B}{m['name']}{RST}  {G1}ROUND{RST} {G4}{b['round'] + 1}{RST}"
         if b.get("phase2"):
             head += "  " + (chip("PHASE 2", "black", "white") if b.get("p2_done") else f"{G1}PHASE 1/2{RST}")
+        gi = g.gim_info()
+        if gi:
+            right = self._gim_status(gi)
+            if vlen(head) + vlen(right) + 2 <= W:
+                cv.ansi(x0 + W - vlen(right), y0, right)
         cv.ansi_clip(x0, y0, head, W)
         stage_h = 6
         self._arena(cv, x0, y0 + 1, W, stage_h, gnow)
@@ -2140,15 +2151,54 @@ class PetUI:
         y = y0 + 1 + stage_h
         self._anchor(x0 + W - 1, y, "hp")
         y = self._hp_rows(cv, x0, y, W, gnow)
-        if y0 + H - y >= 2:
+        if gi and gi["tele"] and y0 + H - y >= 4:
+            th = min(y0 + H - y, 7)
+            self._tele_box(cv, x0, y, W, th, gi, gnow)
+            self._anchor(x0 + 6, y, "tele")
+            if y0 + H - y - th >= 2:
+                self._log_panel(cv, x0, y + th, W, y0 + H - y - th, 3, "LOG")
+        elif y0 + H - y >= 2:
             self._log_panel(cv, x0, y, W, y0 + H - y, 2, "LOG")
             self._anchor(x0 + title_end(2, "LOG", led=True), y, "log")
 
-    def _speaker(self, spk, gnow):
-        """대사 주인 → (이름, 색, 그림 4줄)"""
+    def _gim_status(self, gi):
+        """머리줄 오른쪽: 계기(진행률 · 안건 · 이자) · 다음 예고까지 · 받아친 수"""
+        parts = []
+        mt = gi["meter"]
+        if mt:
+            parts.append(f"{G1}{mt['label']}{RST} {LIME if gi['tele'] is None else WH}{B}{mt['value']}{mt['unit']}{RST}")
+        if not gi["tele"]:
+            parts.append(f"{G1}{gi['count'] or '예고까지'}{RST} {G4}{gi['left']}턴{RST}")
+        if gi["done"]:
+            parts.append(f"{G1}대응{RST} {LIME3}{gi['ok']}/{gi['done']}{RST}")
+        return "  ".join(parts)
+
+    def _tele_box(self, cv, x0, y, W, h, gi, gnow):
+        """예고 상자: 보스 대사 · 선택지(키) · 힌트 · 남은 시간 막대. 좁으면 선택지를 한 줄에 하나씩"""
+        tl = gi["tele"]
+        left = max(0.0, tl["until"] - gnow)
+        span = max(0.1, tl["until"] - tl["t0"])
+        blink = int(time.time() * 3) % 2
+        title = chip("!! 예고", "black", "white") if blink else chip("!! 예고", "white", "navy2")
+        self._modbox(cv, x0, y, W, h, "02", "TELEGRAPH", right=f"{WH}{B}{gi['name']}{RST}",
+                     foot_l=f"안 누르면 자동 대응 {int(tl['auto_p'] * 100)}%", foot_r=f"{left:.1f}s", color=WH)
+        inner, iw = h - 2, W - 4
+        body = wrap(tl["text"], iw - 9)[:2]
+        one = "   ".join(f"{keycap(k.upper())} {G4}{label}{RST}" for k, label in tl["opts"])
+        opt_rows = [one] if vlen(one) <= iw else [f"{keycap(k.upper())} {G4}{label}{RST}" for k, label in tl["opts"]]
+        rows = [(title + " " if i == 0 else " " * 9) + f"{WH}{B}{ln}{RST}" for i, ln in enumerate(body)] + opt_rows
+        if tl.get("hint") and len(rows) < inner:
+            rows.insert(len(body), " " * 9 + f"{G1}› {tl['hint']}{RST}")
+        if len(rows) < inner:
+            rows.append(segbar(left, span, max(6, min(40, iw)), on=P3["white"], off=P3["navy2"]))
+        for i, r in enumerate(rows[:inner]):
+            cv.ansi_clip(x0 + 2, y + 1 + i, r, iw)
+
+    def _speaker(self, spk, gnow, face=None):
+        """대사 주인 → (이름, 색, 그림 4줄). face: 펫이 말할 때의 표정 (대사에 붙은 것)"""
         g = self.g
         if spk == "pet":
-            art, color = face_sprite(g, gnow, face="happy") if not g.is_egg() else (D.FORMS["egg"]["art"][0], D.FORMS["egg"]["color"])
+            art, color = face_sprite(g, gnow, face=face or "happy") if not g.is_egg() else (D.FORMS["egg"]["art"][0], D.FORMS["egg"]["color"])
             return g.p["name"], color, list(art)
         if spk == "boss":
             sc = self.scene
@@ -2167,12 +2217,9 @@ class PetUI:
         spk = lines[idx][0]
         if spk not in ("pet", "narr"):
             return spk
-        for sp, _ in reversed(lines[:idx]):
-            if sp not in ("pet", "narr"):
-                return sp
-        for sp, _ in lines[idx + 1:]:
-            if sp not in ("pet", "narr"):
-                return sp
+        for ln in list(reversed(lines[:idx])) + list(lines[idx + 1:]):
+            if ln[0] not in ("pet", "narr"):
+                return ln[0]
         return None
 
     def _scene_stage(self, cv, x0, y0, W, h, gnow, idx):
@@ -2197,7 +2244,8 @@ class PetUI:
                 mx = x + max(vlen(a) for a in art) // 2
                 if y0 <= gy - 5 + bob:
                     cv.text(mx, gy - 5 + bob, "▼", LIME)
-        name, color, art = self._speaker("pet", gnow)
+        face = next((ln[2] for ln in reversed(sc["lines"][:idx + 1]) if ln[0] == "pet" and len(ln) > 2 and ln[2]), None)
+        name, color, art = self._speaker("pet", gnow, face=face or "normal")
         put(art, x0 + 3, color, spk == "pet")
         other = self._scene_other(idx)
         if other:
@@ -2229,7 +2277,7 @@ class PetUI:
         cv.ansi(x0 + W - vlen(right), y0, right)
         cv.ansi_clip(x0, y0, head, W - vlen(right) - 1)
         narr = spk == "narr"
-        name, color, art = self._speaker(spk, gnow)
+        name, color, art = self._speaker(spk, gnow, face=lines[idx][2] if len(lines[idx]) > 2 else None)
         stage = H >= 16 and W >= 44
         # 말 상자 (아래쪽). 무대가 없는 작은 창에선 상자 왼쪽에 초상화
         pw = 0 if (stage or narr or W < 50 or not art) else max(vlen(a) for a in art) + 2
@@ -2276,13 +2324,13 @@ class PetUI:
         room = stage_top - top
         hist = lines[max(0, idx - room):idx]
         yy = stage_top - 1
-        for k, (sp2, t2) in enumerate(reversed(hist)):
+        for k, ln2 in enumerate(reversed(hist)):
             if yy < top:
                 break
-            n2, c2, _ = self._speaker(sp2, gnow)
+            n2, c2, _ = self._speaker(ln2[0], gnow)
             tcol = G if k == 0 else G1 if k < 3 else G2
             who = f"{rgb(c2) if k == 0 else G1}{n2}{RST} " if n2 else ""
-            cv.ansi_clip(x0 + 1, yy, who + f"{tcol}{self._scene_text((sp2, t2))}{RST}", W - 2)
+            cv.ansi_clip(x0 + 1, yy, who + f"{tcol}{self._scene_text(ln2)}{RST}", W - 2)
             yy -= 1
         # 윗부분이 비어 있으면 장소 자막. 지난 대사가 차오르면 자리를 내준다
         cap = [f"{NV4}◇{RST} {G4}{B}{c['en']}{RST}"] + [f"  {G1}{ln}{RST}" for ln in wrap_words(c["summary"], max(8, W - 6))]
@@ -2945,6 +2993,10 @@ class PetUI:
                          ("seg", f"{s['shards']:02d}", P3["lime"], f"/{n} 커밋 조각"),
                          f"{G1}조각{RST} {LIME}#{s['ch'] + 1}{RST} {G4}{s['hash']}{RST}  {G1}+{RST}{G4}{P.fmt_num(s['gold'])}G{RST}"
                          f"  {G1}+{RST}{G4}{P.fmt_num(s['exp'])}EXP{RST}"]
+                ok, n_t = s.get("gim") or (0, 0)
+                if n_t:
+                    lines.append(f"{G1}예고 대응{RST} {LIME if ok == n_t else G4}{B}{ok}/{n_t}{RST}"
+                                 + (f" {chip('PERFECT', 'black', 'lime')} {G1}보상 +30%{RST}" if s.get("perfect") else ""))
                 if s.get("loot"):
                     lines.append(f"{G1}LOOT{RST} {G}" + ", ".join(s["loot"][:6]) + RST)
                 lines.append(f"{G1}에필로그는 [7] 스토리 화면에서 이어져요{RST}")
@@ -2954,7 +3006,7 @@ class PetUI:
                 lines = [f"{WH}{B}{s['boss']}{RST} {G1}LV{s['lvl']}{RST}",
                          f"{G1}남은 체력{RST} {segbar(left, s.get('maxhp') or 1, 14, on=P3['white'])} {G4}{P.fmt_num(left)}{RST}",
                          f"{G4}{s['reason']}{RST}",
-                         f"{G1}챕터 보스전은 져도 기절 페널티 없음 · HP가 50% 넘으면 다시 도전 [B]{RST}"]
+                         f"{G1}챕터 보스전은 져도 기절 페널티 없음 · 질 때마다 회고로 보스가 약해져요 · 다시 도전 [B]{RST}"]
                 self._center_box(cv, W, H, "BOSS FIGHT", lines, tone="white" if s.get("fainted") else "navy4")
             return
         if s.get("raid"):
