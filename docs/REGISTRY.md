@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | `secretary-1` | Secretary–1 | 말하면 잡아 주는 일정 비서 | 웹형 | 운영 | 프로그램 폴더 (예외 W-06) | 8765–8774 | Ctrl+Alt+J | `SECRETARY_*` | 네모 화면 얼굴 | jaba · 이전 코드 지울 때 미정 |
 | `terminal-1` | Terminal–1 | opencode 여러 개를 한 창에서 | 터미널형 | 운영 | `%LOCALAPPDATA%\terminal-1` | 4096–4195 | — | `OPENCODE_SERVER_PASSWORD` (opencode 것) | TQ–1 펫 | ocmux · 이전 코드 지울 때 미정 |
-| `report-1` | Report–1 | 근거 달린 주간보고 초안 | 웹형 | 예정 | `%LOCALAPPDATA%\report-1` | 8775–8784 | — | `REPORT_*` | 결재판 | — |
+| `report-1` | Report–1 | 근거 달린 주간보고 초안 | 웹형 | 운영 | `%LOCALAPPDATA%\report-1` | 8775–8784 | — | `REPORT_*` | 결재판 | — |
 
 - **상태**: `예정`(등록만, 폴더 없음) · `운영` · `은퇴`
 - **포트**: 앱이 쓰는 대역 전체. 겹치면 검사기가 경고한다. 다음 빈 대역은 `8785–8794` 부터 10개씩.
@@ -33,6 +33,7 @@
 |---|---|---|
 | `secretary-1` | 프로그램 폴더 안의 `config.json` · `secretary-1.db` · 학습 규칙 · 위키 · `secretary-1.bat` · 시작 프로그램 `secretary-1.lnk` (`--autostart on` 일 때) | `--stop` · `--autostart off` · 설정 · 데이터 파일 지우기 ([INSTALL.md › 제거](../secretary-1/INSTALL.md#제거)) |
 | `terminal-1` | 사용자 PATH · Windows Terminal 색 테마 `Terminal-1 Black` (조각 파일) · (선택) 글꼴 Unifont 와 HKCU 글꼴 등록 · Windows Terminal `settings.json` 글꼴 설정 · 펫 저장 · 채널 목록 `%LOCALAPPDATA%\terminal-1` · headless opencode 서버 | [INSTALL.md › 제거](../terminal-1/INSTALL.md#제거) — 채널 `rm` · PATH · 색 테마 · 글꼴 · 데이터 순서 |
+| `report-1` | `%LOCALAPPDATA%\report-1` 의 `config.json` · `journal.json` · `reports\` · (선택) 시작 메뉴 바로가기 `Report-1.lnk` | `--stop` · `--shortcut off` · 데이터 폴더 지우기 ([INSTALL.md › 제거](../report-1/INSTALL.md#제거)) |
 
 ## 예외 대장
 

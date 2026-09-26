@@ -1,0 +1,41 @@
+{
+  "llm": {
+    "base_url": "",
+    "api_key": "",
+    "model": "",
+    "models": [],
+    "temperature": 0.2,
+    "max_tokens": 2048,
+    "timeout_sec": 90,
+    "extra_headers": {},
+    "proxy": null,
+    "ca_file": ""
+  },
+  "sources": {
+    "git": {
+      "roots": [],
+      "authors": [],
+      "depth": 2
+    },
+    "calendar": {
+      "enabled": true,
+      "secretary": ""
+    },
+    "journal": {
+      "enabled": true
+    }
+  },
+  "report": {
+    "sections": [
+      "금주 실적",
+      "차주 계획",
+      "이슈 · 협조 요청"
+    ],
+    "max_lines": 8
+  },
+  "theme": "dark",
+  "port": 8775,
+  "open_window": true,
+  "idle_exit_min": 30,
+  "user_name": ""
+}
