@@ -1,0 +1,22 @@
+name: works
+
+# works 규칙 검사 (RULES.md). 앱마다의 워크플로와 따로, 모든 push · PR 에서 저장소 전체를 본다
+on:
+  push:
+  pull_request:
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # W-02 import 검사는 3.10+ (sys.stdlib_module_names)
+      - name: 검사기 테스트
+        run: python -m unittest discover -s tools/tests -v
+      - name: works 규칙 검사 (지금은 경고 모드 — 예외 대장이 정리되면 --strict)
+        run: python tools/works_check.py
