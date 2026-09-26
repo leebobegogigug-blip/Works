@@ -70,10 +70,6 @@ works 저장소를 D:\OPENCODE 에 받아줘: git clone https://github.com/leebo
 API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에서는 나한테 물어봐.
 ```
 
-<p align="center"><sub>
-예전 이름으로 쓰고 있었다면 — ocmux: <code>terminal-1.cmd setup</code> 한 번 (<a href="terminal-1/docs/MANUAL.md#예전-이름ocmux에서-넘어올-때">자세히</a>)
-</sub></p>
-
 <br>
 
 <p align="center">

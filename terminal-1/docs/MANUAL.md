@@ -133,22 +133,19 @@ Terminal–1이 쓰는 한글, 선 문자(`┌─┐`), 블록(`▁▅█`), 점
 > PowerShell 실행 정책 때문에 `terminal-1`이 막히면 `terminal-1.cmd add`처럼 `.cmd`로 실행하세요. 내부에서 `-ExecutionPolicy Bypass`로 스크립트를 실행합니다
 > (그룹 정책으로 강제된 실행 정책은 우회하지 않습니다).
 
-### 예전 이름(ocmux)에서 넘어올 때
+### 예전 이름(ocmux) 설치
 
 `ocmux` 는 `Terminal–1` 로 이름이 바뀌었습니다. 명령은 `terminal-1`, 폴더는 `terminal-1/` 입니다.
+예전 이름에서 자동으로 옮기는 기능은 1.1.0 에서 없앴습니다. 펫 저장 · 채널 목록을 그대로 쓰려면 ocmux 창을 모두 닫고 한 번만 직접 옮깁니다:
 
 ```powershell
-git -C D:\OPENCODE pull
-D:\OPENCODE\terminal-1\terminal-1.cmd setup     # 한 번만. 이후로는 새 터미널에서 terminal-1 add
+Move-Item "$env:LOCALAPPDATA\ocmux" "$env:LOCALAPPDATA\terminal-1"     # terminal-1 폴더가 아직 없을 때만
+D:\OPENCODE\terminal-1\terminal-1.cmd setup                               # PATH · 색 테마
 ```
 
-처음 실행할 때 알아서 옮깁니다.
-
-- `%LOCALAPPDATA%\ocmux` → `%LOCALAPPDATA%\terminal-1` — 채널 목록 · 펫 저장 · 레이드 · 헤드리스 로그 그대로 (레지스트리의 로그 경로도 고쳐 적음)
-- 사용자 PATH 의 `D:\OPENCODE\ocmux` → `D:\OPENCODE\terminal-1`
-- 색 테마 `ocmux Black` 을 지우고 `Terminal-1 Black` 설치 · 창 이름도 `terminal-1`
-- 예전 ocmux 창이 열려 있으면 그 칸들이 옛 폴더를 쓰고 있으니 옮기지 않고 옛 폴더를 그대로 씁니다. 창을 모두 닫고 다시 실행하면 그때 옮깁니다.
-- `D:\OPENCODE\ocmux` 에 캐시(`__pycache__`)만 남았다면 지워도 됩니다.
+- 사용자 PATH 에 남은 `D:\OPENCODE\ocmux` 와 색 테마 조각 `%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\ocmux` 는 쓰이지 않습니다. 지워도 됩니다.
+- 헤드리스 채널은 로그 경로가 예전 폴더로 적혀 있습니다. `terminal-1 rm` 뒤 다시 `add` 하면 새 폴더로 적힙니다.
+- 채널 목록에 예전 탭 색이 남아 있으면 팔레트 안의 색으로 바꿔 씁니다.
 
 ## 05 사용법
 
@@ -278,7 +275,7 @@ works 공통 규격(원칙 일곱 가지 · 팔레트 · 아이콘)은 [docs/DES
 
 ```
 terminal-1/
-├─ terminal-1.ps1  명령어 · Windows Terminal 탭/분할 · 채널 레지스트리 · 색 테마 · 예전 이름(ocmux) 이전
+├─ terminal-1.ps1  명령어 · Windows Terminal 탭/분할 · 채널 레지스트리 · 색 테마
 ├─ terminal-1.cmd  terminal-1.ps1을 -ExecutionPolicy Bypass로 실행하는 진입점
 ├─ t1_monitor.py   창들: status · overview · usage · compose · logs · rpg (opencode HTTP/SSE)
 ├─ t1_term.py      공용 터미널 도구 + 디자인 시스템 (팔레트, 키캡, 세그먼트 숫자, 가이드, 부팅, 데이터 폴더)
@@ -287,7 +284,7 @@ terminal-1/
 ├─ t1_pet_ui.py    TOKEN QUEST 화면 (7개 모드 · 오버레이 · 대화 · 연출)
 ├─ t1_pet_run.py   펫 창 실행 루프 · opencode 이벤트 → 게임 신호 · 목장
 ├─ docs/           GUIDE.md (상세 매뉴얼, 영문) · images/
-└─ tests/          unittest 122개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
+└─ tests/          unittest 123개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
 ```
 
 ```
@@ -309,7 +306,7 @@ t1_monitor.py ──HTTP──▶ opencode (127.0.0.1:4096)
 ## 09 개발
 
 ```powershell
-# 테스트 122개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
+# 테스트 123개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
 py -3 -m unittest discover -s tests
 # CI(.github/workflows/terminal-1.yml): Windows + Ubuntu × Python 3.8·3.13, Windows PowerShell 5.1 문법 검사 · terminal-1.cmd ls · version
 

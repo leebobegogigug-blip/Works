@@ -8,7 +8,7 @@
 | 폴더 · 명령 | 이름 | 한 줄 | 유형 | 상태 | 데이터 폴더 | 포트 | 전역 단축키 | 환경 변수 | 캐릭터 · 부품 | 예전 이름 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `secretary-1` | Secretary–1 | 말하면 잡아 주는 일정 비서 | 웹형 | 운영 | 프로그램 폴더 (예외 W-06) | 8765–8774 | Ctrl+Alt+J | `SECRETARY_*` | 네모 화면 얼굴 | jaba · 이전 코드 지움 (0.7.0) |
-| `terminal-1` | Terminal–1 | opencode 여러 개를 한 창에서 | 터미널형 | 운영 | `%LOCALAPPDATA%\terminal-1` | 4096–4195 | — | `OPENCODE_SERVER_PASSWORD` (opencode 것) | TQ–1 펫 | ocmux · 이전 코드 지울 때 미정 |
+| `terminal-1` | Terminal–1 | opencode 여러 개를 한 창에서 | 터미널형 | 운영 | `%LOCALAPPDATA%\terminal-1` | 4096–4195 | — | `OPENCODE_SERVER_PASSWORD` (opencode 것) | TQ–1 펫 | ocmux · 이전 코드 지움 (1.1.0) |
 | `report-1` | Report–1 | 붙여 넣은 자료로 근거 달린 보고서 | 웹형 | 운영 | `%LOCALAPPDATA%\report-1` | 8775–8784 | — | `REPORT_*` | 결재판 | — |
 
 - **상태**: `예정`(등록만, 폴더 없음) · `운영` · `은퇴`
@@ -46,4 +46,3 @@
 | 앱 | 조항 | 파일 | 내용 | 기한 |
 |---|---|---|---|---|
 | `secretary-1` | W-06 | * | 데이터(`config.json` · `secretary-1.db` · 학습 규칙 · 위키)가 프로그램 폴더에 있다. 세 번째 이전을 피하려고 그대로 둔다. `.gitignore` 로 커밋을 막는다 | 영구 — 다음 이름 변경이나 저장 형식 변경 때 다시 본다 |
-| `terminal-1` | W-10 | terminal-1.ps1, t1_term.py | 예전 이름(ocmux)의 탭 색 변환표 — 옛 색을 읽어 새 색으로 바꾸는 데이터라 옛 색이 들어 있다 | ocmux 이전 코드와 함께 지운다 |

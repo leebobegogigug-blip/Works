@@ -224,17 +224,23 @@ class RegDir(unittest.TestCase):
 
 
 class DataDir(unittest.TestCase):
-    def test_old_ocmux_folder_until_terminal1_moves_it(self):
+    def test_always_terminal1_folder(self):
         base = tempfile.mkdtemp()
         os.environ["LOCALAPPDATA"] = base
         try:
+            os.makedirs(os.path.join(base, "ocmux"))                         # 예전 이름의 폴더가 남아 있어도 쓰지 않는다
             self.assertEqual(M.data_dir(), os.path.join(base, "terminal-1"))
-            os.makedirs(os.path.join(base, "ocmux"))                         # 옛 ocmux 창이 열려 있어 아직 못 옮김
-            self.assertEqual(M.registry_path(), os.path.join(base, "ocmux", "instances.json"))
-            os.rename(os.path.join(base, "ocmux"), os.path.join(base, "terminal-1"))   # terminal-1.ps1 이 옮긴 뒤
             self.assertEqual(M.registry_path(), os.path.join(base, "terminal-1", "instances.json"))
         finally:
             os.environ["LOCALAPPDATA"] = TMP
+
+    def test_tab_color_stays_in_palette(self):
+        self.assertEqual(M.fix_color("#3f77a6"), "#3F77A6")                  # 팔레트 안이면 그대로
+        self.assertEqual(M.fix_color(""), "")
+        for c in ("#EC4899", "#123456", "red"):                                # 밖이면 팔레트 안의 한 색으로, 늘 같은 색
+            self.assertIn(M.fix_color(c), M.PALETTE)
+            self.assertEqual(M.fix_color(c), M.fix_color(c.lower()))
+        self.assertEqual(M.fix_color("#EC4899"), M.PALETTE[sum(b"#EC4899") % len(M.PALETTE)])   # terminal-1.ps1 과 같은 규칙
 
 if __name__ == "__main__":
     unittest.main()

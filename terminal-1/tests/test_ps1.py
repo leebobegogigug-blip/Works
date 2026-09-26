@@ -99,23 +99,20 @@ class Ps1(unittest.TestCase):
         self.assertIn("t1_monitor.py usage", wt)
         self.assertNotIn("t1_monitor.py rpg", wt)  # 채널 탭 · overview 탭 모두 펫 칸 없음
 
-    def test_moves_data_from_old_ocmux_folder(self):
-        # 이름을 바꾸기 전(ocmux) 폴더: 레지스트리 · 펫 저장 · 헤드리스 로그가 그대로 따라와야 한다
+    def test_old_folder_left_alone_and_colors_kept_in_palette(self):
+        # 예전 이름(ocmux)의 폴더는 더 옮기지도 쓰지도 않는다 · 팔레트 밖 탭 색은 팔레트 안으로 (t1_term.fix_color 와 같은 색)
         old, new = os.path.join(self.appdata, "ocmux"), os.path.join(self.appdata, "terminal-1")
-        os.makedirs(os.path.join(old, "logs"))
-        with open(os.path.join(old, "instances.json"), "w", encoding="utf-8") as f:
-            json.dump([{"name": "api", "dir": self.tmp, "port": 4999, "url": "http://127.0.0.1:4999", "color": "#3F77A6",
-                        "headless": True, "pid": None, "logfile": os.path.join(old, "logs", "api.log"),
-                        "created": 0, "ch": 1}], f)
-        with open(os.path.join(old, "pet-api.json"), "w", encoding="utf-8") as f:
-            f.write("{}")
+        os.makedirs(old)
+        os.makedirs(new)
+        with open(os.path.join(new, "instances.json"), "w", encoding="utf-8") as f:
+            json.dump([{"name": "api", "dir": self.tmp, "port": 4999, "url": "http://127.0.0.1:4999", "color": "#ec4899",
+                        "headless": False, "pid": None, "logfile": None, "created": 0, "ch": 1}], f)
         r = self.run_ps("ls")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn("ocmux -> terminal-1", r.stdout)
-        self.assertFalse(os.path.exists(old))
-        self.assertTrue(os.path.exists(os.path.join(new, "pet-api.json")))
-        self.assertEqual(self.registry()[0]["logfile"], os.path.join(new, "logs", "api.log"))
-        self.assertNotIn("RENAME", self.run_ps("ls").stdout)   # 한 번만
+        self.assertTrue(os.path.isdir(old))
+        self.assertNotIn("RENAME", r.stdout)
+        palette = ["#3F77A6", "#A5AAAE", "#75A1C7", "#6ABA23", "#B8CEE0", "#81888D", "#95D85A", "#45741B"]
+        self.assertEqual(self.registry()[0]["color"], palette[sum(b"#EC4899") % len(palette)])
 
     def test_rejects_bad_name_and_headless_percent_folder(self):
         r = self.run_ps("add", self.project("p"), "-Name", 'x"y')
