@@ -85,6 +85,13 @@ class Ps1(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("terminal-1 add", r.stdout)   # 예전엔 pwsh 7 에서 출력을 받으면 빈 줄만 나왔다
 
+    def test_version(self):
+        r = self.run_ps("version")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        with open(os.path.join(HERE, "..", "t1_term.py"), encoding="utf-8") as f:
+            version = next(ln.split('"')[1] for ln in f if ln.startswith("VERSION = "))
+        self.assertEqual(r.stdout.strip(), "Terminal-1 " + version)   # t1_monitor.py --version 과 같은 값 하나
+
     def test_no_pet(self):
         r = self.run_ps("add", self.project("mon"), "-NoPet")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)

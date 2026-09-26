@@ -40,3 +40,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: terminal-1.cmd ls
+      - name: terminal-1.cmd version (Windows PowerShell 5.1 로 실제 실행)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: terminal-1.cmd version

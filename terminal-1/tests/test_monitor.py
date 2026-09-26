@@ -65,6 +65,24 @@ class ServerPassword(unittest.TestCase):
         finally:
             del os.environ["OPENCODE_SERVER_PASSWORD"]
 
+    def test_password_is_not_a_command_line_option(self):
+        # 명령줄 인자는 보안 솔루션 로그 · 작업 관리자에 남는다 (RULES.md › W-04)
+        import subprocess
+        r = subprocess.run([sys.executable, M.__file__, "status", "--password", "x", "--once", "0.1"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--password", r.stderr)
+
+
+class Version(unittest.TestCase):
+    def test_monitor_prints_the_one_version(self):
+        import subprocess
+        import t1_term
+        r = subprocess.run([sys.executable, M.__file__, "--version"], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "Terminal-1 " + t1_term.VERSION)
+        self.assertRegex(t1_term.VERSION, r"^\d+\.\d+\.\d+$")
+
 
 class ComposeBus(unittest.TestCase):
     def test_sent_text_is_not_written_to_disk(self):

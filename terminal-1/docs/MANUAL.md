@@ -169,6 +169,7 @@ terminal-1 add            # 현재 폴더 → 새 채널 (첫 add 때는 00 over
 | `terminal-1 rm api` | 등록 해제 (headless 서버는 종료, 펫 저장은 남음) |
 | `terminal-1 prune` | 꺼진 채널 정리 |
 | `terminal-1 setup` | `Terminal-1 Black` 색 테마 설치 |
+| `terminal-1 version` | 버전 (`t1_term.py` 의 `VERSION` 하나) |
 | `terminal-1 help` | 도움말 |
 
 ```
@@ -254,28 +255,20 @@ py -3 t1_monitor.py status --url http://127.0.0.1:4096
 
 ## 07 디자인
 
-모든 창이 같은 규칙 일곱 가지를 따릅니다. 일정 비서 [Secretary–1](../../secretary-1/README.md) 도 같은 규칙 · 같은 팔레트를 씁니다 (works 시스템).
-Teenage Engineering 같은 소형 하드웨어 계측기(신스 · 샘플러 · 포켓 레코더)의 화면 철학에서 영감을 받았습니다.
-특정 제품의 화면이나 로고를 가져오지 않았고, 해당 회사와는 관련이 없습니다.
+works 공통 규격(원칙 일곱 가지 · 팔레트 · 아이콘)은 [docs/DESIGN.md](../../docs/DESIGN.md) 에 있습니다. Terminal–1 에서는 이렇게 보입니다.
 
-| # | 규칙 | 어디서 보이나 |
+| # | 원칙 | 어디서 보이나 |
 |---|---|---|
-| 1 | **한 화면 = 한 모드, 큰 값 4개** | 펫: 욕구 4개 · status/overview: 토큰 4값 · usage: 분당 토큰 |
-| 2 | **색 = 조작.** 값이 어떤 키의 색이면 그 키가 그 값을 바꿉니다 | 펫 `F`①포만 `P`②기분 `Z`③체력 `M`④건강 · compose `^P`① `^S`② `^R`③ `^L`④ |
-| 3 | **번호 매긴 구역 + `?` 가이드** | 모든 창 (compose는 `F1`) |
-| 4 | **엔지니어링을 숨기지 않기.** 실제 상태를 작게 | status `rtt` `poll` `ev` · overview `sse` · 펫 설정 `02 SYS` (저장 시각, fps) |
-| 5 | **즉각 반응.** 누른 키에 불, 활동에 LED | 키캡이 라임으로 켜짐 · LOG/EVENTS/SESSIONS 옆 `●` · compose 테두리 번쩍 · REC LED |
-| 6 | **사각 격자.** 각진 모서리, 1칸 간격, 앞자리 0 | 스펙 칸 · `01` 채널 · `00145` 테이프 카운터 |
-| 7 | **아이콘은 한 표에서만** | `●` `○` `◐` `▶` `√` `×` `‼` `⊠` `⇣` `!` `▮` `◆` `☼` `⋆` `◇` |
+| 1 | **한 화면 = 한 모드** | 큰 값 4개 — 펫: 욕구 4개 · status/overview: 토큰 4값 · usage: 분당 토큰 |
+| 2 | **색 = 조작** | 펫 `F`①포만 `P`②기분 `Z`③체력 `M`④건강 · compose `^P`① `^S`② `^R`③ `^L`④ · 토큰 ①IN ②OUT ③CACHE ④COST |
+| 3 | **번호 붙은 구역** | 모든 창의 번호 구역 + `?` 가이드 (compose는 `F1`) · `00 overview` |
+| 4 | **엔지니어링을 숨기지 않기** | status `rtt` `poll` `ev` · overview `sse` · 펫 설정 `02 SYS` (저장 시각, fps) |
+| 5 | **즉각 반응** | 키캡이 라임으로 켜짐 · LOG/EVENTS/SESSIONS 옆 `●` · compose 테두리 번쩍 · REC LED |
+| 6 | **사각 격자** | 스펙 칸 · `01` 채널 · `00145` 테이프 카운터 |
+| 7 | **캐릭터** | 채널마다 TQ–1 펫 한 마리 · `00 overview` 의 목장 |
 
-**색** ① 파랑 `#75A1C7` · ② 라임 `#6ABA23` · ③ 흰색 `#F2F2F3` · ④ 회색 `#A5AAAE` + 네이비 · 그레이 단계, 바탕은 검정.
-네이비가 주색입니다. 번호 배지(`01`) · 칸 이름 칩(`USAGE` `COMPOSE` `TERMINAL–1`) · 채널 01 의 탭 색은 네이비이고,
-라임은 켜짐 · 진행 · 선택(`BUSY` `PERM` 깜빡임 · 누른 키캡 · LED · 고른 탭)에만 씁니다. 빨강은 없습니다. 경고는 가장 밝은 흰색입니다.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/page/palette-dark.png">
-  <img src="images/page/palette-light.png" width="720" alt="팔레트 — 인코더 네 색과 네이비 · 라임 · 회색 단계">
-</picture>
+번호 배지(`01`) · 칸 이름 칩(`USAGE` `COMPOSE` `TERMINAL–1`) · 채널 01 의 탭 색은 네이비, 라임은 `BUSY` `PERM` 깜빡임 · 누른 키캡 · LED · 고른 탭에만 씁니다.
+상태 기호는 `t1_term.py` 의 `ICON` 에 있는 것만 쓰고, 이 표는 DESIGN.md 의 아이콘 표를 따릅니다.
 
 **움직임** 켤 때 부팅(점 격자 → 세그먼트 워드마크 → 라임 스윕) · 화면 전환 라임 와이프 · 토큰이 흐를 때 도는 테이프 릴 ·
 미끄러지는 페이더 · 키캡 점등 · 강화 게이지 → 세그먼트 숫자 · 스토리 대화의 타자 효과(말하는 쪽만 불이 켜짐).
@@ -294,7 +287,7 @@ terminal-1/
 ├─ t1_pet_ui.py    TOKEN QUEST 화면 (7개 모드 · 오버레이 · 대화 · 연출)
 ├─ t1_pet_run.py   펫 창 실행 루프 · opencode 이벤트 → 게임 신호 · 목장
 ├─ docs/           GUIDE.md (상세 매뉴얼, 영문) · images/
-└─ tests/          unittest 119개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
+└─ tests/          unittest 122개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
 ```
 
 ```
@@ -316,9 +309,12 @@ t1_monitor.py ──HTTP──▶ opencode (127.0.0.1:4096)
 ## 09 개발
 
 ```powershell
-# 테스트 119개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
+# 테스트 122개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
 py -3 -m unittest discover -s tests
-# CI(.github/workflows/terminal-1.yml): Windows + Ubuntu × Python 3.8·3.13, Windows PowerShell 5.1 문법 검사 · terminal-1.cmd ls
+# CI(.github/workflows/terminal-1.yml): Windows + Ubuntu × Python 3.8·3.13, Windows PowerShell 5.1 문법 검사 · terminal-1.cmd ls · version
+
+# works 규칙 검사 (저장소 루트에서 · RULES.md)
+python tools/works_check.py
 
 # 한 프레임만 찍고 종료 — 스크린샷·점검용 (--guide 를 붙이면 가이드를 켠 화면)
 py -3 t1_monitor.py rpg --name demo --once 1 --cols 80 --rows 24

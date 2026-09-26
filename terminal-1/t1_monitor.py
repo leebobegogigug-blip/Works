@@ -38,7 +38,7 @@ from t1_term import (  # noqa: E402
     RST, B, RED, GRN, BLU, MAG, CYN, HOME, CLR_EOL, CLR_EOS, HIDE, SHOW, PALETTE, P3, fix_color,
     rgb, bg, term_size, cw, vlen, clip, pad, read_keys_windows, poll_keys, RawInput,
     chip, keycap, module, segbar, spinner, seg_lines, seg_width, sect, navbar, title_end, cells, readouts,
-    ENC, ICON, enc_dot, sysline, Canvas, canvas_from_lines, guide_draw, boot_draw, data_dir,
+    ENC, ICON, enc_dot, sysline, Canvas, canvas_from_lines, guide_draw, boot_draw, data_dir, VERSION,
 )
 
 # 팔레트 (네이비 = 구조, 라임 = 강조/켜짐, 그레이 = 글자, 흰색 = 경고)
@@ -1832,7 +1832,8 @@ def main():
     ap.add_argument("--url")
     ap.add_argument("--name", help="인스턴스 이름 (레지스트리 조회/표시용)")
     ap.add_argument("--color", default=None, help="#RRGGBB 태그 색")
-    ap.add_argument("--password", default=None, help="(비권장: 명령줄에 남음) 기본은 OPENCODE_SERVER_PASSWORD → terminal-1 비밀번호 파일")
+    # 서버 비밀번호는 명령줄로 받지 않는다 (RULES.md › W-04): OPENCODE_SERVER_PASSWORD → terminal-1 비밀번호 파일
+    ap.add_argument("--version", action="version", version=f"Terminal-1 {VERSION}")
     ap.add_argument("--dir", default=None)
     ap.add_argument("--reg-dir", action="store_true",
                     help="폴더를 명령줄 대신 레지스트리(--name)에서 읽기 (cmd 가 경로 속 %%…%% 를 풀지 않게)")
@@ -1859,7 +1860,7 @@ def main():
     ap.add_argument("--guide", action="store_true", help="--once 와 함께: `?` 가이드를 켠 화면으로 출력")
     a = ap.parse_args()
     a.level = a.level.upper()
-    a.password = a.password or server_password()
+    a.password = server_password()
     try:
         {"status": run_status, "overview": run_overview, "logs": run_logs,
          "usage": run_usage, "rpg": run_rpg, "compose": run_compose}[a.mode](a)

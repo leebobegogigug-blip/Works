@@ -67,6 +67,7 @@ def bg(hexcolor):
 
 # ---------------------------------------------------------------- data folder
 APP = "terminal-1"
+VERSION = "1.0.0"   # 앱 버전은 여기 하나 (terminal-1 version · t1_monitor.py --version 이 이 값을 읽는다)
 OLD_APP = "ocmux"   # 이름을 바꾸기 전. terminal-1.ps1 이 처음 실행될 때 폴더째 옮긴다
 
 

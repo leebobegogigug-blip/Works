@@ -17,14 +17,14 @@
 
 1. **셸:** 모든 명령은 Windows PowerShell 문법이다. 네 셸 도구가 PowerShell이 아니면(cmd, bash 등)
    `powershell -NoProfile -ExecutionPolicy Bypass -Command "<명령>"` 으로 감싸서 실행한다.
-2. **확인:** 각 단계의 `확인`을 실제로 실행하고, 기대 결과와 다르면 `실패하면`을 따른다. 추측으로 넘어가지 않는다.
+2. **확인:** 각 단계의 `확인`을 실제로 실행하고, 기대 결과와 다르면 `실패하면`과 [문제 해결](#문제-해결)을 따른다. 추측으로 넘어가지 않는다.
 3. **관리자 권한 금지:** 관리자 권한이 필요한 명령은 쓰지 않는다. 시스템 PATH가 아니라 **사용자** PATH만 바꾼다.
 4. **덮어쓰기 금지:** 이미 있는 폴더나 설정 파일을 지우거나 덮어쓰지 않는다. 설정 파일을 고치기 전에는 반드시 백업한다.
-5. **멈추고 묻기:** 아래 경우에는 멈추고 사용자에게 묻는다.
+5. **멈추고 묻기:** **[질문]** 표시가 있는 곳과 아래 경우에는 멈추고 사용자에게 묻는다.
    - 설치 위치가 이미 있고 내용이 다를 때
    - 네트워크가 막혀 무언가를 내려받지 못할 때
    - 필수 프로그램(Python, Windows Terminal, opencode)이 없을 때
-6. **보고:** 끝나면 11단계 형식으로 보고한다.
+6. **보고:** 끝나면 11단계 형식으로 보고한다. 업데이트 · 제거는 문서 끝의 [업데이트](#업데이트) · [제거](#제거)를 따른다.
 
 설치 위치 기본값은 아래와 같다. 사용자가 다른 경로를 말하면 그 경로를 쓴다.
 
@@ -55,7 +55,7 @@ if (Get-Command py -ErrorAction SilentlyContinue) { py -3 --version } else { pyt
 - `git`은 없어도 된다. 없으면 2단계에서 zip 방식을 쓴다.
 
 **실패하면**
-- `wt`, `opencode`, Python 중 하나라도 없으면 멈추고, 무엇이 없는지 사용자에게 알린다.
+- **[질문]** `wt`, `opencode`, Python 중 하나라도 없으면 멈추고, 무엇이 없는지 알리고 설치를 부탁한다.
 - Python이 `Microsoft Store`로 연결되는 가짜 `python.exe`라서 버전이 안 나오면, Python 설치가 필요하다고 알린다.
 - 이 단계에서는 아무것도 설치하지 않는다.
 
@@ -70,7 +70,7 @@ $Root = 'D:\OPENCODE'
 Test-Path $Root
 ```
 
-- **`False`** (처음 설치). D 드라이브 자체가 없으면(`Test-Path D:\`가 `False`) 멈추고 묻는다.
+- **`False`** (처음 설치). D 드라이브 자체가 없으면(`Test-Path D:\`가 `False`) **[질문]** 다른 경로를 묻는다.
   - git이 있으면 아래처럼 받는다.
 
     ```powershell
@@ -79,15 +79,15 @@ Test-Path $Root
     git clone https://github.com/leebobegogigug-blip/Works.git $Root
     ```
 
-  - git이 없거나 clone이 실패하면(회사 네트워크 차단 등) 멈추고, 사용자에게 요청한다.
+  - git이 없거나 clone이 실패하면(회사 네트워크 차단 등) 멈추고, **[질문]** 사용자에게 요청한다.
     "저장소 zip(`Works-repo.zip` 또는 GitHub의 *Code → Download ZIP*)을 받아 `D:\OPENCODE`에 풀어 주세요."
 - **`True`인데 비어 있음** (`(Get-ChildItem $Root -Force | Measure-Object).Count`가 `0`)
   - `False`일 때와 똑같이 clone한다. git은 빈 폴더에 clone할 수 있다.
 - **`True`이고 안에 다른 것이 있음** (D 드라이브의 `OPENCODE` 폴더는 이미 다른 용도로 쓰고 있을 수 있다)
-  - `$Root\.git`이 없으면 **멈추고 묻는다.** 안에 있는 항목 목록을 보여 주고, 이 폴더에 이어서 설치할지 다른 경로를 쓸지 확인한다. 기존 파일은 절대 옮기거나 지우지 않는다.
+  - `$Root\.git`이 없으면 **[질문]** **멈추고 묻는다.** 안에 있는 항목 목록을 보여 주고, 이 폴더에 이어서 설치할지 다른 경로를 쓸지 확인한다. 기존 파일은 절대 옮기거나 지우지 않는다.
   - `$Root\.git`이 있으면 `git -C $Root status --short`로 수정된 파일이 없는지 본다.
   - 수정된 파일이 없으면 `git -C $Root pull --ff-only`로 업데이트한다.
-  - 수정된 파일이 있으면 멈추고 묻는다.
+  - 수정된 파일이 있으면 **[질문]** 목록을 보여 주고 멈추고 묻는다. 아무것도 되돌리거나 지우지 않는다.
 
 **확인**
 
@@ -126,7 +126,7 @@ if (Get-Command py -ErrorAction SilentlyContinue) { $py = 'py'; $pa = @('-3') } 
 & $py @pa -m unittest discover -s tests 2>&1 | Select-Object -Last 3
 ```
 
-**확인:** 마지막 줄이 `OK`이다. 테스트는 119개 전후.
+**확인:** 마지막 줄이 `OK`이다. 테스트는 122개 전후.
 
 **실패하면**
 - 실패한 테스트 이름과 에러 마지막 20줄을 보고에 넣는다.
@@ -191,7 +191,7 @@ Remove-Item (Join-Path $env:LOCALAPPDATA 'terminal-1\pet-install-check*') -Error
 
 ## 8. 추천 글꼴 설치 (선택 · 관리자 권한 없이)
 
-사용자에게 먼저 묻는다. "도트 글꼴 GNU Unifont 15.1.01(무료, OFL/GPL)을 터미널 글꼴로 설치할까요?"
+**[질문]** 사용자에게 먼저 묻는다. "도트 글꼴 GNU Unifont 15.1.01(무료, OFL/GPL)을 터미널 글꼴로 설치할까요? (지울 때는 [제거](#제거) 4번)"
 **아니요**면 9단계를 건너뛰고 10단계로 간다.
 
 **8-1. 내려받기**
@@ -213,7 +213,7 @@ Test-Path $otf
 **확인:** `True`이고 파일 크기가 수 MB다.
 
 **실패하면**
-- 두 주소 모두 막혔으면 멈추고 사용자에게 부탁한다.
+- 두 주소 모두 막혔으면 멈추고 **[질문]** 사용자에게 부탁한다.
   "`unifont-15.1.01.otf`를 받아서 경로를 알려 주세요 (https://unifoundry.com/unifont/)."
 - 사용자가 경로를 주면 그 파일을 `$otf`로 쓴다.
 
@@ -305,7 +305,8 @@ Copy-Item "<백업 경로>" $s -Force
 [Terminal–1 설치 결과]
 위치        : D:\OPENCODE\terminal-1  (바꿨다면 이유)
 Python      : 3.x.x (py -3 | python)
-테스트      : OK 119 / 실패 n개 (이름)
+버전        : (terminal-1.cmd version 결과)
+테스트      : OK 122 / 실패 n개 (이름)
 PATH        : 추가됨 | 이미 있음
 색 테마     : 설치됨
 화면 점검   : exit=0
@@ -314,3 +315,102 @@ PATH        : 추가됨 | 이미 있음
 멈춘 곳     : 없음 | n단계 — 이유와 사용자에게 필요한 조치
 다음 할 일  : Windows Terminal 모두 닫고 다시 열기 → 프로젝트 폴더에서 terminal-1 add
 ```
+
+---
+
+## 문제 해결
+
+출력에 보이는 것으로 찾는다. 표에 없으면 멈추고 출력을 그대로 보고한다.
+
+| 보이는 것 | 조치 |
+|---|---|
+| `running scripts is disabled` · 실행 정책 오류 | `terminal-1.ps1` 대신 `terminal-1.cmd` 로 실행한다 (`-ExecutionPolicy Bypass`). 그룹 정책으로 강제된 것이면 우회하지 않고 멈춘다 |
+| `terminal-1` 을 찾을 수 없음 | PATH 는 새로 연 창부터 적용된다. 지금 창에서는 `D:\OPENCODE\terminal-1\terminal-1.cmd` 로 부른다 |
+| 색 테마 `Terminal-1 Black` 이 안 보임 | Windows Terminal 창을 **모두** 닫았다가 연다. 그래도 없으면 `terminal-1.cmd setup` 을 다시 |
+| 4단계 테스트 실패 | 설치는 계속하고, 실패한 테스트 이름과 에러 마지막 20줄을 보고 맨 위에 적는다. 코드를 고치지 않는다 |
+| 글꼴이 목록에 없음 | Windows Terminal 을 모두 닫았다가 연다 → 그래도 없으면 **[질문]** "`unifont-15.1.01.otf` 우클릭 → 모든 사용자용으로 설치" 를 부탁한다 (관리자 권한이 필요할 수 있다) |
+| `git pull` 이 `Your local changes … would be overwritten` | **[질문]** `git -C D:\OPENCODE status --short` 결과를 보여 주고 어떻게 할지 묻는다. 아무것도 되돌리거나 지우지 않는다 |
+| `git pull` 이 `untracked working tree files would be overwritten` 와 함께 `AGENTS.md` · `CLAUDE.md` 를 보여 줌 | `D:\OPENCODE` 에 사용자가 만든 같은 이름 파일이 있다 (opencode `/init` 등). **[질문]** "`D:\OPENCODE\AGENTS.md` 를 `AGENTS.local.md` 로 이름을 바꿔도 될까요?" → 바꾼 뒤 pull 을 다시 한다. 그 내용을 계속 쓰려면 opencode 설정의 `instructions` 에 `AGENTS.local.md` 를 넣도록 사용자에게 안내한다 (설정 파일은 에이전트가 고치지 않는다) |
+
+## 업데이트
+
+사용자가 업데이트를 요청했을 때.
+
+```powershell
+$Root = 'D:\OPENCODE'
+git -C $Root status --short
+```
+
+수정된 파일이 있으면 [문제 해결](#문제-해결)의 `Your local changes` 줄을 따른다. 없으면:
+
+```powershell
+$Root = 'D:\OPENCODE'; $T1 = 'D:\OPENCODE\terminal-1'
+git -C $Root pull --ff-only
+& (Join-Path $T1 'terminal-1.cmd') setup
+& (Join-Path $T1 'terminal-1.cmd') version
+```
+
+**확인:** `SCHEME` · `ready` 와 `Terminal-1 x.y.z` 가 보인다.
+
+사용자에게 안내한다: "열려 있는 Terminal–1 창은 옛 코드로 돌고 있습니다. Windows Terminal 창을 모두 닫았다가 연 뒤 프로젝트 폴더에서 `terminal-1 focus <이름>` 하세요. 펫 저장 · 채널 목록은 그대로입니다."
+zip 으로 받았다면 `git pull` 대신 **[질문]** 새 zip 을 `D:\OPENCODE` 에 덮어 풀어 달라고 부탁한다 (데이터는 `%LOCALAPPDATA%\terminal-1` 에 있어서 그대로 남는다).
+
+## 제거
+
+사용자가 제거를 요청했을 때. 순서대로 하고, **[질문]** 에서 사용자가 원하지 않으면 그 항목은 건너뛴다.
+먼저 **[질문]** "Terminal–1 창(탭)을 모두 닫아 주세요. 열려 있으면 파일을 지울 수 없습니다."
+
+**1. 채널 풀기** — headless 서버도 꺼진다
+
+```powershell
+$T1 = 'D:\OPENCODE\terminal-1'
+& (Join-Path $T1 'terminal-1.cmd') ls
+```
+
+표의 `NAME` 마다 `& (Join-Path $T1 'terminal-1.cmd') rm <이름>` 을 실행한다.
+
+**2. 사용자 PATH 에서 빼기**
+
+```powershell
+$T1 = 'D:\OPENCODE\terminal-1'
+$p = [Environment]::GetEnvironmentVariable('Path', 'User')
+$parts = @(($p -split ';') | Where-Object { $_ -ne '' -and $_.TrimEnd('\') -ine $T1 })
+[Environment]::SetEnvironmentVariable('Path', ($parts -join ';'), 'User')
+'PATH removed'
+```
+
+**3. 색 테마 지우기** — `terminal-1 setup` 이 만든 Windows Terminal 조각 파일
+
+```powershell
+Remove-Item (Join-Path $env:LOCALAPPDATA 'Microsoft\Windows Terminal\Fragments\terminal-1') -Recurse -ErrorAction SilentlyContinue
+'scheme removed'
+```
+
+**4. 글꼴 (8 · 9단계를 했을 때만)**
+
+**[질문]** "Windows Terminal 글꼴 설정과 Unifont 글꼴도 되돌릴까요? 다른 프로그램이 Unifont 를 쓰고 있을 수 있습니다."
+
+- 글꼴 설정: `settings.json` 을 9단계 백업으로 덮어쓰지 않는다 (백업 뒤에 바꾼 다른 설정이 사라진다). 사용자에게 안내한다: "설정 → 프로필 기본값 → 모양 → 글꼴을 원래 글꼴로 바꿔 주세요."
+- 사용자가 바꾼 뒤, 글꼴 등록과 파일:
+
+```powershell
+Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' -Name 'Unifont (OpenType)' -ErrorAction SilentlyContinue
+$f = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts\unifont-15.1.01.otf'
+Remove-Item $f -ErrorAction SilentlyContinue
+"font file still there: $(Test-Path $f)"
+```
+
+**확인:** `font file still there: False`. `True` 면 글꼴을 쓰는 창이 열려 있는 것이다 — 사용자에게 창을 모두 닫아 달라고 하고 한 번 더.
+
+**5. 데이터**
+
+**[질문]** "펫 저장 · 채널 목록(`%LOCALAPPDATA%\terminal-1`)을 백업할까요?" → 백업이 끝났거나 필요 없다고 하면, 확인 후에만:
+
+```powershell
+Remove-Item (Join-Path $env:LOCALAPPDATA 'terminal-1') -Recurse
+```
+
+**6. 프로그램 폴더는 지우지 않는다**
+
+`D:\OPENCODE\terminal-1` 은 works 저장소의 일부라서 지우지 않는다 — 지우면 git 이 '바뀐 파일' 로 보고 다른 works 도구의 업데이트(`git pull`)가 멈춘다. PATH 에서 빠진 코드는 남아 있어도 아무 일도 하지 않는다.
+works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워집니다. `D:\OPENCODE` 를 지울까요?" → 확인 후 지운다.

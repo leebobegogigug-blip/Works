@@ -21,11 +21,12 @@
   terminal-1 rm api                       # unregister (and stop headless server)
   terminal-1 prune                        # drop offline instances
   terminal-1 setup                        # install 'Terminal-1 Black' color scheme (auto on first run)
+  terminal-1 version                      # print the version (VERSION in t1_term.py)
 #>
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('add', 'overview', 'ls', 'focus', 'rm', 'prune', 'setup', 'help')]
+    [ValidateSet('add', 'overview', 'ls', 'focus', 'rm', 'prune', 'setup', 'version', 'help')]
     [string]$Cmd = 'add',
     [Parameter(Position = 1)]
     [string]$Target,                 # add: folder / focus,rm: name or port
@@ -57,6 +58,11 @@ $Here     = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Monitor  = Join-Path $Here 't1_monitor.py'
 $Palette  = @('#3F77A6', '#A5AAAE', '#75A1C7', '#6ABA23', '#B8CEE0', '#81888D', '#95D85A', '#45741B')  # navy first, lime is accent
 $Scheme   = 'Terminal-1 Black'
+function Get-Version {
+    # one version for the whole app: VERSION in t1_term.py (the Python panes print the same with --version)
+    $m = Select-String -LiteralPath (Join-Path $Here 't1_term.py') -Pattern '^VERSION = "([^"]+)"' | Select-Object -First 1
+    if ($m) { $m.Matches[0].Groups[1].Value } else { '?' }
+}
 
 # ------------------------------------------------------------------ output (same design language as the panes)
 function Chip([string]$t, [string]$bgc = 'Green', [string]$fgc = 'Black') {
@@ -408,6 +414,8 @@ switch ($Cmd) {
 }
 
 'setup' { Install-Scheme; Say 'SCHEME' "'$Scheme' ready" }
+
+'version' { "Terminal-1 $(Get-Version)" }
 
 'help' { Get-Help $PSCommandPath -Detailed | Out-String -Width 120 }  # Out-String: with redirected output pwsh 7 printed only blank lines
 }
