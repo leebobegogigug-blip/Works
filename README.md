@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="terminal-1/docs/images/page/system-dark.jpg">
-    <img src="terminal-1/docs/images/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST 를 나란히">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/system-dark.jpg">
+    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST 를 나란히">
   </picture>
 </p>
 
@@ -30,8 +30,8 @@ TQ–1 · 토큰을 먹고 자라는 펫 · TERMINAL–1 안<br>
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="terminal-1/docs/images/page/parts-dark.jpg">
-    <img src="terminal-1/docs/images/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/parts-dark.jpg">
+    <img src="docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
   </picture>
 </p>
 
@@ -85,8 +85,8 @@ jaba(<code>D:\OPENCODE\jaba</code> 에 따로 받은 것): <code>secretary-1.py<
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="terminal-1/docs/images/page/colophon-dark.png">
-    <img src="terminal-1/docs/images/page/colophon-light.png" width="880" alt="works — 매일 쓰는 사내 도구를 만드는 작은 작업실. D:\OPENCODE\ · 127.0.0.1 · 내 PC">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/colophon-dark.png">
+    <img src="docs/page/colophon-light.png" width="880" alt="works — 매일 쓰는 사내 도구를 만드는 작은 작업실. D:\OPENCODE\ · 127.0.0.1 · 내 PC">
   </picture>
 </p>
 

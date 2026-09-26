@@ -18,5 +18,5 @@ jobs:
           python-version: "3.12"   # W-02 import 검사는 3.10+ (sys.stdlib_module_names)
       - name: 검사기 테스트
         run: python -m unittest discover -s tools/tests -v
-      - name: works 규칙 검사 (지금은 경고 모드 — 예외 대장이 정리되면 --strict)
-        run: python tools/works_check.py
+      - name: works 규칙 검사 (차단 모드 — 예외 대장에 없는 위반 · 기한 지난 예외가 있으면 실패)
+        run: python tools/works_check.py --strict

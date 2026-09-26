@@ -80,6 +80,7 @@ python "D:\OPENCODE\{{APP}}\{{APP}}.py" --setup
 | 출력에 보이는 것 | 조치 |
 |---|---|
 | `포트 … 를 열 수 없습니다` | `--set "port=<대장에 등록한 대역 안의 다른 번호>"` |
+| `git pull` 이 `untracked working tree files would be overwritten` 와 함께 `AGENTS.md` · `CLAUDE.md` 를 보여 줌 | `D:\OPENCODE` 에 사용자가 만든 같은 이름 파일이 있다 (opencode `/init` 등). **[질문]** "`D:\OPENCODE\AGENTS.md` 를 `AGENTS.local.md` 로 이름을 바꿔도 될까요?" → 바꾼 뒤 pull 을 다시 한다. 그 내용을 계속 쓰려면 opencode 설정의 `instructions` 에 `AGENTS.local.md` 를 넣도록 사용자에게 안내한다 (설정 파일은 에이전트가 고치지 않는다) |
 
 ## 업데이트
 
@@ -98,7 +99,10 @@ python "D:\OPENCODE\{{APP}}\{{APP}}.py" --stop
 ```
 
 <!-- 설치 때 PC 에 남긴 것을 모두 되돌린다 (docs/REGISTRY.md › PC 에 남기는 것) -->
-그다음 **[질문]** "`%LOCALAPPDATA%\{{APP}}\` 의 데이터를 백업할까요?" → 사용자 확인 후에만 데이터 폴더와 `D:\OPENCODE\{{APP}}` 를 지운다.
+그다음 **[질문]** "`%LOCALAPPDATA%\{{APP}}\` 의 데이터를 백업할까요?" → 사용자 확인 후에만 데이터 폴더를 지운다.
+
+프로그램 폴더 `D:\OPENCODE\{{APP}}` 는 works 저장소의 일부라서 **지우지 않는다** — 지우면 git 이 '바뀐 파일' 로 보고 다른 앱의 업데이트(`git pull`)가 멈춘다. 켜지지 않는 코드는 남아 있어도 아무 일도 하지 않는다.
+works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워집니다. `D:\OPENCODE` 를 지울까요?" → 확인 후 지운다.
 
 ## 참고: 명령 모음
 

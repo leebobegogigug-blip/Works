@@ -43,6 +43,11 @@ works 앱의 화면 · 문서 규격 **정본**이다 ([RULES.md › W-10](../RU
 | | `gray4` | `#D4D6D8` | 밝은 글자 · 라이트 테마 본체 |
 | | `white` | `#F2F2F3` | 인코더 ③ · 큰 숫자 · 경고 |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="page/palette-dark.png">
+  <img src="page/palette-light.png" width="720" alt="팔레트 — 인코더 네 색과 네이비 · 라임 · 회색 단계">
+</picture>
+
 - **네이비는 뼈대**(번호 배지 · 칸 이름 · 버튼 · 선), **라임은 '지금'과 '켜짐'**, **회색은 글자**, **흰색은 숫자와 경고**.
 - **인코더 네 색**: ① 파랑 `#75A1C7` · ② 라임 `#6ABA23` · ③ 흰색 `#F2F2F3` · ④ 회색 `#A5AAAE`. 노브 · 키캡 · 번호표에 이 순서로만 쓴다.
 - 면(surface)용 무채색(`#0B0B0B` · `#E4E6E8` 같은)은 표에 없어도 된다.
@@ -100,9 +105,13 @@ works 앱의 화면 · 문서 규격 **정본**이다 ([RULES.md › W-10](../RU
 
 시스템 전체를 보여 주는 이미지는 루트 [`docs/page/`](page/) 에만 둔다. 앱 README 는 `../docs/page/…` 로 가져다 쓴다.
 
-| 파일 | 내용 |
-|---|---|
-| `title-{light,dark}.png` · `certified-{light,dark}.png` | 루트 README 용 |
-| `system-*` · `parts-*` · `palette-*` · `colophon-*` | 앱마다 복사돼 있음 → 여기로 모은다 ([예외 대장](REGISTRY.md#예외-대장)) |
+| 파일 | 내용 | 쓰는 곳 |
+|---|---|---|
+| `system-{light,dark}.jpg` | 모든 앱을 나란히 | 루트 README · 앱 README 의 works 시스템 절 |
+| `parts-{light,dark}.jpg` | 부품 목록 | 루트 README · 앱 README 끝 |
+| `palette-{light,dark}.png` | 팔레트 | 이 파일 · 앱 README 의 색 절 |
+| `colophon-{light,dark}.png` | 작업실 간판 | 루트 README · 앱 README 끝 |
+| `title-*` · `certified-*` | 루트 README 전용 | 루트 README |
 
 앱이 늘면 system · parts 이미지만 다시 찍는다. 앱 README 는 고치지 않는다.
+앱마다 다른 이미지(hero · title · certified · 화면 부품)는 그 앱 폴더에 둔다.

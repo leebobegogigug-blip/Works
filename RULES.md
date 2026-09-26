@@ -109,13 +109,13 @@ works 저장소의 모든 앱이 따르는 규칙의 **정본**이다. 규칙은
 ## 검사기
 
 ```text
-python tools/works_check.py            모든 앱 검사 (지금은 경고만, 종료 코드 0)
-python tools/works_check.py --strict   위반이 있으면 종료 코드 1 (차단 모드)
+python tools/works_check.py            모든 앱 검사 (위반이 있어도 종료 코드 0 — 고치는 중에 볼 때)
+python tools/works_check.py --strict   위반이 있으면 종료 코드 1 (CI 가 쓰는 차단 모드)
 python tools/works_check.py --no-tests 테스트 수 확인(테스트 불러오기)을 건너뜀
 ```
 
-- 모든 push · PR 에서 `.github/workflows/works.yml` 이 돌린다.
-- **지금은 경고 모드다.** 예외 대장에서 기한이 있는 줄이 모두 정리되면 `--strict` 로 바꿔 차단한다.
+- 모든 push · PR 에서 `.github/workflows/works.yml` 이 `--strict` 로 돌린다. **예외 대장에 없는 위반이 하나라도 있으면 CI 가 실패한다.**
+- 예외 대장의 기한이 지나면 그 위반도 다시 세므로, 기한 날 CI 가 실패한다. 고치거나, 이유를 적고 기한을 늦추는 PR 을 낸다.
 - 검사기가 못 보는 조항(W-05 · W-07 · W-09 등)은 리뷰에서 본다.
 
 ## 규칙 바꾸기
