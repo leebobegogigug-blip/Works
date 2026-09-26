@@ -1,11 +1,11 @@
-"""fonts/jaba-dos.woff 를 다시 만든다 — 개발용 (실행·배포엔 필요 없음).
+"""fonts/secretary-1-dos.woff 를 다시 만든다 — 개발용 (실행·배포엔 필요 없음).
 
   pip install fonttools
   python tools/make_font.py [unifont.otf 경로]    기본값: 데비안/우분투 fonts-unifont 설치 경로
-  python build.py                                  jaba.py 에 다시 내장
+  python build.py                                  secretary-1.py 에 다시 내장
 
 원본  GNU Unifont 15.1.01 — https://unifoundry.com/unifont/
-      SIL Open Font License 1.1 / GNU GPL 2+ (폰트 임베딩 예외) 이중 라이선스. jaba 는 OFL 1.1 로 배포 (fonts/OFL.txt)
+      SIL Open Font License 1.1 / GNU GPL 2+ (폰트 임베딩 예외) 이중 라이선스. Secretary–1 은 OFL 1.1 로 배포 (fonts/OFL.txt)
 뽑는 글자  ASCII · 라틴-1 · 그리스/키릴 기본 · 문장부호 · 화살표 · 수학 · 박스/블록 · 도형 · 딩뱃
           · CJK 기호 · 한글 호환 자모 · 한글 11,172자 전부 · 전각.  한자·이모지는 시스템 글꼴로 대체된다.
 """
@@ -16,7 +16,7 @@ from fontTools import subset
 from fontTools.ttLib import TTFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "fonts", "jaba-dos.woff")
+OUT = os.path.join(ROOT, "fonts", "secretary-1-dos.woff")
 SRC = "/usr/share/fonts/opentype/unifont/unifont.otf"
 RANGES = [
     (0x0020, 0x007E), (0x00A0, 0x00FF),                                      # 라틴

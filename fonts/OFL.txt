@@ -1,4 +1,4 @@
-jaba 의 내장 픽셀 폰트(fonts/jaba-dos.woff, jaba.py 안의 FONT_WOFF_B64)는 GNU Unifont 의 부분집합입니다.
+Secretary–1 의 내장 픽셀 폰트(fonts/secretary-1-dos.woff, secretary-1.py 안의 FONT_WOFF_B64)는 GNU Unifont 의 부분집합입니다.
 
 GNU Unifont 15.1.01 — https://unifoundry.com/unifont/
 Copyright © 1998-2023 Roman Czyborra, Paul Hardy, Qianqian Fang, Andrew Miller, Johnnie Weaver, David Corbett, Nils Moskopp, Rebecca Bettencourt, Minseo Lee, Ho-Seok Ee, et al.

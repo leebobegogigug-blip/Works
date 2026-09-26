@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-jaba - 사내 일정 비서 (텍스트 채팅 · 내 PC에서만 동작 · Python 3.8+ · 이 파일 하나가 전부)
+Secretary–1 - 사내 일정 비서 (텍스트 채팅 · 내 PC에서만 동작 · Python 3.8+ · 이 파일 하나가 전부)
 
 [실행]
-  python jaba.py            처음 실행하면 옆에 config.json 과 jaba.bat 이 생긴다
-  python jaba.py --setup    설치 도우미: OpenCode 설정(opencode.json)에서 사내 LLM 값을 가져오고 점검까지
-  python jaba.py --check    LLM · 캘린더 연결 점검 (설정 후 처음 한 번은 꼭)
-  jaba.bat                  더블클릭 실행 (콘솔은 최소화됨, 그 콘솔을 닫으면 종료)
-  Ctrl+Alt+J                어디서든 jaba 창 호출
+  python secretary-1.py            처음 실행하면 옆에 config.json 과 secretary-1.bat 이 생긴다
+  python secretary-1.py --setup    설치 도우미: OpenCode 설정(opencode.json)에서 사내 LLM 값을 가져오고 점검까지
+  python secretary-1.py --check    LLM · 캘린더 연결 점검 (설정 후 처음 한 번은 꼭)
+  secretary-1.bat                  더블클릭 실행 (콘솔은 최소화됨, 그 콘솔을 닫으면 종료)
+  Ctrl+Alt+J                       어디서든 Secretary–1 창 호출
+  예전 이름(jaba)의 파일 · 실행기 · 자동 실행은 처음 실행할 때 새 이름으로 옮긴다 (migrate_legacy)
   기타: --set 키=값 (설정 바꾸기) · --autostart on|off (로그인 때 자동 실행) · --status · --stop
         --no-window (창 자동 열기 끔) · --port 8765 · --config 경로.  설치 순서는 INSTALL.md
 
@@ -16,19 +17,19 @@ jaba - 사내 일정 비서 (텍스트 채팅 · 내 PC에서만 동작 · Pytho
   llm.base_url       사내 LLM 주소 (OpenAI 호환, 보통 .../v1). OpenCode 설정의 baseURL 과 같은 값
   llm.model          모델 이름 (OpenCode 설정의 models 에 적힌 이름). 화면 아래 드롭다운으로도 바꾼다
   llm.models         드롭다운에 늘 보일 모델 목록 (선택). 서버의 /v1/models 목록과 합쳐서 보여 준다
-  llm.api_key        키. 파일에 두기 싫으면 "{env:환경변수이름}" · "{file:경로}" (OpenCode 와 같은 문법) 또는 JABA_API_KEY
+  llm.api_key        키. 파일에 두기 싫으면 "{env:환경변수이름}" · "{file:경로}" (OpenCode 와 같은 문법) 또는 SECRETARY_API_KEY
   llm.tool_mode      "auto"(기본) | "native" | "json"  -- 도구 호출이 잘 안 되면 "json"
   llm.extra_headers  추가 인증 헤더 {"헤더이름": "값"}
   llm.proxy          null = 시스템 설정 / "" = 프록시 안 씀 / "http://host:port" = 지정
   llm.ca_file        사내 인증서(PEM) 경로. SSL 오류가 날 때만
-  calendar.backend   "local"(기본, 옆의 jaba.db 에 저장) | "outlook"(클래식 Outlook, pip install pywin32)
+  calendar.backend   "local"(기본, 옆의 secretary-1.db 에 저장) | "outlook"(클래식 Outlook, pip install pywin32)
   work_hours         업무시간과 요일(0=월 … 6=일). 빈 시간 찾기·경고에 사용
   alerts             윈도우 알림(전역). with_location: 장소 있는 일정 [15, 5, 1]분 전
                      without_location: 장소 없는 일정 [5, 1]분 전 · windows_toast: false 면 앱 안에서만
-  reminder_minutes   jaba 로 만든 Outlook 일정에 붙일 Outlook 자체 알림(분). 알림이 겹치면 0
-  learn_file         학습한 규칙 저장 파일 (기본 옆의 jaba_rules.json)
-  wiki_file          일정 위키 저장 파일 (기본 옆의 jaba_wiki.json)
-  theme              "dark"(기본, 검정 바탕) | "light"(밝은 회색 본체) | "system" -- 둘 다 네이비 주색 · 라임 강조 (ocmux 와 같은 팔레트)
+  reminder_minutes   Secretary–1 로 만든 Outlook 일정에 붙일 Outlook 자체 알림(분). 알림이 겹치면 0
+  learn_file         학습한 규칙 저장 파일 (기본 옆의 secretary-1-rules.json)
+  wiki_file          일정 위키 저장 파일 (기본 옆의 secretary-1-wiki.json)
+  theme              "dark"(기본, 검정 바탕) | "light"(밝은 회색 본체) | "system" -- 둘 다 네이비 주색 · 라임 강조 (Terminal–1 과 같은 팔레트)
   hotkey             전역 단축키 ("" 이면 끔) · user_name: 부를 이름 · port: 기본 8765
 
 [쓰는 법]
@@ -39,23 +40,23 @@ jaba - 사내 일정 비서 (텍스트 채팅 · 내 PC에서만 동작 · Pytho
   Outlook의 반복 일정·회의 초대는 읽기만 한다 (변경은 Outlook에서). 초대 메일은 보내지 않는다.
   Outlook 첫 사용 때는 일정 하나를 만들어 Outlook 화면의 시간과 같은지 확인할 것.
 
-[학습] 정리·제안 방식을 그 자리에서 가르친다 (내 PC의 jaba_rules.json 에만 저장)
+[학습] 정리·제안 방식을 그 자리에서 가르친다 (내 PC의 secretary-1-rules.json 에만 저장)
   대화로: "앞으로 스크럼은 15분으로 잡아", "일정 정리할 땐 회의/개인으로 나눠줘 기억해" → 학습 카드 [확정]
   명령어: /학습 <규칙> · /잊어 r3 · /규칙 (목록) · /알림 (윈도우 알림 테스트) · /도움
-  python jaba.py --test-notify   윈도우 알림이 뜨는지 확인
+  python secretary-1.py --test-notify   윈도우 알림이 뜨는지 확인
 
 [일정 위키] 일정의 디테일(목적·안건·준비·참석자·결정·메모·링크)을 정리해 두고 그 일정 때 꺼내 본다
   대화로: "내일 김과장 미팅 준비물은 견적서랑 노트북, 안건은 단가 협상" → 위키 카드 [확정]
-  반복 회의는 같은 제목의 모든 일정에 붙는다 · 내 PC의 jaba_wiki.json 에만 저장
+  반복 회의는 같은 제목의 모든 일정에 붙는다 · 내 PC의 secretary-1-wiki.json 에만 저장
   보기: 다음 일정 칸의 [위키] · 오늘 일정 서랍에서 W 표시 줄 · Alt+W · /위키 [검색] · 알림에 준비물 표시
 
 [보안]
   127.0.0.1 에만 열리고 실행마다 새 토큰을 쓴다 · 대화는 메모리에만 (디스크에 남기지 않음)
-  예외: 확정한 위키 카드의 '원문 기록'(카드에 미리 보임)만 jaba_wiki.json 에 남는다
+  예외: 확정한 위키 카드의 '원문 기록'(카드에 미리 보임)만 secretary-1-wiki.json 에 남는다
   밖으로 나가는 통신은 설정한 LLM 주소 하나뿐 · 마이크/음성 없음 · 표준 라이브러리만 사용
 
 [폰트]
-  도스풍 픽셀 폰트 JabaDOS 를 이 파일 안에 내장 (GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 · 맨 아래 참고)
+  도스풍 픽셀 폰트 Secretary1DOS 를 이 파일 안에 내장 (GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 · 맨 아래 참고)
   인터넷·설치 없이 그대로 보인다. 16px 배수에서 가장 선명하다 (윈도우 배율 100%/200%)
 """
 from __future__ import annotations
@@ -88,9 +89,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
-APP = "jaba"
-VERSION = "0.4.0"
-TITLE = "jaba · 일정 비서"
+APP = "secretary-1"          # 명령 · 파일 이름
+NAME = "Secretary–1"         # 화면에 보이는 이름
+LEGACY_APP = "jaba"          # 이름을 바꾸기 전 (migrate_legacy 가 한 번 옮긴다)
+VERSION = "0.5.0"
+TITLE = f"{NAME} · 일정 비서"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 IS_WINDOWS = sys.platform == "win32"
@@ -120,7 +123,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "proxy": None,
         "ca_file": "",
     },
-    "calendar": {"backend": "local", "local_db": "jaba.db"},
+    "calendar": {"backend": "local", "local_db": "secretary-1.db"},
     "work_hours": {"start": "09:00", "end": "18:00", "days": [0, 1, 2, 3, 4]},
     "default_event_minutes": 60,
     "alerts": {
@@ -132,8 +135,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "poll_sec": 10,
     },
     "reminder_minutes": 10,
-    "learn_file": "jaba_rules.json",
-    "wiki_file": "jaba_wiki.json",
+    "learn_file": "secretary-1-rules.json",
+    "wiki_file": "secretary-1-wiki.json",
     "theme": "dark",
     "port": 8765,
     "hotkey": "ctrl+alt+j",
@@ -195,9 +198,10 @@ def load_config(path: str = CONFIG_PATH) -> Tuple[Dict[str, Any], bool]:
             raise ConfigError(f"{path} 를 만들 수 없습니다 (쓰기 가능한 폴더로 옮겨 주세요): {e}")
         created = True
     cfg = deep_merge(DEFAULT_CONFIG, user)
-    for env, key in (("JABA_BASE_URL", "base_url"), ("JABA_API_KEY", "api_key"), ("JABA_MODEL", "model")):
-        if os.environ.get(env):
-            cfg["llm"][key] = os.environ[env]
+    for key in ("base_url", "api_key", "model"):
+        val = os.environ.get("SECRETARY_" + key.upper()) or os.environ.get("JABA_" + key.upper())  # JABA_*: 예전 이름
+        if val:
+            cfg["llm"][key] = val
     validate_config(cfg)
     return cfg, created
 
@@ -241,9 +245,9 @@ def validate_config(cfg: Dict[str, Any]) -> None:
     except (TypeError, ValueError):
         raise ConfigError("alerts.poll_sec 는 숫자여야 합니다")
     if not str(cfg.get("learn_file") or "").strip():
-        cfg["learn_file"] = "jaba_rules.json"
+        cfg["learn_file"] = "secretary-1-rules.json"
     if not str(cfg.get("wiki_file") or "").strip():
-        cfg["wiki_file"] = "jaba_wiki.json"
+        cfg["wiki_file"] = "secretary-1-wiki.json"
 
 
 # ─────────────────────────────────────────────────────────────── 날짜 유틸
@@ -702,7 +706,7 @@ class CalendarService:
         c = self.cfg.get("calendar") or {}
         if str(c.get("backend", "local")).lower() == "outlook":
             return OutlookCalendar()
-        path = c.get("local_db") or "jaba.db"
+        path = c.get("local_db") or "secretary-1.db"
         if not os.path.isabs(path):
             path = os.path.join(BASE_DIR, path)
         return LocalCalendar(path)
@@ -1197,7 +1201,7 @@ def _decode_bytes(b: Optional[bytes]) -> str:
 
 
 class WindowsToast:
-    """Windows 알림 센터 토스트. 별도 PowerShell 프로세스로 띄워서 jaba 본체는 절대 멈추지 않는다.
+    """Windows 알림 센터 토스트. 별도 PowerShell 프로세스로 띄워서 비서 본체는 절대 멈추지 않는다.
 
     명령은 늘 같은 평문(SCRIPT)이고 제목·본문은 환경변수로 넘긴다. 인코딩된 명령·실행정책 우회를 쓰지 않아서
     회사 보안 솔루션이 '수상한 PowerShell' 로 볼 여지를 줄이고, 한글도 깨지지 않는다.
@@ -1207,8 +1211,8 @@ class WindowsToast:
     SCRIPT = ("$ErrorActionPreference='Stop';"
               "[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]|Out-Null;"
               "[Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime]|Out-Null;"
-              "$x=New-Object Windows.Data.Xml.Dom.XmlDocument;$x.LoadXml($env:JABA_TOAST_XML);"
-              "$t=[Windows.UI.Notifications.ToastNotification]::new($x);$t.Tag=$env:JABA_TOAST_TAG;$t.Group='jaba';"
+              "$x=New-Object Windows.Data.Xml.Dom.XmlDocument;$x.LoadXml($env:SECRETARY_TOAST_XML);"
+              "$t=[Windows.UI.Notifications.ToastNotification]::new($x);$t.Tag=$env:SECRETARY_TOAST_TAG;$t.Group='secretary-1';"
               "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('" + APP_ID + "').Show($t)")
 
     def __init__(self, enabled: bool = True):
@@ -1222,13 +1226,13 @@ class WindowsToast:
         from xml.sax.saxutils import escape
         return ('<toast duration="long"><visual><binding template="ToastGeneric">'
                 f"<text>{escape(title)}</text><text>{escape(body)}</text>"
-                '<text placement="attribution">jaba</text></binding></visual>'
+                f'<text placement="attribution">{NAME}</text></binding></visual>'
                 '<audio src="ms-winsoundevent:Notification.Reminder"/></toast>')
 
-    def show(self, title: str, body: str, tag: str = "jaba") -> bool:
+    def show(self, title: str, body: str, tag: str = APP) -> bool:
         if not self.enabled:
             return False
-        env = dict(os.environ, JABA_TOAST_XML=self.xml(title, body), JABA_TOAST_TAG=(tag or "jaba")[:16])
+        env = dict(os.environ, SECRETARY_TOAST_XML=self.xml(title, body), SECRETARY_TOAST_TAG=(tag or APP)[:16])
         try:
             r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", self.SCRIPT],
                                capture_output=True, timeout=20, creationflags=0x08000000, env=env)  # CREATE_NO_WINDOW
@@ -1329,7 +1333,7 @@ class AlertScheduler:
     def test(self) -> Dict[str, Any]:
         now = self.clock()
         ev = Event(id="test", title="알림 테스트", start=now + timedelta(minutes=5), end=now + timedelta(minutes=35),
-                   location="jaba")
+                   location=NAME)
         return self._fire(ev, 5, now)
 
     def since(self, after: int) -> List[Dict[str, Any]]:
@@ -1771,7 +1775,7 @@ def build_system_prompt(cfg: Dict[str, Any], mode: str, now: Optional[datetime] 
     workdays = "".join(WEEKDAYS[i] for i in sorted(set(wh.get("days", [0, 1, 2, 3, 4]))))
     who = str(cfg.get("user_name") or "").strip()
     lines = [
-        f'너는 "jaba", {who + "님의 " if who else ""}사내 일정 비서다. 한국어로 짧고 정확하게 답한다.',
+        f'너는 "{NAME}", {who + "님의 " if who else ""}사내 일정 비서다. 한국어로 짧고 정확하게 답한다.',
         "",
         f"[지금] {today.isoformat()}({WEEKDAYS[today.weekday()]}) {now:%H:%M}",
         "[날짜표] 요일·날짜 계산은 반드시 이 표를 따른다.",
@@ -2628,8 +2632,8 @@ class App:
         self.token = secrets.token_urlsafe(24)
         self.cal = CalendarService(cfg)
         self.llm = LLMClient(cfg)
-        self.rules = RuleBook(resolve_path(str(cfg.get("learn_file") or "jaba_rules.json")))
-        self.wiki = WikiBook(resolve_path(str(cfg.get("wiki_file") or "jaba_wiki.json")))
+        self.rules = RuleBook(resolve_path(str(cfg.get("learn_file") or "secretary-1-rules.json")))
+        self.wiki = WikiBook(resolve_path(str(cfg.get("wiki_file") or "secretary-1-wiki.json")))
         self.agent = Agent(cfg, self.cal, self.llm, self.rules, self.wiki)
         al = cfg.get("alerts") or {}
         self.notifier = WindowsToast(bool(al.get("windows_toast", True)))
@@ -2796,7 +2800,7 @@ class App:
         self.httpd, self.port = bind_server(port, make_handler(self))
         self.allowed_hosts = {f"127.0.0.1:{self.port}", f"localhost:{self.port}"}
         al = self.cfg.get("alerts") or {}
-        log(f"jaba {VERSION} 실행 중 → {self.url}   (끄려면 이 창을 닫거나 Ctrl+C)")
+        log(f"Secretary-1 {VERSION} 실행 중 → {self.url}   (끄려면 이 창을 닫거나 Ctrl+C)")
         log(f"캘린더: {self.cal.name}" + ("" if self.cal.ok else f"  ✕ {self.cal.error}"))
         log(f"LLM: {self.llm.model or '(미설정)'} @ {self.llm.base_url or '(미설정)'}")
         log(f"학습 규칙 {len(self.rules.all())}개 · 알림: 장소 있음 {al.get('with_location')}분 전 / "
@@ -2813,7 +2817,7 @@ class App:
             self.alerts.stop()
             self.httpd.server_close()
             self.cal.close()
-            log("jaba 종료")
+            log("Secretary-1 종료")
 
 
 class _Server(ThreadingHTTPServer):
@@ -2843,7 +2847,7 @@ def bind_server(port: int, handler: Any) -> Tuple[ThreadingHTTPServer, int]:
     raise OSError(f"포트 {port}~{port + 9} 를 열 수 없습니다: {last}")
 
 
-FONT_URL = "/font/jaba-dos.woff"
+FONT_URL = "/font/secretary-1-dos.woff"
 _FONT: List[bytes] = []
 
 
@@ -2880,7 +2884,7 @@ def make_handler(app: App) -> Any:
             return (self.headers.get("Host") or "").strip().lower() in app.allowed_hosts
 
         def _auth_ok(self) -> bool:
-            return secrets.compare_digest(self.headers.get("X-Jaba-Token", ""), app.token)
+            return secrets.compare_digest(self.headers.get("X-Secretary-Token", ""), app.token)
 
         def _body(self) -> Dict[str, Any]:
             try:
@@ -3003,7 +3007,8 @@ def _port_free(port: int) -> bool:
         s.close()
 
 
-def find_running(port: int) -> Optional[str]:
+def find_running(port: int, apps: Tuple[str, ...] = (APP,)) -> Optional[str]:
+    """port~port+9 에서 켜져 있는 비서의 주소. apps 에 LEGACY_APP 을 넣으면 예전 이름(jaba)으로 켜진 것도 찾는다"""
     if not port:
         return None
     for p in range(port, port + 10):
@@ -3012,7 +3017,7 @@ def find_running(port: int) -> Optional[str]:
         try:
             with _LOCAL_OPENER.open(f"http://127.0.0.1:{p}/api/ping", timeout=0.6) as r:
                 d = json.loads(r.read().decode("utf-8"))
-            if isinstance(d, dict) and d.get("app") == APP:
+            if isinstance(d, dict) and d.get("app") in apps:
                 return f"http://127.0.0.1:{p}/"
         except Exception:
             continue
@@ -3083,10 +3088,10 @@ def start_hotkey(combo: Any, callback: Callable[[], None]) -> None:
             user32.RegisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.UINT, wintypes.UINT]
             user32.GetMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT]
             mods, vk = parse_hotkey(str(combo))
-            if not user32.RegisterHotKey(None, 0x6A62, mods | 0x4000, vk):  # MOD_NOREPEAT
+            if not user32.RegisterHotKey(None, 0x5331, mods | 0x4000, vk):  # MOD_NOREPEAT
                 log(f"단축키 {combo} 등록 실패 (다른 프로그램이 쓰는 중일 수 있음)")
                 return
-            log(f"단축키 {combo} → jaba 창 호출")
+            log(f"단축키 {combo} → Secretary-1 창 호출")
             msg = wintypes.MSG()
             while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
                 if msg.message == 0x0312:  # WM_HOTKEY
@@ -3105,7 +3110,7 @@ def focus_or_open(url: str) -> None:
     from ctypes import wintypes
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     found: List[int] = []
-    prefix = APP + " · "
+    prefix = NAME + " · "  # 창 제목 (TITLE · 알림 깜빡임 모두 이걸로 시작)
     proc_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     H = wintypes.HWND
     user32.EnumWindows.argtypes = [proc_type, wintypes.LPARAM]
@@ -3138,8 +3143,9 @@ def focus_or_open(url: str) -> None:
 
 
 def ensure_launcher() -> None:
-    """더블클릭용 jaba.bat 을 스크립트 옆에 만든다 (콘솔은 최소화). 적힌 파이썬이 사라졌으면 다시 만든다."""
-    path = os.path.join(BASE_DIR, "jaba.bat")
+    """더블클릭용 secretary-1.bat 을 스크립트 옆에 만든다 (콘솔은 최소화). 적힌 파이썬이 사라졌으면 다시 만든다."""
+    _drop_legacy_launcher()
+    path = os.path.join(BASE_DIR, APP + ".bat")
     if os.path.exists(path):
         try:
             with open(path, "rb") as f:
@@ -3154,13 +3160,13 @@ def ensure_launcher() -> None:
             old = m.group(1).decode("utf-8", "replace")
         if os.path.isfile(old):
             return
-        log("jaba.bat 에 적힌 파이썬이 없어져서 다시 만듭니다")
+        log(f"{APP}.bat 에 적힌 파이썬이 없어져서 다시 만듭니다")
     exe = sys.executable or "python"
     if os.path.basename(exe).lower() == "pythonw.exe":
         exe = os.path.join(os.path.dirname(exe), "python.exe")
     script = os.path.basename(os.path.abspath(__file__))
-    text = ('@echo off\r\ncd /d "%~dp0"\r\nstart "jaba" /min "{exe}" "%~dp0{script}" %*\r\n').format(
-        exe=exe, script=script)
+    text = ('@echo off\r\ncd /d "%~dp0"\r\nstart "{app}" /min "{exe}" "%~dp0{script}" %*\r\n').format(
+        app=APP, exe=exe, script=script)
     try:
         data = text.encode("mbcs")
     except (UnicodeEncodeError, LookupError):
@@ -3171,6 +3177,76 @@ def ensure_launcher() -> None:
         log(f"실행기 생성: {path} (다음부터는 더블클릭)")
     except OSError:
         pass
+
+
+def _drop_legacy_launcher() -> None:
+    """예전 이름의 실행기(jaba.bat)는 이제 없는 jaba.py 를 가리킨다 → 우리가 만든 것이면 지운다"""
+    old = os.path.join(BASE_DIR, LEGACY_APP + ".bat")
+    if not os.path.exists(old) or os.path.exists(os.path.join(BASE_DIR, LEGACY_APP + ".py")):
+        return
+    try:
+        with open(old, "rb") as f:
+            ours = b'start "jaba" /min' in f.read()
+        if ours:
+            os.remove(old)
+            log(f"예전 실행기 {LEGACY_APP}.bat 을 지웠습니다 → 이제 {APP}.bat")
+    except OSError:
+        pass
+
+
+# 예전 이름(jaba) 기본 파일 → 새 이름. config.json 에 적힌 값이 예전 기본값이거나 비어 있을 때만 (직접 정한 경로는 그대로)
+LEGACY_FILES = (("calendar", "local_db", "jaba.db", "secretary-1.db"),
+                ("", "learn_file", "jaba_rules.json", "secretary-1-rules.json"),
+                ("", "wiki_file", "jaba_wiki.json", "secretary-1-wiki.json"))
+
+
+def migrate_legacy(config_path: str = CONFIG_PATH) -> List[str]:
+    """jaba → Secretary–1: 일정 DB · 학습 규칙 · 위키 파일 이름을 바꾸고 config.json 도 맞춘다. 옮긴 것 목록을 돌려준다.
+    예전 비서가 켜져 있으면 파일을 잡고 있으니 먼저 꺼야 한다 (main 이 처리). 새 이름 파일이 이미 있으면 건드리지 않는다"""
+    try:
+        user = _read_user_config(config_path)
+    except Exception:
+        return []
+    done: List[str] = []
+    changed = False
+    for sect, key, old, new in LEGACY_FILES:
+        box = user.get(sect) if sect else user
+        if not isinstance(box, dict) or box.get(key) not in (None, "", old):
+            continue
+        src, dst = resolve_path(old), resolve_path(new)
+        if os.path.exists(src):
+            if os.path.exists(dst):
+                continue  # 둘 다 있으면 사람이 고를 일 — 예전 설정 그대로 둔다
+            try:
+                os.replace(src, dst)
+                if os.path.exists(src + "-journal"):  # 끝나지 않은 SQLite 기록도 함께 (따로 두면 DB 가 깨질 수 있다)
+                    os.replace(src + "-journal", dst + "-journal")
+            except OSError as e:
+                log(f"{old} → {new} 이름 바꾸기 실패 (예전 파일을 그대로 씁니다): {e}")
+                continue
+            done.append(f"{old} → {new}")
+        if box.get(key) == old:
+            box[key] = new
+            changed = True
+    if changed:
+        try:
+            _write_json(config_path, user)
+        except OSError as e:
+            log(f"config.json 에 새 파일 이름을 적지 못했습니다: {e}")
+    return done
+
+
+def migrate_autostart() -> None:
+    """예전 이름의 자동 실행(jaba.lnk → 없어진 jaba.bat)이 있으면 secretary-1.lnk 로 바꿔 단다 (Windows)"""
+    try:
+        old = os.path.join(startup_dir(), LEGACY_APP + ".lnk")
+    except Exception:
+        return
+    if os.path.exists(old) and set_autostart(True) == 0:
+        try:
+            os.remove(old)
+        except OSError:
+            pass
 
 
 # ─────────────────────────────────────────────────────────────── 설치 도우미 (--setup · --set · --autostart)
@@ -3419,12 +3495,12 @@ def set_config_values(path: str, pairs: List[str]) -> int:
 def run_setup(config_path: str = CONFIG_PATH, provider: str = "", model: str = "", force: bool = False,
               dirs: Optional[List[str]] = None) -> int:
     """설치 도우미: 환경 확인 → OpenCode 설정에서 LLM 값 가져오기 → 점검. 종료 코드 0 OK · 1 점검 실패 · 3 사람 확인 필요."""
-    print(f"jaba {VERSION} 설치 도우미")
+    print(f"Secretary-1 {VERSION} 설치 도우미")
     print(f"- 파이썬    : {sys.version.split()[0]} · {sys.executable}")
     print(f"- 설치 위치 : {BASE_DIR}")
     if IS_WINDOWS:
         print(f"- 브라우저  : {_find_browser() or '없음 → 기본 브라우저로 엽니다'}")
-        bat = os.path.join(BASE_DIR, "jaba.bat")
+        bat = os.path.join(BASE_DIR, APP + ".bat")
         print(f"- 실행기    : {bat}" + ("" if os.path.exists(bat) else " (만들지 못함)"))
     user = _read_user_config(config_path)
     llm = dict(user.get("llm") or {})
@@ -3464,7 +3540,7 @@ def run_setup(config_path: str = CONFIG_PATH, provider: str = "", model: str = "
     print()
     rc = run_check(cfg, config_path)
     if rc == 0:
-        print("\n결과: OK · 다음 → --test-notify (윈도우 알림) · --autostart on (자동 실행, 사용자 동의 후) · jaba.bat 실행")
+        print("\n결과: OK · 다음 → --test-notify (윈도우 알림) · --autostart on (자동 실행, 사용자 동의 후) · secretary-1.bat 실행")
     else:
         print("\n결과: 점검 실패 (코드 1) · 위 메시지와 INSTALL.md 의 '문제 해결' 표를 보고 --set 으로 고친 뒤 --check")
     return rc
@@ -3480,16 +3556,19 @@ def startup_dir() -> str:
 
 
 def set_autostart(on: bool) -> int:
-    """로그인할 때 jaba 를 창 없이 켠다 (시작프로그램 폴더의 jaba.lnk → jaba.bat --no-window)."""
+    """로그인할 때 비서를 창 없이 켠다 (시작프로그램 폴더의 secretary-1.lnk → secretary-1.bat --no-window)."""
     if not IS_WINDOWS:
         print("자동 실행 등록은 Windows 에서만 됩니다.")
         return 1
     try:
-        lnk = os.path.join(startup_dir(), "jaba.lnk")
+        lnk = os.path.join(startup_dir(), APP + ".lnk")
+        legacy = os.path.join(startup_dir(), LEGACY_APP + ".lnk")
     except Exception as e:
         print(f"자동 실행: {e}")
         return 1
     if not on:
+        if os.path.exists(legacy):  # 예전 이름으로 걸어 둔 것도 함께 푼다
+            os.remove(legacy)
         if os.path.exists(lnk):
             os.remove(lnk)
             print(f"자동 실행 해제: {lnk} 삭제")
@@ -3497,24 +3576,24 @@ def set_autostart(on: bool) -> int:
             print("자동 실행이 등록돼 있지 않습니다.")
         return 0
     ensure_launcher()
-    bat = os.path.join(BASE_DIR, "jaba.bat")
-    ps = ("$ErrorActionPreference='Stop';$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:JABA_LNK);"
-          "$s.TargetPath=$env:JABA_BAT;$s.Arguments='--no-window';$s.WorkingDirectory=$env:JABA_DIR;"
-          "$s.WindowStyle=7;$s.Description='jaba';$s.Save()")
+    bat = os.path.join(BASE_DIR, APP + ".bat")
+    ps = ("$ErrorActionPreference='Stop';$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:SECRETARY_LNK);"
+          "$s.TargetPath=$env:SECRETARY_BAT;$s.Arguments='--no-window';$s.WorkingDirectory=$env:SECRETARY_DIR;"
+          "$s.WindowStyle=7;$s.Description='Secretary-1';$s.Save()")
     err = ""
     try:
         r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps],
                            capture_output=True, timeout=30, creationflags=0x08000000,
-                           env=dict(os.environ, JABA_LNK=lnk, JABA_BAT=bat, JABA_DIR=BASE_DIR))
+                           env=dict(os.environ, SECRETARY_LNK=lnk, SECRETARY_BAT=bat, SECRETARY_DIR=BASE_DIR))
         if r.returncode != 0:
             err = _decode_bytes(r.stderr) or _decode_bytes(r.stdout) or f"exit {r.returncode}"
     except Exception as e:
         err = str(e)
     if not err and os.path.exists(lnk):
-        print(f"자동 실행 등록: {lnk}\n→ 로그인하면 창 없이 켜집니다 (알림은 동작). 창은 단축키(기본 Ctrl+Alt+J) 또는 jaba.bat")
+        print(f"자동 실행 등록: {lnk}\n→ 로그인하면 창 없이 켜집니다 (알림은 동작). 창은 단축키(기본 Ctrl+Alt+J) 또는 secretary-1.bat")
         return 0
     print(f"자동 실행 등록 실패: {_short(err or '바로가기가 만들어지지 않았습니다', 300)}\n"
-          "→ 직접: Win+R → shell:startup → jaba.bat 바로가기를 만들고, 대상 끝에 --no-window 추가")
+          "→ 직접: Win+R → shell:startup → secretary-1.bat 바로가기를 만들고, 대상 끝에 --no-window 추가")
     return 1
 
 
@@ -3527,37 +3606,40 @@ def wait_running(port: int, seconds: float = 0.0) -> Optional[str]:
         time.sleep(0.5)
 
 
-def stop_running(port: int) -> int:
-    """실행 중인 jaba 를 끈다 (업데이트 전 · 에이전트용). 로컬 화면이 쓰는 토큰으로 /api/shutdown 호출."""
-    url = find_running(port)
+def stop_running(port: int, apps: Tuple[str, ...] = (APP, LEGACY_APP), quiet: bool = False) -> int:
+    """실행 중인 비서를 끈다 (업데이트 전 · 에이전트용). 로컬 화면이 쓰는 토큰으로 /api/shutdown 호출.
+    예전 이름(jaba)으로 켜진 것도 끈다 — 그쪽은 토큰 이름이 jaba-token · X-Jaba-Token 이다."""
+    say: Callable[[str], None] = (lambda _m: None) if quiet else print
+    url = find_running(port, apps)
     if not url:
-        print("jaba 가 꺼져 있습니다.")
+        say("Secretary-1 이 꺼져 있습니다.")
         return 0
     try:
         with _LOCAL_OPENER.open(url, timeout=5) as r:
-            m = re.search(r'name="jaba-token" content="([^"]+)"', r.read().decode("utf-8", "replace"))
+            m = re.search(r'name="(?:secretary|jaba)-token" content="([^"]+)"', r.read().decode("utf-8", "replace"))
         if not m:
             raise ValueError("토큰을 찾지 못했습니다")
         req = urllib.request.Request(url + "api/shutdown", data=b"{}", method="POST",
-                                     headers={"X-Jaba-Token": m.group(1), "Content-Type": "application/json"})
+                                     headers={"X-Secretary-Token": m.group(1), "X-Jaba-Token": m.group(1),
+                                              "Content-Type": "application/json"})
         with _LOCAL_OPENER.open(req, timeout=5) as r:
             r.read()
     except Exception as e:
-        print(f"끄기 실패: {e}")
+        say(f"끄기 실패: {e}")
         return 1
     for _ in range(40):
-        if not find_running(port):
-            print("jaba 를 껐습니다.")
+        if not find_running(port, apps):
+            say("Secretary-1 을 껐습니다.")
             return 0
         time.sleep(0.25)
-    print("끄기 요청은 보냈지만 아직 켜져 있습니다.")
+    say("끄기 요청은 보냈지만 아직 켜져 있습니다.")
     return 1
 
 
 # ─────────────────────────────────────────────────────────────── 점검 · 진입점
 
 def run_check(cfg: Dict[str, Any], config_path: str = CONFIG_PATH) -> int:
-    print(f"jaba {VERSION} 점검")
+    print(f"Secretary-1 {VERSION} 점검")
     print(f"- 설정 파일 : {config_path}")
     cal = CalendarService(cfg)
     if cal.ok:
@@ -3568,9 +3650,9 @@ def run_check(cfg: Dict[str, Any], config_path: str = CONFIG_PATH) -> int:
     else:
         print(f"- 캘린더    : 실패 · {cal.error}")
     cal.close()
-    rules = RuleBook(resolve_path(str(cfg.get("learn_file") or "jaba_rules.json")))
+    rules = RuleBook(resolve_path(str(cfg.get("learn_file") or "secretary-1-rules.json")))
     print(f"- 학습 규칙 : {len(rules.all())}개 · {rules.path}" + (f" ({rules.error})" if rules.error else ""))
-    wiki = WikiBook(resolve_path(str(cfg.get("wiki_file") or "jaba_wiki.json")))
+    wiki = WikiBook(resolve_path(str(cfg.get("wiki_file") or "secretary-1-wiki.json")))
     print(f"- 일정 위키 : {wiki.count()}개 · {wiki.path}" + (f" ({wiki.error})" if wiki.error else ""))
     al = cfg.get("alerts") or {}
     print(f"- 알림      : {'켜짐' if al.get('enabled', True) else '꺼짐'} · 장소 있음 {al.get('with_location')}분 전 / "
@@ -3617,7 +3699,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         sys.stdout.reconfigure(errors="replace")  # type: ignore[attr-defined]
     except Exception:
         pass
-    ap = argparse.ArgumentParser(prog="jaba", description="사내 일정 비서 (텍스트 채팅)")
+    ap = argparse.ArgumentParser(prog=APP, description="Secretary-1 · 사내 일정 비서 (텍스트 채팅)")
     ap.add_argument("--check", action="store_true", help="LLM / 캘린더 연결 점검")
     ap.add_argument("--setup", action="store_true", help="설치 도우미: OpenCode 설정에서 LLM 값을 가져오고 점검")
     ap.add_argument("--provider", default="", help="--setup: 쓸 OpenCode provider 이름")
@@ -3627,24 +3709,38 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="config.json 값 바꾸기 (여러 번 가능, 예: --set alerts.windows_toast=false)")
     ap.add_argument("--autostart", choices=("on", "off"), help="로그인할 때 창 없이 자동 실행 등록/해제")
     ap.add_argument("--status", action="store_true", help="실행 중인지 확인 (막 켰으면 몇 초 기다림)")
-    ap.add_argument("--stop", action="store_true", help="실행 중인 jaba 끄기")
+    ap.add_argument("--stop", action="store_true", help="실행 중인 비서 끄기 (예전 이름 jaba 로 켜진 것도)")
     ap.add_argument("--port", type=int, help="포트 (기본 config.port)")
     ap.add_argument("--no-window", action="store_true", help="창 자동 열기 끔")
     ap.add_argument("--test-notify", action="store_true", help="윈도우 알림 테스트")
     ap.add_argument("--config", default=CONFIG_PATH, help="설정 파일 경로")
-    ap.add_argument("--version", action="version", version=f"jaba {VERSION}")
+    ap.add_argument("--version", action="version", version=f"Secretary-1 {VERSION}")
     args = ap.parse_args(argv)
     try:
         cfg, created = load_config(args.config)
     except ConfigError as e:
         log(f"설정 오류: {e}")
         return 2
+    port = args.port if args.port is not None else int(cfg.get("port") or 8765)
+    if not (args.status or args.stop):
+        # 예전 이름(jaba)에서 넘어온 첫 실행: 켜져 있는 예전 비서를 끄고 → 데이터 파일 이름을 옮긴다
+        legacy_on = bool(find_running(port, (LEGACY_APP,)))
+        if legacy_on:
+            log("예전 이름(jaba)으로 켜져 있는 비서를 끄고 Secretary-1 로 옮깁니다")
+            legacy_on = stop_running(port, (LEGACY_APP,), quiet=True) != 0
+        if legacy_on:
+            log("예전 비서를 끄지 못해 이번엔 파일 이름을 그대로 둡니다 (그 창을 닫고 다시 실행하세요)")
+        else:
+            for m in migrate_legacy(args.config):
+                log(f"예전 이름 파일 옮김: {m}")
+            cfg, _ = load_config(args.config)
     if created:
         log(f"config.json 을 만들었습니다 → {args.config}")
         if not args.setup:
             log("llm.base_url / llm.model / llm.api_key 를 채우면 대화가 켜집니다 (일정 화면은 지금도 동작).")
     if IS_WINDOWS:
         ensure_launcher()
+        migrate_autostart()
     if args.set:
         rc = set_config_values(args.config, args.set)
         if rc or not (args.check or args.setup):
@@ -3663,11 +3759,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         if not toast.enabled:
             print("Windows 에서만 윈도우 알림을 띄울 수 있습니다.")
             return 1
-        ok = toast.show("jaba 알림 테스트", "이 알림이 보이면 성공입니다 · 15:00–15:30 @3A")
+        ok = toast.show(f"{NAME} 알림 테스트", "이 알림이 보이면 성공입니다 · 15:00–15:30 @3A")
         print("윈도우 알림 OK — 화면 오른쪽 아래를 확인하세요." if ok else
               f"윈도우 알림 실패: {toast.last_error}\n→ 회사 PC 정책으로 막혔을 수 있습니다. 앱 안 알림은 그대로 동작합니다.")
         return 0 if ok else 1
-    port = args.port if args.port is not None else int(cfg.get("port") or 8765)
     if args.status:
         url = wait_running(port, 8)
         print(f"실행 중: {url}" if url else "꺼져 있음")
@@ -3692,14 +3787,14 @@ INDEX_HTML = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="jaba-token" content="__TOKEN__">
-<title>jaba · 일정 비서</title>
-<link rel="preload" href="/font/jaba-dos.woff" as="font" type="font/woff" crossorigin>
+<meta name="secretary-token" content="__TOKEN__">
+<title>Secretary–1 · 일정 비서</title>
+<link rel="preload" href="/font/secretary-1-dos.woff" as="font" type="font/woff" crossorigin>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='6.5' width='15' height='12.5' fill='%230b0b0b' stroke='%23f2f2f3' stroke-width='1.4'/%3E%3Crect x='6.5' y='8.5' width='11' height='7.5' fill='%231f507a'/%3E%3Crect x='8.7' y='10.7' width='1.8' height='1.8' fill='%23f2f2f3'/%3E%3Crect x='13.5' y='10.7' width='1.8' height='1.8' fill='%23f2f2f3'/%3E%3Cpath d='M8 6.5V3' stroke='%23f2f2f3' stroke-width='1.4'/%3E%3Crect x='7' y='1' width='2' height='2' fill='%236aba23'/%3E%3C/svg%3E">
 <style>
-@font-face{font-family:"JabaDOS";src:url(/font/jaba-dos.woff) format("woff");font-display:block}
+@font-face{font-family:"Secretary1DOS";src:url(/font/secretary-1-dos.woff) format("woff");font-display:block}
 :root{
-  /* 팔레트 = ocmux 와 같은 세 기준색: 네이비 #002341 · 라임 #6ABA23 · 그레이 #A5AAAE (+ 같은 색상의 밝기 단계)
+  /* 팔레트 = Terminal–1 과 같은 세 기준색: 네이비 #002341 · 라임 #6ABA23 · 그레이 #A5AAAE (+ 같은 색상의 밝기 단계)
      네이비가 주색(뼈대 · 버튼 · 라벨), 라임은 강조(지금 · 켜짐 · 대기)만. 빨강은 없다 — 경고는 가장 밝은 글자색 */
   --bg:#000;--dot:rgba(255,255,255,.075);--panel:#0b0b0b;--panel-2:#131313;--lcd:#030303;--lcd-edge:#2a2a2a;--track:#161616;
   --ink:#f2f2f3;--ink-2:#a5aaae;--ink-3:#81888d;--lcd-ink:#f2f2f3;--lcd-ink-2:#a5aaae;
@@ -3713,7 +3808,7 @@ INDEX_HTML = r"""<!doctype html>
   --bubble:#a5aaae;--bubble-ink:#0b0b0b;--btn:#1f507a;--btn-ink:#f2f2f3;--btn-edge:#002341;
   --card-edge:#3f77a6;--tag-del:#002341;--tag-del-ink:#f2f2f3;--switch:#262626;--toast-x:rgba(0,0,0,.15);
   --seg-on:#f2f2f3;--seg-off:rgba(63,119,166,.16);--seg-glow:rgba(242,242,243,.16);
-  /* 노브 = ocmux 인코더와 같은 색 순서: ①파랑 ②라임 ③흰색 ④회색 */
+  /* 노브 = Terminal–1 인코더와 같은 색 순서: ①파랑 ②라임 ③흰색 ④회색 */
   --k1:#75a1c7;--k1-ink:#0b0b0b;--k1-edge:#3f77a6;
   --k2:#6aba23;--k2-ink:#0b0b0b;--k2-edge:#45741b;
   --k3:#f2f2f3;--k3-ink:#002341;--k3-edge:#81888d;
@@ -3721,7 +3816,7 @@ INDEX_HTML = r"""<!doctype html>
   --k5:#0e1620;--k5-ink:#f2f2f3;--k5-edge:#000;--dial:#101820;
   --screw:#1a1a1a;--screw-edge:#333;--screw-slot:#050505;
   --m-body:#0b0b0b;--m-line:#f2f2f3;--m-screen:#1f507a;--m-face:#f2f2f3;--m-led:#6aba23;--m-led-off:#35383b;
-  --dos:"JabaDOS","Cascadia Mono",Consolas,"D2Coding","GulimChe","굴림체",monospace;
+  --dos:"Secretary1DOS","Cascadia Mono",Consolas,"D2Coding","GulimChe","굴림체",monospace;
   --b:1px 0 0 currentColor; /* 도스식 굵게: 1px 옆에 한 번 더 찍기 (합성 볼드보다 선명) */
   color-scheme:dark;
 }
@@ -3999,7 +4094,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px soli
 .switch::after{content:"";position:absolute;right:2px;top:2px;width:11px;height:11px;border-radius:50%;background:var(--accent);transition:all .2s}
 body.off .switch::after{right:13px;background:var(--ink-3)}
 body.off .device{animation:crt .8s cubic-bezier(.6,0,.9,.4) forwards}
-body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position:fixed;inset:0;display:grid;place-items:center;color:var(--ink-3);animation:fade .4s .8s both}
+body.off::after{content:"Secretary–1 · off — secretary-1.bat 으로 다시 켜기";position:fixed;inset:0;display:grid;place-items:center;color:var(--ink-3);animation:fade .4s .8s both}
 
 .toast{position:fixed;left:50%;top:12px;transform:translate(-50%,-170%);background:var(--accent);color:var(--on-accent);line-height:20px;text-shadow:var(--b);padding:6px 8px;border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.4);transition:transform .35s cubic-bezier(.2,1.4,.3,1);z-index:10;display:flex;gap:9px;align-items:center;width:max-content;max-width:calc(100vw - 24px)}
 .toast.show{transform:translate(-50%,0)}
@@ -4050,7 +4145,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .screw{background:none;border-color:var(--line-2)}
 .screw::after{height:1px;margin-top:0;background:var(--line-2)}
 .bar{padding:14px 24px 2px;align-items:flex-end}
-.logo{display:flex;flex-direction:column}
+.logo{display:flex;flex-direction:column;flex:none;white-space:nowrap;font-size:24px;line-height:24px}  /* Secretary–1: 11글자라 한 줄에 */
 .logo .model-no{font-size:16px;line-height:16px;color:var(--ink-3);letter-spacing:1px;text-shadow:none;margin-top:4px}
 .logo::after{display:none}
 .led i{width:6px;height:6px}
@@ -4159,7 +4254,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .ghost{border-radius:0;border-color:var(--prime-2)}
 .toast{border-radius:0;background:var(--prime-deep);color:var(--prime-ink);border-left:4px solid var(--accent);text-shadow:none}
 @media (max-width:420px){.keys{grid-template-columns:repeat(4,minmax(0,1fr)) 72px;padding:2px 12px 0}.lbl,.overview{padding-left:12px;padding-right:12px}.lcd,.input{margin-left:12px;margin-right:12px}.log{padding-left:12px;padding-right:12px}}
-/* 마스코트 JB–1 */
+/* 마스코트 — Secretary–1 의 얼굴 */
 .lcd .mascot,.toast .mascot{--m-line:var(--lcd-ink);--m-body:var(--lcd)}  /* 화면·토스트는 테마와 상관없이 어두운 바탕 */
 .mascot svg{overflow:visible}
 .mascot .mb{fill:var(--m-body);stroke:var(--m-line);stroke-width:1.1}
@@ -4171,7 +4266,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .mascot.alert .mled.on{animation:blink .5s steps(2) infinite}
 .mascot .mdot{fill:var(--m-line);opacity:.45}
 .mascot .mbang{stroke:var(--m-led);stroke-width:1.4}
-/* 공통 규칙 (ocmux 와 같음): 글자로 쓰는 라임은 --accent-ink · 버튼은 네이비 · 오류는 빨강 대신 ERR 칩 */
+/* 공통 규칙 (Terminal–1 과 같음): 글자로 쓰는 라임은 --accent-ink · 버튼은 네이비 · 오류는 빨강 대신 ERR 칩 */
 .lcd{--seg-on:var(--lcd-ink);--seg-off:rgba(63,119,166,.16)}  /* 화면은 두 테마 모두 검정 바탕 */
 button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:var(--accent-ink)}
 #msg,.rule-add input,.wedit input,.wedit textarea{caret-color:var(--accent-ink)}
@@ -4189,7 +4284,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:va
 <div class="device" id="device">
   <i class="screw s1"></i><i class="screw s2"></i><i class="screw s3"></i><i class="screw s4"></i>
   <header class="bar">
-    <span class="logo">jaba<small class="model-no">JB–1 · 일정 비서</small></span>
+    <span class="logo">Secretary–1<small class="model-no">일정 비서</small></span>
     <span class="leds">
       <span class="led" id="led-llm"><i></i>llm</span>
       <span class="led" id="led-cal"><i></i><span id="cal-name">cal</span></span>
@@ -4246,11 +4341,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:va
     <button class="send" id="send" type="submit" aria-label="보내기">↵</button>
   </form>
   <footer class="foot">
-    <span id="foot-info" title="일정(jaba.db) · 학습 규칙 · 일정 위키는 이 PC 의 파일에만 저장 · 대화 내용은 끄면 사라짐 · 127.0.0.1 에서만 동작">로컬 저장</span>
+    <span id="foot-info" title="일정(secretary-1.db) · 학습 규칙 · 일정 위키는 이 PC 의 파일에만 저장 · 대화 내용은 끄면 사라짐 · 127.0.0.1 에서만 동작">로컬 저장</span>
     <select id="model" aria-label="LLM 모델" title="LLM 모델 (바꾸면 config.json 에 저장)" disabled><option>LLM 미설정</option></select><span id="mode"></span>
     <span class="spacer"></span>
     <button class="ghost" id="reset" type="button">clear</button>
-    <button class="power" id="power" type="button" aria-label="jaba 종료"><span id="power-label">on</span><span class="switch"></span></button>
+    <button class="power" id="power" type="button" aria-label="Secretary–1 종료"><span id="power-label">on</span><span class="switch"></span></button>
   </footer>
 </div>
 <div class="toast" id="toast" role="status"><span class="mascot" id="mascot-toast" aria-hidden="true"></span><span id="toast-text"></span><button id="toast-x" type="button" aria-label="닫기">×</button></div>
@@ -4258,10 +4353,10 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline-color:va
 <script>
 (() => {
 'use strict';
-const TOKEN = document.querySelector('meta[name="jaba-token"]').content;
+const TOKEN = document.querySelector('meta[name="secretary-token"]').content;
 let BOOT = {};
 try { BOOT = JSON.parse(document.getElementById('boot').textContent || '{}'); } catch (e) {}
-const TITLE = BOOT.title || 'jaba · 일정 비서';
+const TITLE = BOOT.title || 'Secretary–1 · 일정 비서';
 const ALERTS = BOOT.alerts || {with_location: [15, 5, 1], without_location: [5, 1], poll_ms: 10000, enabled: true};
 const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 const WD = ['일','월','화','수','목','금','토'];
@@ -4285,11 +4380,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function restart(node, cls){ node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
 
 async function api(path, body){
-  const opt = {method: body ? 'POST' : 'GET', headers: {'X-Jaba-Token': TOKEN}};
+  const opt = {method: body ? 'POST' : 'GET', headers: {'X-Secretary-Token': TOKEN}};
   if (body){ opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
   let res;
   try { res = await fetch(path, opt); }
-  catch (e) { return {error: 'jaba 서버에 연결할 수 없습니다. 꺼져 있으면 jaba.bat 으로 다시 켜세요.', offline: true}; }
+  catch (e) { return {error: 'Secretary–1 서버에 연결할 수 없습니다. 꺼져 있으면 secretary-1.bat 으로 다시 켜세요.', offline: true}; }
   let data = {};
   try { data = await res.json(); } catch (e) {}
   if (res.status === 401) data.error = '서버가 다시 시작됐습니다. 새로고침(F5) 해주세요.';
@@ -4325,7 +4420,7 @@ function seg7(text, blinkColon){
   return '<svg class="seg" viewBox="-3 0 ' + (x + 2) + ' 22" aria-hidden="true">' + body + '</svg>';
 }
 
-/* ── 마스코트 "JB–1": 네모 화면 얼굴 + 노브 + 안테나 불빛. 선 · 기본 도형만 (OP-1 화면 그림처럼) */
+/* ── 마스코트 (Secretary–1 의 얼굴): 네모 화면 얼굴 + 노브 + 안테나 불빛. 선 · 기본 도형만 (OP-1 화면 그림처럼) */
 const FACES = {
   idle:   {eyes: 'sq'},
   blink:  {eyes: 'line'},
@@ -4937,7 +5032,7 @@ function flashTitle(text){
   let on = false, n = 0;
   clearInterval(flashTimer);
   flashTimer = setInterval(() => {
-    on = !on; document.title = on ? 'jaba · ● ' + text : TITLE;
+    on = !on; document.title = on ? TITLE.split(' · ')[0] + ' · ● ' + text : TITLE;  // 앞머리가 같아야 단축키가 창을 찾는다
     if (++n > 30 || document.hasFocus()){ clearInterval(flashTimer); document.title = TITLE; }
   }, 1000);
 }
@@ -5035,7 +5130,7 @@ $('#reset').addEventListener('click', async () => {
 $('#toast-x').addEventListener('click', () => $('#toast').classList.remove('show'));
 $('#power').addEventListener('click', async () => {
   if (document.body.classList.contains('off')) return;
-  if (!confirm('jaba 를 끌까요? (알림도 멈춥니다)')) return;
+  if (!confirm('Secretary–1 을 끌까요? (알림도 멈춥니다)')) return;
   setMood('sleep');
   await api('/api/shutdown', {});
   timers.forEach(clearInterval);
@@ -5054,7 +5149,7 @@ async function bootFx(){
   drawMascot('blink');
   setCount('88:88', '');
   $('#next-title').textContent = 'self-test';
-  $('#next-meta').textContent = 'jaba ' + (BOOT.version || '');
+  $('#next-meta').textContent = 'Secretary–1 ' + (BOOT.version || '');
   if (REDUCED){ return; }
   document.body.classList.add('booting');
   await sleep(750);
@@ -5090,8 +5185,8 @@ async function bootFx(){
 
 
 # ─────────────────────────────────────────────────────────────── 내장 폰트
-# JabaDOS = GNU Unifont 15.1.01 부분집합 (ASCII · 한글 11,172자 · 자모 · 기호) — FONT_URL 로 제공
-# 원본은 fonts/jaba-dos.woff (tools/make_font.py 로 생성) · build.py 가 아래에 base64 로 넣는다. 직접 고치지 말 것.
+# Secretary1DOS = GNU Unifont 15.1.01 부분집합 (ASCII · 한글 11,172자 · 자모 · 기호) — FONT_URL 로 제공
+# 원본은 fonts/secretary-1-dos.woff (tools/make_font.py 로 생성) · build.py 가 아래에 base64 로 넣는다. 직접 고치지 말 것.
 #
 # Copyright © 1998-2023 Roman Czyborra, Paul Hardy, Qianqian Fang, Andrew Miller, Johnnie Weaver,
 # David Corbett, Nils Moskopp, Rebecca Bettencourt, Minseo Lee, Ho-Seok Ee, et al.

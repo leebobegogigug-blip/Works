@@ -1,27 +1,27 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/hero-dark.jpg">
-    <img src="docs/page/hero-light.jpg" width="880" alt="jaba JB–1 본체 — 다음 일정 카운트다운, 오늘 트랙, 확정 도장이 찍힌 제안 카드, 노브 네 개">
+    <img src="docs/page/hero-light.jpg" width="880" alt="Secretary–1 본체 — 다음 일정 카운트다운, 오늘 트랙, 확정 도장이 찍힌 제안 카드, 노브 네 개">
   </picture>
 </p>
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/title-dark.png">
-    <img src="docs/page/title-light.png" width="880" alt="말하면 잡아 주는 비서 — jaba JB–1 — 말로 잡고, 버튼으로 확정.">
+    <img src="docs/page/title-light.png" width="880" alt="말하면 잡아 주는 비서 — Secretary–1 — 말로 잡고, 버튼으로 확정.">
   </picture>
 </p>
 
 <p align="center">
 텍스트로 말을 걸면 일정을 조회하고, 제안하고, 정리합니다. 몇 가지만 꼽으면:<br>
 확정 버튼을 눌러야만 바뀌는 캘린더, 20초 되돌리기, 회의마다 붙는 위키,<br>
-한 번 가르치면 계속 가는 학습 규칙, 노브 네 개, 그리고 표정이 바뀌는 JB–1.<br>
+한 번 가르치면 계속 가는 학습 규칙, 노브 네 개, 그리고 표정이 바뀌는 얼굴.<br>
 파일 하나, 표준 라이브러리만. 사내 LLM 이야기를 했던가요? 그것도 됩니다.<br>
 전부는 아니고, 이 정도입니다:
 </p>
 
 <p align="center"><sub>
-파일 하나 · JABA.PY · 약 450 KB<br>
+파일 하나 · SECRETARY-1.PY · 약 450 KB<br>
 파이썬 3.8+ · 표준 라이브러리만<br>
 제안 → 확정 2단계 · 확정 전엔 캘린더를 건드리지 않음<br>
 확정 CTRL+ENTER · ㅇㅇ · 취소 ESC · ㄴㄴ<br>
@@ -35,7 +35,7 @@
 오늘 일정 서랍 · ALT+D<br>
 노브 네 개 · ALT+1–4<br>
 학습 서랍 ALT+M · 일정 위키 ALT+W<br>
-로컬 학습 규칙 · JABA_RULES.JSON<br>
+로컬 학습 규칙 · SECRETARY-1-RULES.JSON<br>
 명령어 /학습 · /잊어 · /규칙 · /위키 · /알림 · /도움<br>
 일정 위키 · 목적 · 안건 · 준비 · 참석자 · 결정 · 메모 · 링크<br>
 반복 회의는 위키 한 장으로<br>
@@ -57,12 +57,13 @@ OPENCODE 설정에서 LLM 값 가져오기 · --SETUP<br>
 127.0.0.1 전용 · 실행마다 새 토큰<br>
 대화는 메모리에만<br>
 도스 픽셀 폰트 내장 · 한글 11,172자<br>
-JB–1 · 표정 8가지<br>
+표정 8가지 · 네모 화면 얼굴<br>
 다크 · 라이트 · 시스템 테마<br>
 빨강 없는 팔레트 · 네이비 · 라임 · 회색<br>
 설치는 OPENCODE 에게 · INSTALL.MD<br>
 가짜 LLM 서버로 도는 브라우저 E2E<br>
-단위 테스트 115 · WINDOWS + UBUNTU CI
+예전 이름(JABA) 데이터 자동 이전<br>
+단위 테스트 119 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -82,13 +83,13 @@ JB–1 · 표정 8가지<br>
 
 <p align="center">
 시계는 이미 작업 표시줄에 있으니까요.<br>
-jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 보여 줍니다.<br>
+Secretary–1 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 보여 줍니다.<br>
 회의 중이면 끝날 때까지 남은 시간을, 알림 시각이 되면 숫자를 깜빡입니다.<br>
-오른쪽의 JB–1 은 그때그때 표정이 바뀝니다.
+오른쪽의 얼굴은 그때그때 표정이 바뀝니다.
 </p>
 
-<p align="center"><img src="docs/page/lcd.png" width="560" alt="01 NEXT — 다음 일정까지 남은 시간을 7세그먼트로 보여 주는 화면과 JB–1"></p>
-<p align="center"><sub>01 NEXT · 남은 시간 · 진행 중이면 끝날 때까지 · 장소 · 위키 버튼 · JB–1</sub></p>
+<p align="center"><img src="docs/page/lcd.png" width="560" alt="01 NEXT — 다음 일정까지 남은 시간을 7세그먼트로 보여 주는 화면과 얼굴"></p>
+<p align="center"><sub>01 NEXT · 남은 시간 · 진행 중이면 끝날 때까지 · 장소 · 위키 버튼 · 얼굴</sub></p>
 
 <br>
 
@@ -114,7 +115,7 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 
 <p align="center">
 제일 자주 묻는 네 가지를 노브에 달았습니다. Alt+1 부터 Alt+4.<br>
-노브 색은 ocmux 인코더와 같은 순서입니다. ①파랑 ②라임 ③흰색 ④회색.<br>
+노브 색은 Terminal–1 인코더와 같은 순서입니다. ①파랑 ②라임 ③흰색 ④회색.<br>
 번호표도 그 색으로 칠해 두었습니다. 색이 곧 조작입니다.
 </p>
 
@@ -149,7 +150,7 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 </p>
 
 <p align="center"><img src="docs/page/learn-drawer.png" width="560" alt="학습한 규칙 서랍: 스크럼은 항상 15분"></p>
-<p align="center"><sub>02 학습한 규칙 · 모든 제안 · 정리에 먼저 적용 · 내 PC 의 JABA_RULES.JSON 에만</sub></p>
+<p align="center"><sub>02 학습한 규칙 · 모든 제안 · 정리에 먼저 적용 · 내 PC 의 SECRETARY-1-RULES.JSON 에만</sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
 
@@ -163,8 +164,8 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 오늘 일정이 다 끝나면 잡니다. 부럽게도.
 </p>
 
-<p align="center"><img src="docs/page/faces.png" width="600" alt="JB–1 의 표정 여덟 가지: idle, blink, think, happy, alert, error, sleep, think2"></p>
-<p align="center"><sub>JB–1 · IDLE · BLINK · THINK · HAPPY · ALERT · ERROR · SLEEP</sub></p>
+<p align="center"><img src="docs/page/faces.png" width="600" alt="Secretary–1 의 표정 여덟 가지: idle, blink, think, happy, alert, error, sleep, think2"></p>
+<p align="center"><sub>FACE · IDLE · BLINK · THINK · HAPPY · ALERT · ERROR · SLEEP</sub></p>
 
 <br>
 
@@ -178,7 +179,7 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/colors-dark.jpg">
-    <img src="docs/page/colors-light.jpg" width="880" alt="라이트 테마와 다크 테마의 jaba 두 대">
+    <img src="docs/page/colors-light.jpg" width="880" alt="라이트 테마와 다크 테마의 Secretary–1 두 대">
   </picture>
 </p>
 <p align="center"><sub>THEME · DARK (기본) · LIGHT · SYSTEM</sub></p>
@@ -189,14 +190,14 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
     <img src="docs/page/palette-light.png" width="880" alt="팔레트: 인코더 네 색(파랑 #75A1C7 · 라임 #6ABA23 · 흰색 #F2F2F3 · 회색 #A5AAAE)과 네이비 · 라임 · 회색 밝기 단계">
   </picture>
 </p>
-<p align="center"><sub>PALETTE · ocmux 와 같은 표</sub></p>
+<p align="center"><sub>PALETTE · Terminal–1 과 같은 표</sub></p>
 
 <br>
 
 <h3 align="center">works 시스템.</h3>
 
 <p align="center">
-jaba 는 works 시스템의 한 부품입니다.<br>
+Secretary–1 은 works 시스템의 한 부품입니다.<br>
 같은 팔레트, 같은 번호 라벨, 같은 노브 색으로 만든 사내 도구들.<br>
 전부 받아서 바로 실행하고, 전부 내 PC 에서만 돕니다.
 </p>
@@ -206,7 +207,7 @@ jaba 는 works 시스템의 한 부품입니다.<br>
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/system-dark.jpg">
-    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: jaba, ocmux, TOKEN QUEST 를 나란히">
+    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST 를 나란히">
   </picture>
 </p>
 
@@ -215,12 +216,12 @@ jaba 는 works 시스템의 한 부품입니다.<br>
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/certified-dark.png">
-    <img src="docs/page/certified-light.png" width="880" alt="jaba JB–1 — 월요일에도 켜 두세요.">
+    <img src="docs/page/certified-light.png" width="880" alt="Secretary–1 — 월요일에도 켜 두세요.">
   </picture>
 </p>
 
 <p align="center">
-알림은 jaba 가 켜져 있을 때만 옵니다.<br>
+알림은 Secretary–1 이 켜져 있을 때만 옵니다.<br>
 로그인할 때 저절로 켜지게 해 두면(<code>--autostart on</code>), 월요일 아침 9시 스크럼도 놓치지 않습니다.<br>
 커피는 직접 타셔야 합니다.
 </p>
@@ -232,14 +233,14 @@ jaba 는 works 시스템의 한 부품입니다.<br>
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/parts-dark.jpg">
-    <img src="docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: JB–1 jaba 일정 비서 · ocmux opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
+    <img src="docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
   </picture>
 </p>
 
 <p align="center">
-<a href="https://github.com/leebobegogigug-blip/jaba">JB–1 jaba ›</a> &nbsp;·&nbsp;
-<a href="https://github.com/leebobegogigug-blip/Works">ocmux ›</a> &nbsp;·&nbsp;
-<a href="https://github.com/leebobegogigug-blip/Works/tree/main/ocmux#06-token-quest">TQ–1 token quest ›</a>
+<a href="https://github.com/leebobegogigug-blip/jaba">Secretary–1 ›</a> &nbsp;·&nbsp;
+<a href="https://github.com/leebobegogigug-blip/Works">Terminal–1 ›</a> &nbsp;·&nbsp;
+<a href="https://github.com/leebobegogigug-blip/Works/tree/main/terminal-1#06-token-quest">TQ–1 token quest ›</a>
 </p>
 
 <br>
@@ -250,16 +251,16 @@ jaba 는 works 시스템의 한 부품입니다.<br>
 <table align="center">
 <tr><td width="140">실행</td><td width="560">Windows 10 / 11 · Python 3.8+</td></tr>
 <tr><td>의존성</td><td>없음 (Outlook 연동 때만 <code>pywin32</code>)</td></tr>
-<tr><td>배포</td><td><code>jaba.py</code> 한 파일 · UI 와 폰트 내장 · 약 450 KB</td></tr>
+<tr><td>배포</td><td><code>secretary-1.py</code> 한 파일 · UI 와 폰트 내장 · 약 450 KB</td></tr>
 <tr><td>LLM</td><td>OpenAI 호환 <code>/v1/chat/completions</code> · 도구 호출 native / json 자동 전환 · 모델 드롭다운</td></tr>
-<tr><td>캘린더</td><td>local (SQLite <code>jaba.db</code>) · outlook (클래식 Outlook)</td></tr>
-<tr><td>저장</td><td><code>config.json</code> · <code>jaba.db</code> · <code>jaba_rules.json</code> · <code>jaba_wiki.json</code> — 전부 이 PC</td></tr>
+<tr><td>캘린더</td><td>local (SQLite <code>secretary-1.db</code>) · outlook (클래식 Outlook)</td></tr>
+<tr><td>저장</td><td><code>config.json</code> · <code>secretary-1.db</code> · <code>secretary-1-rules.json</code> · <code>secretary-1-wiki.json</code> — 전부 이 PC</td></tr>
 <tr><td>네트워크</td><td><code>127.0.0.1</code> 전용 · 실행마다 새 토큰 · 밖으로는 설정한 LLM 주소 하나</td></tr>
 <tr><td>알림</td><td>윈도우 토스트 · 장소 있으면 15 · 5 · 1분 전, 없으면 5 · 1분 전</td></tr>
 <tr><td>키</td><td><code>Ctrl+Alt+J</code> 전역 · <code>Alt+1–4</code> · <code>Alt+D</code> · <code>Alt+M</code> · <code>Alt+W</code> · <code>Ctrl+Z</code></td></tr>
 <tr><td>테마</td><td>dark (기본) · light · system — 둘 다 네이비 주색 · 라임 강조</td></tr>
-<tr><td>글꼴</td><td>JabaDOS — GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1</td></tr>
-<tr><td>테스트</td><td>단위 · 통합 115 · 브라우저 E2E (가짜 LLM) · CI Windows + Ubuntu</td></tr>
+<tr><td>글꼴</td><td>Secretary1DOS — GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1</td></tr>
+<tr><td>테스트</td><td>단위 · 통합 119 · 브라우저 E2E (가짜 LLM) · CI Windows + Ubuntu</td></tr>
 </table>
 
 <br>
@@ -267,27 +268,29 @@ jaba 는 works 시스템의 한 부품입니다.<br>
 <a name="install"></a>
 <h3 align="center">설치.</h3>
 
-<p align="center">OpenCode 에 아래를 붙여넣으면 <a href="INSTALL.md">INSTALL.md</a> 순서대로 <code>D:\OPENCODE\jaba</code> 에 설치합니다.<br><code>&lt;저장소 주소&gt;</code>만 바꾸세요. LLM 설정은 OpenCode 설정에서 그대로 가져오고, 키는 어디에도 찍히지 않습니다.</p>
+<p align="center">OpenCode 에 아래를 붙여넣으면 <a href="INSTALL.md">INSTALL.md</a> 순서대로 <code>D:\OPENCODE\secretary-1</code> 에 설치합니다.<br><code>&lt;저장소 주소&gt;</code>만 바꾸세요. LLM 설정은 OpenCode 설정에서 그대로 가져오고, 키는 어디에도 찍히지 않습니다.</p>
 
 ```text
-jaba 를 설치해줘. 설치 위치는 D:\OPENCODE\jaba 야.
-1. 코드 받기: git clone <저장소 주소> "D:\OPENCODE\jaba"
-   (git 이 안 되면 D:\OPENCODE\jaba-repo.zip 을 D:\OPENCODE 에 풀어)
-2. 그다음 D:\OPENCODE\jaba\INSTALL.md 를 끝까지 읽고 그 순서대로만 진행해.
+Secretary–1 을 설치해줘. 설치 위치는 D:\OPENCODE\secretary-1 야.
+1. 코드 받기: git clone <저장소 주소> "D:\OPENCODE\secretary-1"
+   (git 이 안 되면 D:\OPENCODE\secretary-1-repo.zip 을 D:\OPENCODE 에 풀어)
+2. 그다음 D:\OPENCODE\secretary-1\INSTALL.md 를 끝까지 읽고 그 순서대로만 진행해.
    API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에서는 나한테 물어봐.
 ```
 
 <p align="center">직접 설치할 때 (Windows · Python 3.8+)</p>
 
 ```bat
-git clone <저장소 주소> "D:\OPENCODE\jaba"
-cd /d D:\OPENCODE\jaba
-python jaba.py --setup           :: OpenCode 설정에서 LLM 값 가져오기 + 점검 (config.json · jaba.bat 생성)
-python jaba.py --test-notify     :: 윈도우 알림이 뜨는지 확인
-python jaba.py --autostart on    :: (선택) 로그인할 때 자동 실행
+git clone <저장소 주소> "D:\OPENCODE\secretary-1"
+cd /d D:\OPENCODE\secretary-1
+python secretary-1.py --setup           :: OpenCode 설정에서 LLM 값 가져오기 + 점검 (config.json · secretary-1.bat 생성)
+python secretary-1.py --test-notify     :: 윈도우 알림이 뜨는지 확인
+python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실행
 ```
 
-<p align="center">그다음부터는 <code>jaba.bat</code> 더블클릭, 또는 어디서든 <b>Ctrl+Alt+J</b>.</p>
+<p align="center">그다음부터는 <code>secretary-1.bat</code> 더블클릭, 또는 어디서든 <b>Ctrl+Alt+J</b>.</p>
+
+<p align="center"><sub>예전 이름(jaba)으로 쓰고 있었다면 <code>git pull</code> 뒤 <code>python secretary-1.py</code> 한 번이면 일정 · 학습 · 위키 · 실행기 · 자동 실행이 새 이름으로 옮겨집니다 — <a href="INSTALL.md#예전-이름jaba에서-넘어올-때">INSTALL.md › 예전 이름(jaba)에서 넘어올 때</a></sub></p>
 
 <br>
 
@@ -300,11 +303,11 @@ python jaba.py --autostart on    :: (선택) 로그인할 때 자동 실행
 <table align="center">
 <tr><td width="620"><a href="INSTALL.md">설치 가이드</a> <sub>· OpenCode 에이전트용 단계별 절차 · 문제 해결</sub></td><td align="right" width="40">›</td></tr>
 <tr><td><a href="docs/MANUAL.md">매뉴얼</a> <sub>· 설정 · 쓰는 법 · 명령어 · 화면</sub></td><td align="right">›</td></tr>
-<tr><td><a href="docs/MANUAL.md#디자인--ocmux-와-같은-규칙">디자인</a> <sub>· ocmux 와 같은 규칙 일곱 가지 · 팔레트</sub></td><td align="right">›</td></tr>
+<tr><td><a href="docs/MANUAL.md#디자인--terminal1-과-같은-규칙">디자인</a> <sub>· Terminal–1 과 같은 규칙 일곱 가지 · 팔레트</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#개발">개발</a> <sub>· build.py · 테스트 · 브라우저 E2E</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#알려진-한계">알려진 한계</a></td><td align="right">›</td></tr>
 <tr><td><a href="https://github.com/leebobegogigug-blip/jaba/issues">문제 알리기</a> <sub>· 이슈</sub></td><td align="right">›</td></tr>
-<tr><td><a href="https://github.com/leebobegogigug-blip/Works">ocmux</a> <sub>· works 시스템의 다른 부품</sub></td><td align="right">›</td></tr>
+<tr><td><a href="https://github.com/leebobegogigug-blip/Works">Terminal–1</a> <sub>· works 시스템의 다른 부품</sub></td><td align="right">›</td></tr>
 </table>
 
 <br>
@@ -317,7 +320,7 @@ python jaba.py --autostart on    :: (선택) 로그인할 때 자동 실행
 </p>
 
 <p align="center"><sub>
-jaba · JB–1 · 내 PC 에서만 삽니다. 자바 아닙니다. 커피도 아닙니다. 일정을 잡아 줍니다.<br>
+Secretary–1 · 내 PC 에서만 삽니다. 비서실장은 아닙니다. 결재는 직접 하셔야 합니다. 일정은 잡아 드립니다.<br>
 내장 폰트 GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 (<a href="fonts/OFL.txt">fonts/OFL.txt</a>)<br>
 화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.
 </sub></p>
