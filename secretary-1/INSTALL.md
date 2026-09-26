@@ -197,6 +197,7 @@ Secretary–1 설치 완료
 | `설정 오류: … 형식 오류` (config.json 이 깨짐) | 사용자가 메모장으로 고치거나, `config.json` 을 `config.bak.json` 으로 이름을 바꾸고 3단계부터 다시 |
 | 파이썬을 다시 깐 뒤 `secretary-1.bat` 이 안 켜짐 | `--setup` 한 번 실행 (`secretary-1.bat` 을 새로 만든다) |
 | `--set` 이 `API 키는 --set 으로 넣지 않습니다` | 정상 동작 (키가 명령 기록에 남지 않게 막음). 메모장 방법 또는 `{env:이름}` 참조 사용 |
+| `git pull` 이 `untracked working tree files would be overwritten` 와 함께 `AGENTS.md` · `CLAUDE.md` 를 보여 줌 | `D:\OPENCODE` 에 사용자가 만든 같은 이름 파일이 있다 (opencode `/init` 등). **[질문]** "`D:\OPENCODE\AGENTS.md` 를 `AGENTS.local.md` 로 이름을 바꿔도 될까요?" → 바꾼 뒤 pull 을 다시 한다. 그 내용을 계속 쓰려면 opencode 설정의 `instructions` 에 `AGENTS.local.md` 를 넣도록 사용자에게 안내한다 (설정 파일은 에이전트가 고치지 않는다) |
 
 `--set` 은 모든 셸에서 `python "D:\OPENCODE\secretary-1\secretary-1.py" --set "키=값"` 형태로 쓴다. 틀린 값은 저장되지 않고 되돌려진다.
 
@@ -240,7 +241,14 @@ python "D:\OPENCODE\secretary-1\secretary-1.py" --stop
 python "D:\OPENCODE\secretary-1\secretary-1.py" --autostart off
 ```
 
-그다음 **[질문]** "`secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)을 백업할까요?" → 사용자 확인 후에만 `D:\OPENCODE\secretary-1` 폴더를 지운다.
+그다음 **[질문]** "`secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)을 백업할까요?" → 백업이 끝났거나 필요 없다고 하면, 사용자 확인 후 설정 · 데이터 파일만 지운다 (`config.json` 에는 API 키가 들어 있다):
+
+```text
+python -c "import os; d=r'D:\OPENCODE\secretary-1'; [os.remove(os.path.join(d, f)) for f in ('config.json', 'secretary-1.db', 'secretary-1.db-journal', 'secretary-1-rules.json', 'secretary-1-wiki.json', 'secretary-1.bat') if os.path.exists(os.path.join(d, f))]"
+```
+
+프로그램 폴더 `D:\OPENCODE\secretary-1` 은 works 저장소의 일부라서 **지우지 않는다** — 지우면 git 이 '바뀐 파일' 로 보고 다른 works 도구의 업데이트(`git pull`)가 멈춘다. 켜지 않은 코드는 남아 있어도 아무 일도 하지 않는다.
+works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워집니다. `D:\OPENCODE` 를 지울까요?" → 확인 후 지운다.
 
 ## 참고: 명령 모음
 

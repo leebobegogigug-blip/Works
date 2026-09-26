@@ -73,27 +73,21 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 | 03 | **LOG** | `시각 · 기호 · 내용` 로그 줄 · 제안 카드 · 도구 호출 줄 |
 | 04 | **DECK** | 노브 네 개(Alt+1~4) · 고무 키 M 학습 · W 위키 |
 
-## 디자인 — Terminal–1 과 같은 규칙
+## 디자인
 
-Secretary–1 과 [Terminal–1](../../terminal-1/README.md)은 같은 디자인 규칙을 씁니다.
-Teenage Engineering 같은 소형 하드웨어 계측기의 화면 문법에서 영감을 받았고, 특정 제품의 화면이나 로고를 가져오지 않았으며 해당 회사와는 관련이 없습니다.
+works 공통 규격(원칙 일곱 가지 · 팔레트 · 아이콘)은 [docs/DESIGN.md](../../docs/DESIGN.md) 에 있습니다. Secretary–1 에서는 이렇게 보입니다.
 
-| # | 규칙 | Secretary–1 에서 |
+| # | 원칙 | Secretary–1 에서 |
 |---|---|---|
-| 1 | **팔레트 = 네이비 · 라임 · 회색** | 네이비는 뼈대 · 버튼 · 라벨, 라임은 '지금' · '켜짐' · '대기'만, 회색은 글자. 빨강은 없고 경고는 가장 밝은 글자색 + `ERR` 칩 |
-| 2 | **색 = 조작** | 노브 ①파랑 ②라임 ③흰색 ④회색 = Terminal–1 인코더와 같은 순서. 번호표도 그 색 |
-| 3 | **번호 붙은 구역** | `01 NEXT` · `02 TODAY` · `03 LOG` · `04 DECK` · 서랍 `01` `02` `03` |
+| 1 | **한 화면 = 한 모드** | 다음 일정까지 남은 시간 하나를 7세그먼트로 크게 · 노브 네 개 |
+| 2 | **색 = 조작** | 노브 ①파랑 ②라임 ③흰색 ④회색 — works 공통 인코더 순서. 번호표도 그 색 |
+| 3 | **번호 붙은 구역** | `01 NEXT` · `02 TODAY` · `03 LOG` · `04 DECK` · 서랍 `01` `02` `03` · `/도움` |
 | 4 | **엔지니어링을 숨기지 않기** | 로그 줄의 도구 호출(`└ → propose_create`) · LED `llm` `cal` · 모델 드롭다운 |
 | 5 | **즉각 반응** | 누른 노브의 눈금이 돈다 · 확정 도장 · 되돌리기 초읽기 |
 | 6 | **사각 격자** | 8px 점 격자 · 각진 모서리 · 가는 선 · 앞자리 0 |
 | 7 | **캐릭터** | Secretary–1 의 얼굴 — 네모 화면 · 노브 · 안테나 불빛. 표정 8가지 |
 
-| 색 | hex | 쓰임 |
-|---|---|---|
-| 네이비 | `#002341` · `#1F507A` · `#3F77A6` | 본체 테두리 · 번호 라벨 · 버튼 · 카드 머리띠 · 일정 막대 |
-| 라임 | `#6ABA23` | 지금 · 켜짐 · 대기 점 · 확정 도장(다크) · 노브 ② |
-| 회색 | `#A5AAAE` · `#81888D` · `#5C6166` | 글자 단계 · 노브 ④ |
-| 흰색 · 파랑 | `#F2F2F3` · `#75A1C7` | 숫자 · 노브 ③ · 노브 ① |
+경고는 빨강 대신 가장 밝은 글자색 + `ERR` 칩으로 합니다. 테마는 `dark`(기본) · `light` · `system` 셋 다 있습니다.
 
 ## 개발
 
@@ -103,10 +97,11 @@ Teenage Engineering 같은 소형 하드웨어 계측기의 화면 문법에서 
 | 반영 확인 | `python build.py --check` (UI · 폰트 둘 다) |
 | 폰트 다시 만들기 (선택) | `pip install fonttools` → `python tools/make_font.py <unifont.otf>` → `python build.py` |
 | 테스트 | `python -m unittest tests.test_secretary` (표준 라이브러리만) |
+| works 규칙 검사 | 저장소 루트에서 `python tools/works_check.py` ([RULES.md](../../RULES.md)) |
 | 브라우저 E2E (선택 · CI 에서는 자동) | `pip install playwright` → `python -m playwright install chromium` → `python tests/e2e_ui.py` (시간대는 알아서 낮으로 맞춤) |
 
 `tests/fake_llm_server.py`는 OpenAI 호환 가짜 서버라서 사내 LLM 없이도 전체 흐름을 돌려볼 수 있습니다.
-CI(`.github/workflows/test.yml`)는 Windows · Ubuntu × Python 3.10 · 3.13 에서 `build.py --check` 와 단위 테스트를, Ubuntu 에서 브라우저 E2E 를 돌립니다.
+CI(`.github/workflows/secretary-1.yml`)는 Windows · Ubuntu × Python 3.8 · 3.13 에서 `build.py --check` 와 단위 테스트를, Ubuntu 에서 브라우저 E2E 를 돌립니다.
 
 ## 커밋하면 안 되는 것
 
@@ -119,6 +114,7 @@ CI(`.github/workflows/test.yml`)는 Windows · Ubuntu × Python 3.10 · 3.13 에
 - Outlook: 반복 일정·회의 초대는 읽기만 하고(변경은 Outlook에서) 초대 메일은 보내지 않습니다. 새 Outlook은 지원하지 않습니다
 - 윈도우 알림은 PowerShell로 띄웁니다. 회사 정책이 막으면 앱 안 알림으로만 동작합니다 (`--test-notify`로 확인)
 - 알림은 Secretary–1 이 켜져 있을 때만 옵니다
+- 설정 · 일정 · 학습 규칙 · 위키 파일은 프로그램 폴더(`D:\OPENCODE\secretary-1`)에 있습니다. works 규칙은 저장소 밖(`%LOCALAPPDATA%`)이지만, 이름을 바꾸며 이미 한 번 옮긴 파일을 또 옮기지 않으려고 그대로 둡니다 ([예외 대장](../../docs/REGISTRY.md#예외-대장)). `.gitignore` 로 커밋은 막혀 있지만, `git clean -xfd` 같은 명령은 이 파일들을 지웁니다
 - 픽셀 폰트는 윈도우 배율 100%·200%에서 가장 선명하고, 125%·150%에선 살짝 부드럽게 보입니다. 한자·이모지는 시스템 글꼴로 나옵니다
 
 ## 라이선스

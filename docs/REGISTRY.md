@@ -21,7 +21,7 @@
 
 | 앱 | 남기는 것 | 되돌리기 |
 |---|---|---|
-| `secretary-1` | `secretary-1.bat` (프로그램 폴더) · 시작 프로그램 `secretary-1.lnk` (`--autostart on` 일 때) | `--autostart off` · 폴더 지우기 |
+| `secretary-1` | 프로그램 폴더 안의 `config.json` · `secretary-1.db` · 학습 규칙 · 위키 · `secretary-1.bat` · 시작 프로그램 `secretary-1.lnk` (`--autostart on` 일 때) | `--stop` · `--autostart off` · 설정 · 데이터 파일 지우기 ([INSTALL.md › 제거](../secretary-1/INSTALL.md#제거)) |
 | `terminal-1` | 사용자 PATH · Windows Terminal 색 테마 `Terminal-1 Black` · (선택) 글꼴 Unifont 와 HKCU 글꼴 등록 · Windows Terminal `settings.json` 글꼴 설정 | `terminal-1 rm` 은 채널만 푼다 — 나머지는 예외 대장 참고 |
 
 ## 예외 대장
@@ -35,10 +35,6 @@
 | 앱 | 조항 | 파일 | 내용 | 기한 |
 |---|---|---|---|---|
 | `secretary-1` | W-06 | * | 데이터(`config.json` · `secretary-1.db` · 학습 규칙 · 위키)가 프로그램 폴더에 있다. 세 번째 이전을 피하려고 그대로 둔다. `.gitignore` 로 커밋을 막는다 | 영구 — 다음 이름 변경이나 저장 형식 변경 때 다시 본다 |
-| `secretary-1` | W-11 | .github/workflows/secretary-1.yml | CI 에 약속한 최소 Python 3.8 이 없다 (3.10 · 3.13) | 2026-10-31 |
-| `secretary-1` | W-11 | README.md, docs/MANUAL.md | README 의 테스트 수(119)가 실제(120)와 다르다 · MANUAL 이 없는 워크플로(`test.yml`)를 가리킨다 | 2026-10-31 |
-| `secretary-1` | W-10 | docs/MANUAL.md | 디자인 원칙과 팔레트 표를 옮겨 적었다 (원칙 1 의 이름이 정본과 다르다) | 2026-10-31 |
-| `secretary-1` | S-07 | * | 형제 앱 직접 링크 · 공용 이미지 복사본(`docs/page/system-*` 등) | 2026-10-31 |
 | `terminal-1` | W-10 | docs/MANUAL.md, docs/GUIDE.md | 디자인 원칙과 색 표를 옮겨 적었다 (원칙 1 · 3 · 7 의 이름이 정본과 다르다) | 2026-10-31 |
 | `terminal-1` | W-10 | terminal-1.ps1, t1_term.py | 예전 이름(ocmux)의 탭 색 변환표 — 옛 색을 읽어 새 색으로 바꾸는 데이터라 옛 색이 들어 있다 | ocmux 이전 코드와 함께 지운다 |
 | `terminal-1` | W-08 | INSTALL.md | 업데이트 · 제거 · 문제 해결 절과 `[질문]` 표시가 없다. 글꼴 등록(HKCU)을 되돌리는 방법이 없다 | 2026-10-31 |
