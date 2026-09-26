@@ -13,27 +13,34 @@
 </p>
 
 <p align="center">
-텍스트로 말을 걸면 일정을 조회하고, 제안하고, 정리합니다.<br>
-캘린더는 <b>확정</b>을 눌러야만 바뀝니다. 파일 하나, 파이썬 표준 라이브러리만.<br>
-사내 LLM 에 붙고, 설정한 LLM 주소 말고는 밖으로 나가지 않습니다.<br>
-설치는 OpenCode 에게 맡기면 됩니다. 몇 가지만 꼽으면:
+텍스트로 말을 걸면 일정을 조회하고, 제안하고, 정리합니다. 몇 가지만 꼽으면:<br>
+확정 버튼을 눌러야만 바뀌는 캘린더, 20초 되돌리기, 회의마다 붙는 위키,<br>
+한 번 가르치면 계속 가는 학습 규칙, 노브 네 개, 그리고 표정이 바뀌는 JB–1.<br>
+파일 하나, 표준 라이브러리만. 사내 LLM 이야기를 했던가요? 그것도 됩니다.<br>
+전부는 아니고, 이 정도입니다:
 </p>
 
 <p align="center"><sub>
 파일 하나 · JABA.PY · 약 450 KB<br>
 파이썬 3.8+ · 표준 라이브러리만<br>
 제안 → 확정 2단계 · 확정 전엔 캘린더를 건드리지 않음<br>
+확정 CTRL+ENTER · ㅇㅇ · 취소 ESC · ㄴㄴ<br>
 확정 뒤 20초 되돌리기 · CTRL+Z<br>
 겹치는 일정은 카드에 먼저<br>
 빈 시간 찾기 · 업무시간 · 요일 기준<br>
 다음 일정 7세그먼트 카운트다운<br>
+회의 중이면 끝날 때까지 남은 시간<br>
 알림 시각이 되면 숫자가 깜빡<br>
 오늘 한 줄 트랙 · 지난 일정은 빗금<br>
+오늘 일정 서랍 · ALT+D<br>
 노브 네 개 · ALT+1–4<br>
 학습 서랍 ALT+M · 일정 위키 ALT+W<br>
 로컬 학습 규칙 · JABA_RULES.JSON<br>
+명령어 /학습 · /잊어 · /규칙 · /위키 · /알림 · /도움<br>
 일정 위키 · 목적 · 안건 · 준비 · 참석자 · 결정 · 메모 · 링크<br>
 반복 회의는 위키 한 장으로<br>
+위키는 서랍에서 직접 고치기<br>
+위키 원문 기록은 카드에 미리 보임<br>
 "준비물 뭐였지?" 에 위키로 답하기<br>
 윈도우 알림 · 장소 있으면 15 · 5 · 1분 전 · 없으면 5 · 1분 전<br>
 알림에 준비물을 같이<br>
@@ -41,23 +48,35 @@ OUTLOOK 클래식 연동 · 또는 로컬 SQLITE<br>
 OPENAI 호환 API · 도구 호출 NATIVE / JSON 자동 전환<br>
 모델 드롭다운 · /V1/MODELS<br>
 OPENCODE 설정에서 LLM 값 가져오기 · --SETUP<br>
+키는 {ENV:…} · {FILE:…} 참조<br>
+프록시 · 사내 인증서 PEM<br>
+설정 바꾸기 · --SET 키=값<br>
 전역 단축키 · CTRL+ALT+J<br>
 로그인할 때 자동 실행 · --AUTOSTART ON<br>
+--STATUS · --STOP · --CHECK<br>
 127.0.0.1 전용 · 실행마다 새 토큰<br>
 대화는 메모리에만<br>
 도스 픽셀 폰트 내장 · 한글 11,172자<br>
 JB–1 · 표정 8가지<br>
 다크 · 라이트 · 시스템 테마<br>
 빨강 없는 팔레트 · 네이비 · 라임 · 회색<br>
-단위 테스트 115 · 브라우저 E2E · WINDOWS + UBUNTU CI
+설치는 OPENCODE 에게 · INSTALL.MD<br>
+가짜 LLM 서버로 도는 브라우저 E2E<br>
+단위 테스트 115 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
 
 <br>
 
-<p align="center"><img src="docs/page/lcd.png" width="560" alt="01 NEXT — 다음 일정까지 남은 시간을 7세그먼트로 보여 주는 화면과 JB–1"></p>
-<p align="center"><sub>01 NEXT · 남은 시간 · 진행 중이면 끝날 때까지 · 장소 · 위키 버튼 · JB–1</sub></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/detail-dark.jpg">
+    <img src="docs/page/detail-light.jpg" width="880" alt="NEW! 일정 위키 — 다음 일정 칸의 위키 버튼 한 번이면 준비물 · 안건까지">
+  </picture>
+</p>
+
+<br>
 
 <h3 align="center">다음 일정만, 크게.</h3>
 
@@ -68,15 +87,10 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 오른쪽의 JB–1 은 그때그때 표정이 바뀝니다.
 </p>
 
-<br>
+<p align="center"><img src="docs/page/lcd.png" width="560" alt="01 NEXT — 다음 일정까지 남은 시간을 7세그먼트로 보여 주는 화면과 JB–1"></p>
+<p align="center"><sub>01 NEXT · 남은 시간 · 진행 중이면 끝날 때까지 · 장소 · 위키 버튼 · JB–1</sub></p>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/page/cards-dark.png">
-    <img src="docs/page/cards-light.png" width="880" alt="제안 카드: 대기 상태에서 확정 버튼을 누르면 확정 도장이 찍히고 20초 되돌리기 버튼이 생긴다">
-  </picture>
-</p>
-<p align="center"><sub>PROPOSAL CARD · 새 일정 · 바꾸기 · 지우기 · 학습 · 위키 — 전부 카드부터</sub></p>
+<br>
 
 <h3 align="center">확정 전엔, 아무 일도 없습니다.</h3>
 
@@ -86,10 +100,15 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 그 사이 Outlook 에서 누가 고쳤다면, 되돌리지 않고 알려 줍니다.
 </p>
 
-<br>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/cards-dark.png">
+    <img src="docs/page/cards-light.png" width="880" alt="제안 카드: 대기 상태에서 확정 버튼을 누르면 확정 도장이 찍히고 20초 되돌리기 버튼이 생긴다">
+  </picture>
+</p>
+<p align="center"><sub>PROPOSAL CARD · 새 일정 · 바꾸기 · 지우기 · 학습 · 위키 — 전부 카드부터</sub></p>
 
-<p align="center"><img src="docs/page/keys.png" width="620" alt="04 DECK — 파랑 · 라임 · 흰색 · 회색 노브 네 개와 학습 · 위키 고무 키"></p>
-<p align="center"><sub>04 DECK · ① 오늘 · ② 내일 · ③ 이번 주 · ④ 빈 시간 · M 학습 · W 위키</sub></p>
+<br>
 
 <h3 align="center">노브 네 개면 충분합니다.</h3>
 
@@ -99,15 +118,10 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 번호표도 그 색으로 칠해 두었습니다. 색이 곧 조작입니다.
 </p>
 
-<br>
+<p align="center"><img src="docs/page/keys.png" width="620" alt="04 DECK — 파랑 · 라임 · 흰색 · 회색 노브 네 개와 학습 · 위키 고무 키"></p>
+<p align="center"><sub>04 DECK · ① 오늘 · ② 내일 · ③ 이번 주 · ④ 빈 시간 · M 학습 · W 위키</sub></p>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/page/wiki-dark.png">
-    <img src="docs/page/wiki-light.png" width="880" alt="일정 위키: 대화로 정리한 위키 카드와, 일정 서랍에서 연 위키 페이지">
-  </picture>
-</p>
-<p align="center"><sub>SCHEDULE WIKI · 목적 · 안건 · 준비 · 참석자 · 결정 · 메모 · 링크</sub></p>
+<br>
 
 <h3 align="center">회의 전에, 위키부터.</h3>
 
@@ -117,10 +131,15 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 "이따 회의 준비물 뭐였지?" 라고 물어도 되고, 서랍에서 직접 고쳐도 됩니다.
 </p>
 
-<br>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/wiki-dark.png">
+    <img src="docs/page/wiki-light.png" width="880" alt="일정 위키: 대화로 정리한 위키 카드와, 일정 서랍에서 연 위키 페이지">
+  </picture>
+</p>
+<p align="center"><sub>SCHEDULE WIKI · 목적 · 안건 · 준비 · 참석자 · 결정 · 메모 · 링크</sub></p>
 
-<p align="center"><img src="docs/page/learn-drawer.png" width="560" alt="학습한 규칙 서랍: 스크럼은 항상 15분"></p>
-<p align="center"><sub>02 학습한 규칙 · 모든 제안 · 정리에 먼저 적용 · 내 PC 의 JABA_RULES.JSON 에만</sub></p>
+<br>
 
 <h3 align="center">한 번 가르치면, 계속.</h3>
 
@@ -129,10 +148,12 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 <code>/학습</code> 으로 바로 넣고, <code>/잊어 r3</code> 로 뺍니다.
 </p>
 
-<br>
+<p align="center"><img src="docs/page/learn-drawer.png" width="560" alt="학습한 규칙 서랍: 스크럼은 항상 15분"></p>
+<p align="center"><sub>02 학습한 규칙 · 모든 제안 · 정리에 먼저 적용 · 내 PC 의 JABA_RULES.JSON 에만</sub></p>
 
-<p align="center"><img src="docs/page/faces.png" width="600" alt="JB–1 의 표정 여덟 가지: idle, blink, think, happy, alert, error, sleep, think2"></p>
-<p align="center"><sub>JB–1 · IDLE · BLINK · THINK · HAPPY · ALERT · ERROR · SLEEP</sub></p>
+<p align="center"><a href="#install">설치하기 ›</a></p>
+
+<br>
 
 <h3 align="center">기분이 얼굴에 다 보입니다.</h3>
 
@@ -142,7 +163,17 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 오늘 일정이 다 끝나면 잡니다. 부럽게도.
 </p>
 
+<p align="center"><img src="docs/page/faces.png" width="600" alt="JB–1 의 표정 여덟 가지: idle, blink, think, happy, alert, error, sleep, think2"></p>
+<p align="center"><sub>JB–1 · IDLE · BLINK · THINK · HAPPY · ALERT · ERROR · SLEEP</sub></p>
+
 <br>
+
+<h3 align="center">검정이든 회색이든, 네이비와 라임.</h3>
+
+<p align="center">
+색은 세 가지뿐입니다. 네이비는 뼈대와 버튼, 라임은 '지금'과 '켜짐', 회색은 글자.<br>
+빨강은 없습니다. 경고는 가장 밝은 글자색과 <code>ERR</code> 칩으로 합니다.
+</p>
 
 <p align="center">
   <picture>
@@ -151,13 +182,6 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
   </picture>
 </p>
 <p align="center"><sub>THEME · DARK (기본) · LIGHT · SYSTEM</sub></p>
-
-<h3 align="center">검정이든 회색이든, 네이비와 라임.</h3>
-
-<p align="center">
-색은 세 가지뿐입니다. 네이비는 뼈대와 버튼, 라임은 '지금'과 '켜짐', 회색은 글자.<br>
-빨강은 없습니다. 경고는 가장 밝은 글자색과 <code>ERR</code> 칩으로 합니다.
-</p>
 
 <p align="center">
   <picture>
@@ -169,13 +193,6 @@ jaba 의 화면은 다음 일정까지 남은 시간만 7세그먼트로 크게 
 
 <br>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/page/system-dark.jpg">
-    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: jaba, ocmux, TOKEN QUEST 를 나란히">
-  </picture>
-</p>
-
 <h3 align="center">works 시스템.</h3>
 
 <p align="center">
@@ -184,17 +201,50 @@ jaba 는 works 시스템의 한 부품입니다.<br>
 전부 받아서 바로 실행하고, 전부 내 PC 에서만 돕니다.
 </p>
 
-<p align="center"><sub>EXPLORE WORKS SYSTEM COMPONENTS:</sub></p>
+<p align="center"><a href="https://github.com/leebobegogigug-blip/Works">explore ›</a></p>
 
-<table align="center">
-<tr><td width="300"><b>JB–1</b> jaba</td><td width="300">말하면 잡아 주는 일정 비서</td><td align="right" width="120"><sub>지금 이 페이지</sub></td></tr>
-<tr><td><b>ocmux</b></td><td>opencode 여러 개를 한 창에서</td><td align="right"><a href="https://github.com/leebobegogigug-blip/Works">explore ›</a></td></tr>
-<tr><td><b>TQ–1</b> token quest</td><td>토큰을 먹고 자라는 펫 (ocmux 안)</td><td align="right"><a href="https://github.com/leebobegogigug-blip/Works/tree/main/ocmux#06-token-quest">explore ›</a></td></tr>
-</table>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/system-dark.jpg">
+    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: jaba, ocmux, TOKEN QUEST 를 나란히">
+  </picture>
+</p>
 
 <br>
 
-<a id="specs"></a>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/certified-dark.png">
+    <img src="docs/page/certified-light.png" width="880" alt="jaba JB–1 — 월요일에도 켜 두세요.">
+  </picture>
+</p>
+
+<p align="center">
+알림은 jaba 가 켜져 있을 때만 옵니다.<br>
+로그인할 때 저절로 켜지게 해 두면(<code>--autostart on</code>), 월요일 아침 9시 스크럼도 놓치지 않습니다.<br>
+커피는 직접 타셔야 합니다.
+</p>
+
+<br>
+
+<p align="center"><sub>EXPLORE WORKS SYSTEM COMPONENTS:</sub></p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/parts-dark.jpg">
+    <img src="docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: JB–1 jaba 일정 비서 · ocmux opencode 멀티플렉서 · TQ–1 token quest 토큰 펫">
+  </picture>
+</p>
+
+<p align="center">
+<a href="https://github.com/leebobegogigug-blip/jaba">JB–1 jaba ›</a> &nbsp;·&nbsp;
+<a href="https://github.com/leebobegogigug-blip/Works">ocmux ›</a> &nbsp;·&nbsp;
+<a href="https://github.com/leebobegogigug-blip/Works/tree/main/ocmux#06-token-quest">TQ–1 token quest ›</a>
+</p>
+
+<br>
+
+<a name="specs"></a>
 <h3 align="center">사양.</h3>
 
 <table align="center">
@@ -214,7 +264,7 @@ jaba 는 works 시스템의 한 부품입니다.<br>
 
 <br>
 
-<a id="install"></a>
+<a name="install"></a>
 <h3 align="center">설치.</h3>
 
 <p align="center">OpenCode 에 아래를 붙여넣으면 <a href="INSTALL.md">INSTALL.md</a> 순서대로 <code>D:\OPENCODE\jaba</code> 에 설치합니다.<br><code>&lt;저장소 주소&gt;</code>만 바꾸세요. LLM 설정은 OpenCode 설정에서 그대로 가져오고, 키는 어디에도 찍히지 않습니다.</p>
@@ -241,23 +291,33 @@ python jaba.py --autostart on    :: (선택) 로그인할 때 자동 실행
 
 <br>
 
+<h3 align="center">설치비 0원 · 의존성 0개*<br>반품은 폴더를 지우면 끝*</h3>
+
+<p align="center"><sub>*Outlook 연동 때만 <code>pywin32</code>. 자동 실행을 켰다면 먼저 <code>--autostart off</code> — 자세한 순서는 <a href="INSTALL.md#제거">INSTALL.md › 제거</a></sub></p>
+
+<br>
+
 <table align="center">
 <tr><td width="620"><a href="INSTALL.md">설치 가이드</a> <sub>· OpenCode 에이전트용 단계별 절차 · 문제 해결</sub></td><td align="right" width="40">›</td></tr>
 <tr><td><a href="docs/MANUAL.md">매뉴얼</a> <sub>· 설정 · 쓰는 법 · 명령어 · 화면</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#디자인--ocmux-와-같은-규칙">디자인</a> <sub>· ocmux 와 같은 규칙 일곱 가지 · 팔레트</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#개발">개발</a> <sub>· build.py · 테스트 · 브라우저 E2E</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#알려진-한계">알려진 한계</a></td><td align="right">›</td></tr>
+<tr><td><a href="https://github.com/leebobegogigug-blip/jaba/issues">문제 알리기</a> <sub>· 이슈</sub></td><td align="right">›</td></tr>
 <tr><td><a href="https://github.com/leebobegogigug-blip/Works">ocmux</a> <sub>· works 시스템의 다른 부품</sub></td><td align="right">›</td></tr>
 </table>
 
 <br>
 
-<p align="center"><sub>
-jaba · JB–1 · 내 PC 에서만 삽니다.<br>
-자바 아닙니다. 커피도 아닙니다. 일정을 잡아 줍니다.
-</sub></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/page/colophon-dark.png">
+    <img src="docs/page/colophon-light.png" width="880" alt="works — 매일 쓰는 사내 도구를 만드는 작은 작업실. D:\OPENCODE\ · 127.0.0.1 · 내 PC">
+  </picture>
+</p>
 
 <p align="center"><sub>
+jaba · JB–1 · 내 PC 에서만 삽니다. 자바 아닙니다. 커피도 아닙니다. 일정을 잡아 줍니다.<br>
 내장 폰트 GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 (<a href="fonts/OFL.txt">fonts/OFL.txt</a>)<br>
 화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.
 </sub></p>

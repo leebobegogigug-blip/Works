@@ -4146,7 +4146,7 @@ body.off::after{content:"jaba · off — jaba.bat 으로 다시 켜기";position
 .key.rub span{position:static;opacity:1;color:var(--ink-3)}
 .key.rub:active,.key.rub.pressed{transform:translateY(2px);box-shadow:0 1px 0 var(--drop)}
 .k6{--kb:var(--k5);--ki:var(--k5-ink);--ke:var(--k5-edge)}
-.k5 .badge{top:50%;margin-top:-8px}
+.k5 .badge{top:50%;margin-top:-8px;background:var(--k3);color:var(--k3-ink);box-shadow:inset 0 0 0 1px var(--line-2)}  /* 개수는 데이터 → 규칙 번호 칩과 같은 흰 칩 (라임은 켜짐 · 지금에만) */
 
 /* 05 입력 · 아래 줄 */
 .input{margin:14px 24px 0;padding:0 0 0 8px;border:1px solid var(--prime);align-items:center;gap:8px}
