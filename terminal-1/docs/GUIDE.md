@@ -194,7 +194,7 @@ and comes home with loot when the response arrives. One pet per channel.
 | 4 상점 | pages · GOLD · 01 BUY / SELL | `←→` `↑↓` `Enter` |
 | 5 공방 | pages · MATS · 01 GEAR / RECIPES · 02 ENHANCE (`+7 › +8`) | `Enter` · `P` rubber-duck protection |
 | 6 도감 | profile (01 SPEC · 02 RECORD) · quests · diary · monsters · forms · hall of fame · achievements · settings (01 SETTINGS · 02 SYS) | `←→` `↑↓` `Enter` · `R` retire |
-| 7 스토리 | season header · 01 CHAPTER · 02 SHARDS · 03 MISSIONS · 04 NEXT · 05 LOG — talk: place caption · stage · dialogue box — boss: `CHxx BOSS` · FIELD · HP · LOG | `←→` chapter · `Enter` talk · `B` chapter boss · talk: `Enter` next, `Esc` skip |
+| 7 스토리 | season header · 01 CHAPTER · 02 SHARDS · 03 MISSIONS · 04 NEXT (+ SIDE) · 05 LOG — talk: place caption · stage · dialogue box — boss: `CHxx BOSS` · FIELD · HP · LOG / 02 TELEGRAPH | `←→` chapter · `Enter` talk · `B` chapter boss · `E` side episode · talk: `Enter` next, `Esc` skip, `1` `2` choice · after the season `P` pay `B` debt fight |
 
 `?` guide everywhere. Pages show as dots `●●○○` next to the page switch.
 Korean keyboard mode works (ㄹ = F, ㅁ = A …, syllables like 러 = F); a one-time hint suggests 한/영.
@@ -238,6 +238,23 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 - **chapter boss** (`B` when the missions are done): needs HP ≥ 50%, energy ≥ 15, fullness ≥ 10 and no expedition;
   a fight costs 10 energy and 4 fullness. Losing has no faint penalty (no gold or loot lost) — the pet is left at 10% HP
   and can retry once it is back to 50%. Retreating (`R`) is free. The final boss has a second phase.
+- **boss gimmicks**: every chapter boss *telegraphs* one signature move (cron `0 3 * * *`, `Retry-After`, a sphinx O/X quiz,
+  a migration stuck at 67%, 47 agenda items, compound interest …). The fight pauses and a response window opens
+  (8 s if you are watching, 2.5 s if away); press the key on screen (`A` `D` or `1` `2` `3`) to counter, or the pet answers
+  by itself (40–70% right). A **shield** caps boss damage at 8% of its HP per round (counters ignore it), each loss adds a
+  **retro** (boss −8% HP, −4% attack, +8% auto-answer, up to 5), and countering every telegraph gives +30% reward.
+- **the pet as protagonist**: pet lines change with its personality (7) and carry a facial expression; an adult form that
+  matches a chapter's theme gets extra lines; after retirement the heir re-watches the current prologue with a greeting.
+- **the world reacts**: NPCs comment when a mission is done, each chapter zone hides two story events, NPCs you have met react
+  to real opencode events (night errors, 429s, big todo lists, compaction, long builds, Friday deploys — once per 25 min),
+  visit your room, and a shard shelf fills up on the wall.
+- **side episodes** (`E`): six supporting-cast stories unlock as chapters are cleared (immediately during a waiting week,
+  otherwise a few days apart); each is a short scene, a small goal and a decoration. Finished NPCs join chapter boss fights.
+- **choices & endings**: six epilogues end with a choice (`1` `2`); the majority picks one of three final epilogues.
+- **after the season**: a weekly *debt repayment* boss — pay principal with gold (`P`, 5% per step, up to 60% a week)
+  to weaken it, fight with `B`. Premium decorations in the shop soak up late-game gold.
+- **catch-up**: a pet more than 4 levels under the current chapter's zone boss gets ×1.5 EXP (`과외 ×1.5` chip).
+- balance is measured with `tools/tq_sim.py` (three token profiles on the real engine; `--duel` replays boss fights).
 - **news LED**: a new chapter, a ready boss or a waiting epilogue lights the LED next to `7스토리`, shows a `STORY` chip at home,
   and the ranch cards show each pet's chapter and mission count.
 - **achievements**: CH3, CH6, CH9, the season finale and 6 bonus missions (four of them also give a title).
@@ -298,7 +315,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 170 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 172 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `terminal-1.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `terminal-1.ps1` with Windows PowerShell 5.1
 - works rules check (repo root): `python tools/works_check.py` — see [RULES.md](../../RULES.md)

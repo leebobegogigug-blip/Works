@@ -413,7 +413,7 @@ def new_story(now, fast=None):
     return {"start": day_key(now), "fast": fast, "rel": fast, "ch": 0, "phase": "play", "since": now,
             "base": {}, "mdone": [], "bonus": False, "bonus_n": 0, "seen": [], "cleared": [], "log": [],
             "fails": 0, "fail_lvl": 0, "pending": None, "heir": False, "sev": [],
-            "side": None, "side_done": [], "choices": {}, "debt": None}
+            "side": None, "side_done": [], "side_t": 0, "choices": {}, "debt": None}
 
 
 def fmt_age(sec):
@@ -1239,7 +1239,17 @@ class PetGame:
             m *= 1.1
         if self.p["mood"] < 25:
             m *= 0.8
+        if self.catching_up():
+            m *= D.STORY["catchup"]
         return m
+
+    def catching_up(self):
+        """과외: 지금 챕터 지역 보스를 넘기엔 레벨이 한참 모자라면 경험치 보정 (조금 쓰는 사람도 이야기를 따라가게)"""
+        st = self.s.get("story")
+        if not isinstance(st, dict) or st.get("phase") not in ("play", "boss") or self.is_egg():
+            return False
+        z = D.ZONES[min(st.get("ch", 0), len(D.ZONES) - 1)]
+        return self.p["lvl"] < z["base"] + D.BOSS_FLOOR + 1 - D.STORY["catchup_gap"]
 
     def stats(self):
         p = self.p
@@ -4063,7 +4073,7 @@ class PetGame:
                 if cur is not None and (isinstance(cur, bool) or not isinstance(cur, int)):
                     st[k] = None
             elif k in ("side", "debt"):
-                pass            # 아래에서 따로 검사
+                st.setdefault(k, None)      # None 또는 dict — 아래에서 따로 검사
             elif k in kinds:
                 if not isinstance(cur, kinds[k]):
                     st[k] = v
@@ -4358,10 +4368,14 @@ class PetGame:
         st = self.story()
         ep, sd = self.side_ep()
         if not ep:
+            # 기다리는 주(다음 챕터 공개 대기)엔 바로, 아니면 며칠 간격으로 하나씩 — 조연 이야기가 한꺼번에 몰리지 않게
+            if st["phase"] != "wait" and 0 <= now - st.get("side_t", 0) < D.SIDE_GAP:
+                return
             nxt = next((e for e in D.SIDE_EPISODES if e["id"] not in st["side_done"]
                         and D.CHAPTERS[e["need"]]["id"] in st["cleared"]), None)
             if nxt:
                 st["side"] = dict(id=nxt["id"], phase="new", base={})
+                st["side_t"] = now
                 who = D.NPCS[nxt["npc"]]["name"]
                 self.flash(f"◇ 사이드 에피소드 「{nxt['title']}」 · {who} [7] → [E]", "#75A1C7", 6)
                 self.note(f"사이드 에피소드 도착: {who} 「{nxt['title']}」")

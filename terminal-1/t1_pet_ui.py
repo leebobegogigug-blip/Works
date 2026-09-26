@@ -1304,6 +1304,8 @@ class PetUI:
             parts.append(f"{G1}태세{RST} {LIME3}{stance}{RST}")
         if g.s["buffs"].get("exp_boost", 0) > gnow:
             parts.append(chip("EXP×2", "black", "lime3"))
+        if g.catching_up():
+            parts.append(chip("과외 ×1.5", "black", "navy4"))
         if side and not parts:
             parts.append(f"{G1}NEXT ›{RST} {G}{g.evolution_hint()}{RST}")
         cv.ansi_clip(x0, y, "  ".join(parts), W)

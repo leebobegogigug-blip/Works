@@ -31,6 +31,7 @@ def cleared_upto(g, clk, n):
 def finish_side(g, clk):
     """지금 사이드 에피소드를 도입 → 목표 → 마무리까지"""
     si = g.side_info()
+    assert si, g.story()
     g.side_seen()
     goal = si["ep"]["goal"]
     g.s["stats"][goal["s"]] = g.stat(goal["s"]) + goal["n"]
@@ -102,17 +103,23 @@ class SideEpisodes(unittest.TestCase):
         self.assertIn("duck_nest", g.s["inv"]["decos"])
         self.assertGreater(g.s["gold"], gold)
         self.assertEqual(g.story()["side_done"], ["e_duck"])
+        g.story()["side_t"] = 0
         tick_for(g, clk, 2)
         self.assertIsNone(g.side_info())                          # CI 봇 편은 2장을 깨야
         cleared_upto(g, clk, 2)
+        g.story()["side_t"] = clk.t
         tick_for(g, clk, 2)
-        self.assertEqual(g.side_info()["ep"]["id"], "e_ci")
+        self.assertIsNone(g.side_info())                          # 방금 하나 끝냈으면 며칠 뒤에
+        g.story()["phase"] = "wait"
+        tick_for(g, clk, 2)
+        self.assertEqual(g.side_info()["ep"]["id"], "e_ci")       # 기다리는 주엔 바로
 
     def test_all_six_unlock_title_and_helpers_join_boss(self):
         g, clk = mk("side2")
         hatch(g, clk)
         cleared_upto(g, clk, 7)
         for _ in range(len(D.SIDE_EPISODES)):
+            g.story()["side_t"] = 0                       # 간격 건너뛰기
             tick_for(g, clk, 2)
             finish_side(g, clk)
         self.assertIn("side_all", g.s["ach"])
@@ -266,3 +273,48 @@ class Debt(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OldSaves(unittest.TestCase):
+    """v5 이전(지금 배포된) 저장을 그대로 불러와도 진행이 이어지고, 새 기능은 기본값으로 붙는다"""
+
+    def test_pre_v5_story_loads_and_catches_up(self):
+        scope = "old_v4"
+        g, clk = mk(scope, persist=True)
+        hatch(g, clk)
+        st = cleared_upto(g, clk, 5)
+        g.story_mark_seen(5, "intro")
+        g.s["stats"]["quests"] = 777
+        g.save(force=True)
+        g.close()
+        s = TS.load(scope)
+        for k in ("heir", "sev", "side", "side_done", "choices", "debt"):
+            s["story"].pop(k, None)                    # 예전 엔진은 이 값들을 모른다
+        TS.dump(scope, s)
+        g2 = P.PetGame(scope, clock=clk, seed=5, persist=True)
+        st2 = g2.story()
+        self.assertEqual((st2["ch"], len(st2["cleared"])), (5, 5))
+        self.assertEqual((st2["side_done"], st2["choices"], st2["sev"], st2["heir"]), ([], {}, [], False))
+        self.assertIsNone(st2["side"])
+        tick_for(g2, clk, 3)
+        self.assertEqual(g2.side_info()["ep"]["id"], "e_duck")         # 이미 깬 챕터만큼 조연이 차례로
+        self.assertTrue(g2.story_scene(5, "intro"))
+        self.assertEqual(g2.story_scene(1, "outro")[-1][0], "choice")  # 지난 챕터 선택은 다시 볼 때 고를 수 있다
+        g2.close()
+
+    def test_broken_new_fields_are_reset(self):
+        scope = "old_bad"
+        g, clk = mk(scope, persist=True)
+        hatch(g, clk)
+        g.save(force=True)
+        g.close()
+        s = TS.load(scope)
+        s["story"].update(side="x", side_done="y", choices=[1], debt=5, sev={"a": 1}, heir="yes")
+        TS.dump(scope, s)
+        g2 = P.PetGame(scope, clock=clk, seed=5, persist=True)
+        st = g2.story()
+        self.assertIsNone(st["side"])
+        self.assertIsNone(st["debt"])
+        self.assertEqual((st["side_done"], st["choices"], st["sev"], st["heir"]), ([], {}, [], False))
+        tick_for(g2, clk, 2)
+        g2.close()

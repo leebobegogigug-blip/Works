@@ -1122,7 +1122,8 @@ HOME_EVENTS = [
 #   "pet:sad" 처럼 : 뒤에 표정(FACES 키)을 붙이면 대화 속 펫 얼굴이 바뀐다. 펫 대사는 PET_LINES 에서 성격마다 바뀐다
 STORY = dict(season=1, title="초록불을 찾아서", en="THE LAST GREEN BUILD", fast=4, every=7,
              boss_energy=10, boss_full=4,
-             shield=0.08)      # 챕터 보스 보호막: 한 라운드에 최대 HP 의 8%까지만 깎인다 (기믹 반격은 예외) → 최소 13라운드
+             shield=0.08,      # 챕터 보스 보호막: 한 라운드에 최대 HP 의 8%까지만 깎인다 (기믹 반격은 예외) → 최소 13라운드
+             catchup=1.5, catchup_gap=4)   # 과외: 레벨이 지금 챕터 지역 보스보다 4 넘게 낮으면 경험치 ×1.5
 
 NPCS = {
     "owl": dict(name="시니어 부엉이", color="#75A1C7", art=[r"  ,___,  ", r"  {O,o}  ", r"  /)__)  ", r'   " "   ']),
@@ -1761,7 +1762,9 @@ NPC_VISITS = [
 # ============================================================== 사이드 에피소드 (v5): 기다리는 주를 채우는 조연 이야기
 # need: 이 챕터(0부터)를 깨면 열린다 · goal: 시작한 뒤부터 세는 목표 (STORY_STAT_TEXT 의 스탯)
 # 한 번에 하나씩, 목록 순서대로. 끝내면 보상 + 그 NPC 가 챕터 보스전에 동료로 온다 (help)
+# 다음 챕터를 기다리는 주(phase wait)엔 바로 오고, 아니면 SIDE_GAP 간격으로 온다
 # help: 챕터 보스전 지원 — kind attack(공격) · heal(펫 HP 회복) · guard(보스 공격력 ↓) , art: 2줄 미니 그림
+SIDE_GAP = 4 * 86400
 SIDE_EPISODES = [
     dict(id="e_duck", npc="duck", need=0, title="꽥의 의미", goal=dict(s="pats", n=10),
          intro=[("narr", "밤이 깊었다. 러버덕이 모니터 앞에서 혼자 꽥꽥거리고 있다."),
