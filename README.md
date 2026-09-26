@@ -50,7 +50,8 @@ TQ–1 · 토큰을 먹고 자라는 펫 · TERMINAL–1 안<br>
 <tr><td><a href="terminal-1/README.md"><code>terminal-1/</code></a></td><td>opencode 멀티플렉서 + TOKEN QUEST · <code>terminal-1</code> 명령 · Windows Terminal</td></tr>
 </table>
 
-<p align="center"><sub>두 폴더는 모양이 같습니다: <code>README.md</code> 소개 · <code>INSTALL.md</code> 에이전트용 설치 절차 · <code>docs/MANUAL.md</code> 매뉴얼 · <code>tests/</code></sub></p>
+<p align="center"><sub>두 폴더는 모양이 같습니다: <code>README.md</code> 소개 · <code>INSTALL.md</code> 에이전트용 설치 절차 · <code>docs/MANUAL.md</code> 매뉴얼 · <code>tests/</code><br>
+새 도구는 <a href="RULES.md">RULES.md</a> 부터 · 디자인 <a href="docs/DESIGN.md">DESIGN.md</a> · 대장 <a href="docs/REGISTRY.md">REGISTRY.md</a></sub></p>
 
 <br>
 
@@ -90,6 +91,6 @@ jaba(<code>D:\OPENCODE\jaba</code> 에 따로 받은 것): <code>secretary-1.py<
 </p>
 
 <p align="center"><sub>
-works · 도구는 둘, 폴더도 둘, 규칙은 하나.<br>
+works · 도구는 둘, 폴더도 둘, <a href="RULES.md">규칙은 하나</a>.<br>
 화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.
 </sub></p>
