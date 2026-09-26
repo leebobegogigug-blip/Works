@@ -202,7 +202,7 @@ Secretary–1 은 works 시스템의 한 부품입니다.<br>
 전부 받아서 바로 실행하고, 전부 내 PC 에서만 돕니다.
 </p>
 
-<p align="center"><a href="https://github.com/leebobegogigug-blip/Works">explore ›</a></p>
+<p align="center"><a href="../README.md">explore ›</a></p>
 
 <p align="center">
   <picture>
@@ -238,9 +238,9 @@ Secretary–1 은 works 시스템의 한 부품입니다.<br>
 </p>
 
 <p align="center">
-<a href="https://github.com/leebobegogigug-blip/jaba">Secretary–1 ›</a> &nbsp;·&nbsp;
-<a href="https://github.com/leebobegogigug-blip/Works">Terminal–1 ›</a> &nbsp;·&nbsp;
-<a href="https://github.com/leebobegogigug-blip/Works/tree/main/terminal-1#06-token-quest">TQ–1 token quest ›</a>
+<a href="#specs">Secretary–1 ›</a> &nbsp;·&nbsp;
+<a href="../terminal-1/README.md">Terminal–1 ›</a> &nbsp;·&nbsp;
+<a href="../terminal-1/docs/MANUAL.md#06-token-quest">TQ–1 token quest ›</a>
 </p>
 
 <br>
@@ -268,12 +268,12 @@ Secretary–1 은 works 시스템의 한 부품입니다.<br>
 <a name="install"></a>
 <h3 align="center">설치.</h3>
 
-<p align="center">OpenCode 에 아래를 붙여넣으면 <a href="INSTALL.md">INSTALL.md</a> 순서대로 <code>D:\OPENCODE\secretary-1</code> 에 설치합니다.<br><code>&lt;저장소 주소&gt;</code>만 바꾸세요. LLM 설정은 OpenCode 설정에서 그대로 가져오고, 키는 어디에도 찍히지 않습니다.</p>
+<p align="center">OpenCode 에 아래를 붙여넣으면 <a href="INSTALL.md">INSTALL.md</a> 순서대로 <code>D:\OPENCODE\secretary-1</code> 에 설치합니다.<br>Terminal–1 과 같은 works 저장소를 씁니다. LLM 설정은 OpenCode 설정에서 그대로 가져오고, 키는 어디에도 찍히지 않습니다.</p>
 
 ```text
-Secretary–1 을 설치해줘. 설치 위치는 D:\OPENCODE\secretary-1 야.
-1. 코드 받기: git clone <저장소 주소> "D:\OPENCODE\secretary-1"
-   (git 이 안 되면 D:\OPENCODE\secretary-1-repo.zip 을 D:\OPENCODE 에 풀어)
+Secretary–1 을 설치해줘. works 저장소를 D:\OPENCODE 에 받고, 프로그램 폴더는 D:\OPENCODE\secretary-1 이야.
+1. 코드 받기: D:\OPENCODE 가 없거나 비어 있으면 git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"
+   (이미 works 가 받아져 있으면 받지 말고, git 이 안 되면 Works-repo.zip 을 D:\OPENCODE 에 풀어)
 2. 그다음 D:\OPENCODE\secretary-1\INSTALL.md 를 끝까지 읽고 그 순서대로만 진행해.
    API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에서는 나한테 물어봐.
 ```
@@ -281,7 +281,7 @@ Secretary–1 을 설치해줘. 설치 위치는 D:\OPENCODE\secretary-1 야.
 <p align="center">직접 설치할 때 (Windows · Python 3.8+)</p>
 
 ```bat
-git clone <저장소 주소> "D:\OPENCODE\secretary-1"
+git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"
 cd /d D:\OPENCODE\secretary-1
 python secretary-1.py --setup           :: OpenCode 설정에서 LLM 값 가져오기 + 점검 (config.json · secretary-1.bat 생성)
 python secretary-1.py --test-notify     :: 윈도우 알림이 뜨는지 확인
@@ -306,8 +306,8 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 <tr><td><a href="docs/MANUAL.md#디자인--terminal1-과-같은-규칙">디자인</a> <sub>· Terminal–1 과 같은 규칙 일곱 가지 · 팔레트</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#개발">개발</a> <sub>· build.py · 테스트 · 브라우저 E2E</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/MANUAL.md#알려진-한계">알려진 한계</a></td><td align="right">›</td></tr>
-<tr><td><a href="https://github.com/leebobegogigug-blip/jaba/issues">문제 알리기</a> <sub>· 이슈</sub></td><td align="right">›</td></tr>
-<tr><td><a href="https://github.com/leebobegogigug-blip/Works">Terminal–1</a> <sub>· works 시스템의 다른 부품</sub></td><td align="right">›</td></tr>
+<tr><td><a href="https://github.com/leebobegogigug-blip/Works/issues">문제 알리기</a> <sub>· 이슈</sub></td><td align="right">›</td></tr>
+<tr><td><a href="../terminal-1/README.md">Terminal–1</a> <sub>· works 시스템의 다른 부품</sub></td><td align="right">›</td></tr>
 </table>
 
 <br>

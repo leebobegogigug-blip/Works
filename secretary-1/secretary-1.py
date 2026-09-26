@@ -3236,6 +3236,37 @@ def migrate_legacy(config_path: str = CONFIG_PATH) -> List[str]:
     return done
 
 
+def adopt_legacy_dir(config_path: str = CONFIG_PATH) -> List[str]:
+    """예전엔 저장소를 따로 받았다 (D:\\OPENCODE\\jaba). 이제 Works 안의 secretary-1 폴더에서 처음 켜면
+    옆의 ../jaba 에서 설정 · 일정 · 학습 · 위키를 가져온다. 이 폴더에 config.json 이 아직 없을 때만 (덮어쓰지 않음).
+    파일 이름은 그다음 migrate_legacy 가 새 이름으로 바꾼다. 가져온 것 목록을 돌려준다"""
+    old_dir = os.path.join(os.path.dirname(BASE_DIR), LEGACY_APP)
+    old_cfg = os.path.join(old_dir, "config.json")
+    if (os.path.exists(config_path) or not os.path.isfile(old_cfg)
+            or os.path.normcase(os.path.abspath(old_dir)) == os.path.normcase(os.path.abspath(BASE_DIR))):
+        return []
+    try:
+        port = int(_read_user_config(old_cfg).get("port") or 8765)
+    except Exception:
+        port = 8765
+    if find_running(port, (LEGACY_APP, APP)):  # 예전 폴더의 비서가 DB 를 잡고 있으면 먼저 끈다
+        log("예전 폴더(jaba)의 비서를 끄고 설정 · 데이터를 가져옵니다")
+        if stop_running(port, (LEGACY_APP, APP), quiet=True) != 0:
+            log("예전 비서를 끄지 못해 이번엔 가져오지 않습니다 (그 창을 닫고 다시 실행하세요)")
+            return []
+    done: List[str] = []
+    for name in ("config.json", "jaba.db", "jaba.db-journal", "jaba_rules.json", "jaba_wiki.json",
+                 "secretary-1.db", "secretary-1.db-journal", "secretary-1-rules.json", "secretary-1-wiki.json"):
+        src, dst = os.path.join(old_dir, name), os.path.join(BASE_DIR, name)
+        if os.path.exists(src) and not os.path.exists(dst):
+            try:
+                shutil.move(src, dst)
+                done.append(name)
+            except OSError as e:
+                log(f"{src} 를 옮기지 못했습니다: {e}")
+    return done
+
+
 def migrate_autostart() -> None:
     """예전 이름의 자동 실행(jaba.lnk → 없어진 jaba.bat)이 있으면 secretary-1.lnk 로 바꿔 단다 (Windows)"""
     try:
@@ -3716,6 +3747,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--config", default=CONFIG_PATH, help="설정 파일 경로")
     ap.add_argument("--version", action="version", version=f"Secretary-1 {VERSION}")
     args = ap.parse_args(argv)
+    if not (args.status or args.stop) and os.path.abspath(args.config) == os.path.abspath(CONFIG_PATH):
+        for m in adopt_legacy_dir(args.config):
+            log(f"예전 jaba 폴더에서 가져옴: {m}")
     try:
         cfg, created = load_config(args.config)
     except ConfigError as e:

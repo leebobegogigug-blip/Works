@@ -1925,6 +1925,25 @@ class TestLegacyJaba(unittest.TestCase):
         self.assertEqual((user["calendar"]["local_db"], user["learn_file"]), ("D:/my/cal.db", "jaba_rules.json"))
         self.assertNotIn("wiki_file", user)
 
+    def test_adopt_separate_jaba_folder(self):
+        """예전엔 D:\\OPENCODE\\jaba 에 따로 받았다 → Works 의 secretary-1 폴더에서 처음 켜면 옆 폴더에서 가져온다"""
+        old, new = self.path("jaba"), self.path("secretary-1")
+        os.makedirs(old)
+        os.makedirs(new)
+        with open(os.path.join(old, "config.json"), "w", encoding="utf-8") as f:
+            json.dump({"calendar": {"local_db": "jaba.db"}, "learn_file": "jaba_rules.json", "port": 1}, f)
+        for name in ("jaba.db", "jaba_rules.json"):
+            with open(os.path.join(old, name), "w") as f:
+                f.write(name)
+        sec.BASE_DIR = new
+        cfg = os.path.join(new, "config.json")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(sec.adopt_legacy_dir(cfg), ["config.json", "jaba.db", "jaba_rules.json"])
+            sec.migrate_legacy(cfg)
+        self.assertEqual(sorted(os.listdir(new)), ["config.json", "secretary-1-rules.json", "secretary-1.db"])
+        self.assertEqual(os.listdir(old), [])
+        self.assertEqual(sec.adopt_legacy_dir(cfg), [])   # config.json 이 생긴 뒤로는 다시 가져오지 않는다
+
     def test_old_launcher_is_removed(self):
         self.write("jaba.bat", '@echo off\r\nstart "jaba" /min "python" "%~dp0jaba.py" %*\r\n')
         self.write("mine.bat", "@echo off")
@@ -2002,7 +2021,7 @@ class TestMisc(unittest.TestCase):
             doc = f.read()
         with open(os.path.join(ROOT, "secretary-1.py"), encoding="utf-8") as f:
             src = f.read()
-        flags = set(re.findall(r"(?<![\w-])--[a-z][a-z-]+", doc)) - {"--user"}  # --user 는 pip 옵션
+        flags = set(re.findall(r"(?<![\w-])--[a-z][a-z-]+", doc)) - {"--user", "--ff-only"}  # pip · git 옵션
         self.assertEqual(sorted(f for f in flags if f'add_argument("{f}"' not in src), [])
         for msg in ("결과: OK", "결과: 확인 필요", "결과: 점검 실패", "provider 가 여러 개입니다", "모델이 여러 개입니다",
                     "을 찾지 못했습니다", "값이 비어 있음!", "/v1 이 필요한지 확인", "api_key 또는 extra_headers",

@@ -13,12 +13,12 @@
 
 ## 설치 — OpenCode 에게 맡기기 (권장)
 
-OpenCode 에 아래를 붙여넣으면 [`INSTALL.md`](../INSTALL.md) 순서대로 `D:\OPENCODE\secretary-1` 에 설치합니다. `<저장소 주소>`만 바꾸세요.
+OpenCode 에 아래를 붙여넣으면 [`INSTALL.md`](../INSTALL.md) 순서대로 `D:\OPENCODE\secretary-1` 에 설치합니다. Terminal–1 과 같은 works 저장소(`D:\OPENCODE`)를 씁니다.
 
 ```text
-Secretary–1 을 설치해줘. 설치 위치는 D:\OPENCODE\secretary-1 야.
-1. 코드 받기: git clone <저장소 주소> "D:\OPENCODE\secretary-1"
-   (git 이 안 되면 D:\OPENCODE\secretary-1-repo.zip 을 D:\OPENCODE 에 풀어)
+Secretary–1 을 설치해줘. works 저장소를 D:\OPENCODE 에 받고, 프로그램 폴더는 D:\OPENCODE\secretary-1 이야.
+1. 코드 받기: D:\OPENCODE 가 없거나 비어 있으면 git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"
+   (이미 works 가 받아져 있으면 받지 말고, git 이 안 되면 Works-repo.zip 을 D:\OPENCODE 에 풀어)
 2. 그다음 D:\OPENCODE\secretary-1\INSTALL.md 를 끝까지 읽고 그 순서대로만 진행해.
    API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에서는 나한테 물어봐.
 ```
@@ -28,7 +28,7 @@ LLM 설정은 OpenCode 설정(`opencode.json`)에서 `--setup` 이 그대로 가
 ## 직접 설치 (Windows · Python 3.8+)
 
 ```bat
-git clone <저장소 주소> "D:\OPENCODE\secretary-1"
+git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"
 cd /d D:\OPENCODE\secretary-1
 python secretary-1.py --setup           :: OpenCode 설정에서 LLM 값 가져오기 + 점검 (config.json · secretary-1.bat 생성)
 python secretary-1.py --test-notify     :: 윈도우 알림이 뜨는지 확인
@@ -75,7 +75,7 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 
 ## 디자인 — Terminal–1 과 같은 규칙
 
-Secretary–1 과 [Terminal–1](https://github.com/leebobegogigug-blip/Works)은 같은 디자인 규칙을 씁니다.
+Secretary–1 과 [Terminal–1](../../terminal-1/README.md)은 같은 디자인 규칙을 씁니다.
 Teenage Engineering 같은 소형 하드웨어 계측기의 화면 문법에서 영감을 받았고, 특정 제품의 화면이나 로고를 가져오지 않았으며 해당 회사와는 관련이 없습니다.
 
 | # | 규칙 | Secretary–1 에서 |

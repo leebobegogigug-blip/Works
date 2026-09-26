@@ -1,11 +1,12 @@
 # Secretary–1 설치 가이드 — OpenCode 에이전트용
 
-> **사람용 한 줄:** OpenCode 에 아래 프롬프트를 붙여넣으면 이 문서대로 설치합니다. `<저장소 주소>`만 바꾸세요.
+> **사람용 한 줄:** OpenCode 에 아래 프롬프트를 붙여넣으면 이 문서대로 설치합니다.
+> Secretary–1 은 works 저장소(`https://github.com/leebobegogigug-blip/Works`)의 `secretary-1` 폴더입니다. Terminal–1 과 같은 저장소를 씁니다.
 >
 > ```text
-> Secretary–1 을 설치해줘. 설치 위치는 D:\OPENCODE\secretary-1 야.
-> 1. 코드 받기: git clone <저장소 주소> "D:\OPENCODE\secretary-1"
->    (git 이 안 되면 D:\OPENCODE\secretary-1-repo.zip 을 D:\OPENCODE 에 풀어)
+> Secretary–1 을 설치해줘. works 저장소를 D:\OPENCODE 에 받고, 프로그램 폴더는 D:\OPENCODE\secretary-1 이야.
+> 1. 코드 받기: D:\OPENCODE 가 없거나 비어 있으면 git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"
+>    (이미 works 가 받아져 있으면 받지 말고, git 이 안 되면 Works-repo.zip 을 D:\OPENCODE 에 풀어)
 > 2. 그다음 D:\OPENCODE\secretary-1\INSTALL.md 를 끝까지 읽고 그 순서대로만 진행해.
 >    API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에서는 나한테 물어봐.
 > ```
@@ -49,28 +50,28 @@ python -c "import os; print(os.path.isfile(r'D:\OPENCODE\secretary-1\secretary-1
 `True` 면 2단계는 끝, 3단계로 간다. `False` 면 아래 A 또는 B 로 받는다.
 (사용자가 **업데이트**를 요청한 경우에만 [업데이트](#업데이트)로 간다.)
 
-설치 폴더를 만든다:
+설치 위치 `D:\OPENCODE` 의 상태를 본다:
 
 ```text
-python -c "import os; os.makedirs(r'D:\OPENCODE', exist_ok=True); print('OK')"
+python -c "import os; r=r'D:\OPENCODE'; print('git' if os.path.isdir(os.path.join(r, '.git')) else ('empty' if not os.path.isdir(r) or not os.listdir(r) else 'other'))"
 ```
 
-**A. git (기본)** — 사용자가 준 저장소 주소로:
+| 결과 | 할 일 |
+|---|---|
+| `empty` | 아래 A(git) 또는 B(zip) |
+| `git` | works 가 이미 받아져 있다 (Terminal–1 을 먼저 깔았을 때). `git -C "D:\OPENCODE" pull --ff-only` 로 업데이트만 한다. 실패하면 멈추고 출력을 보여 준다 |
+| `other` | **[질문]** 다른 파일이 있는 폴더다. 안의 목록을 보여 주고 어떻게 할지 묻는다. 아무것도 지우거나 옮기지 않는다 |
+
+**A. git (기본)**
 
 ```text
-git clone <저장소 주소> "D:\OPENCODE\secretary-1"
+git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"
 ```
 
-**B. zip** — git 이 없거나 막혔고 `D:\OPENCODE\secretary-1-repo.zip` 이 있을 때:
+**B. zip** — git 이 없거나 막혔을 때. **[질문]** 사용자에게 저장소 zip(`Works-repo.zip` 또는 GitHub 의 *Code → Download ZIP*)을 `D:\OPENCODE` 에 풀어 달라고 한다.
+풀면 폴더가 한 겹 더 생길 수 있다 (예: `D:\OPENCODE\Works-main\secretary-1`). 그러면 이 문서의 `D:\OPENCODE\secretary-1` 을 **모두 그 경로로 바꿔서** 진행한다.
 
-```text
-python -c "import zipfile; zipfile.ZipFile(r'D:\OPENCODE\secretary-1-repo.zip').extractall(r'D:\OPENCODE'); print('OK')"
-```
-
-받은 뒤 위의 확인 명령을 다시 실행해서 `True` 가 나와야 한다.
-
-> 저장소 맨 위가 아니라 하위 폴더에 Secretary–1 이 있으면 (예: `Works/secretary-1`) 저장소를 `D:\OPENCODE\<저장소 이름>` 에 clone 하고,
-> 이 문서의 `D:\OPENCODE\secretary-1` 를 **모두 그 하위 폴더 경로로 바꿔서** 진행한다.
+받은 뒤 위의 확인 명령(`secretary-1.py` 있는지)을 다시 실행해서 `True` 가 나와야 한다.
 
 ## 3. 설정 가져오기 + 점검
 
@@ -205,32 +206,32 @@ Secretary–1 설치 완료
 
 ```text
 python "D:\OPENCODE\secretary-1\secretary-1.py" --stop
-git -C "D:\OPENCODE\secretary-1" pull
+git -C "D:\OPENCODE" pull --ff-only
 python "D:\OPENCODE\secretary-1\secretary-1.py" --check
 python -c "import os; os.startfile(r'D:\OPENCODE\secretary-1\secretary-1.bat')"
 python "D:\OPENCODE\secretary-1\secretary-1.py" --status
 ```
 
-zip 으로 받았다면 `git pull` 대신 새 `secretary-1-repo.zip` 을 `D:\OPENCODE` 에 두고 2단계 B 의 압축 해제 명령을 실행한다.
+zip 으로 받았다면 `git pull` 대신 새 zip 을 받아 `D:\OPENCODE` 에 덮어 풀어 달라고 사용자에게 부탁한다 (설정 · 데이터 파일은 zip 에 없어서 그대로 남는다).
 `config.json` · `secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)은 저장소에도 zip 에도 없어서 그대로 남는다.
 
 ### 예전 이름(jaba)에서 넘어올 때
 
-`D:\OPENCODE\jaba` 에 예전 이름으로 설치돼 있으면, 폴더는 그대로 두고 그 안에서 업데이트한다 (위 명령의 `D:\OPENCODE\secretary-1` 을 `D:\OPENCODE\jaba` 로 바꿔서).
+예전엔 jaba 저장소를 `D:\OPENCODE\jaba` 에 따로 받았다. 이제 Secretary–1 은 works 저장소의 `secretary-1` 폴더다.
 
 ```text
 python "D:\OPENCODE\jaba\jaba.py" --stop
-git -C "D:\OPENCODE\jaba" pull
-python "D:\OPENCODE\jaba\secretary-1.py" --check
 ```
 
-`secretary-1.py` 를 처음 실행하면 알아서 옮긴다. 에이전트가 따로 할 일은 없다.
+(`jaba.py` 가 없으면 `secretary-1.py` 로 바꿔서 실행한다. 그다음 위 2단계대로 works 를 받거나 업데이트하고, 3단계 `--setup` 부터 진행한다.)
 
-- 켜져 있는 예전 비서를 끄고 → `jaba.db` · `jaba_rules.json` · `jaba_wiki.json` 을 새 이름으로 바꾸고 `config.json` 도 맞춘다 (일정 · 학습 · 위키 그대로)
-- `jaba.bat` 을 지우고 `secretary-1.bat` 을 만든다 · 자동 실행(`jaba.lnk`)도 `secretary-1.lnk` 로 바꿔 단다
-- 환경변수 `JABA_API_KEY` 같은 예전 이름도 계속 읽는다 (새 이름은 `SECRETARY_API_KEY`)
+`D:\OPENCODE\secretary-1\secretary-1.py` 를 처음 실행하면 알아서 옮긴다. 에이전트가 파일을 직접 옮기지 않는다.
 
-그다음은 위와 같이 `secretary-1.bat` 실행 → `--status`.
+- 옆의 `D:\OPENCODE\jaba` 에서 `config.json` · 일정 · 학습 규칙 · 위키를 가져온다 (새 폴더에 `config.json` 이 아직 없을 때만, 덮어쓰지 않음)
+- 켜져 있는 예전 비서는 먼저 끈다 · 파일 이름을 `secretary-1.db` · `secretary-1-rules.json` · `secretary-1-wiki.json` 으로 바꾸고 `config.json` 도 맞춘다
+- 자동 실행(`jaba.lnk`)은 `secretary-1.lnk` 로 바꿔 단다 · 환경변수 `JABA_*` 도 계속 읽는다 (새 이름은 `SECRETARY_*`)
+
+옮긴 뒤 `D:\OPENCODE\jaba` 에는 예전 코드만 남는다. **[질문]** 사용자가 원할 때만 그 폴더를 지운다.
 
 ## 제거
 
