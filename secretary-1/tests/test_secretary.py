@@ -2317,7 +2317,7 @@ class TestAgentWiki(AgentBase):
 
 
 class ExportEvents(unittest.TestCase):
-    """공개 명령 --export-events: Report–1 이 읽는 약속 (docs/REGISTRY.md › 공개 명령). 실제 프로세스로 실행해 바이트를 본다"""
+    """공개 명령 --export-events: 다른 works 도구가 읽는 약속 (docs/REGISTRY.md › 공개 명령). 실제 프로세스로 실행해 바이트를 본다"""
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()

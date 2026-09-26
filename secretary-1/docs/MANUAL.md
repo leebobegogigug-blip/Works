@@ -105,7 +105,7 @@ CI(`.github/workflows/secretary-1.yml`)는 Windows · Ubuntu × Python 3.8 · 3.
 
 ## 공개 명령
 
-다른 works 도구가 Secretary–1 의 일정을 읽는 유일한 길입니다 ([RULES.md › W-01](../../RULES.md#w-01-폴더--앱--명령) · [대장 › 공개 명령](../../docs/REGISTRY.md#공개-명령)). 지금은 [Report–1](../../README.md) 이 주간보고의 근거로 씁니다.
+다른 works 도구가 Secretary–1 의 일정을 읽는 유일한 길입니다 ([RULES.md › W-01](../../RULES.md#w-01-폴더--앱--명령) · [대장 › 공개 명령](../../docs/REGISTRY.md#공개-명령)). 처음에는 Report–1 의 주간보고용으로 만들었고, 지금은 쓰는 도구가 없습니다 (Report–1 이 붙여 넣기 보고서로 바뀜).
 
 ```text
 python secretary-1.py --export-events --from 2026-09-21 --to 2026-09-27
