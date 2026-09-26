@@ -216,23 +216,13 @@ python "D:\OPENCODE\secretary-1\secretary-1.py" --status
 zip 으로 받았다면 `git pull` 대신 새 zip 을 받아 `D:\OPENCODE` 에 덮어 풀어 달라고 사용자에게 부탁한다 (설정 · 데이터 파일은 zip 에 없어서 그대로 남는다).
 `config.json` · `secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키)은 저장소에도 zip 에도 없어서 그대로 남는다.
 
-### 예전 이름(jaba)에서 넘어올 때
+### 예전 이름(jaba) 설치
 
-예전엔 jaba 저장소를 `D:\OPENCODE\jaba` 에 따로 받았다. 이제 Secretary–1 은 works 저장소의 `secretary-1` 폴더다.
+예전 이름에서 자동으로 옮기는 기능은 0.7.0 에서 없앴다. 에이전트는 파일을 직접 옮기지 않는다.
 
-```text
-python "D:\OPENCODE\jaba\jaba.py" --stop
-```
-
-(`jaba.py` 가 없으면 `secretary-1.py` 로 바꿔서 실행한다. 그다음 위 2단계대로 works 를 받거나 업데이트하고, 3단계 `--setup` 부터 진행한다.)
-
-`D:\OPENCODE\secretary-1\secretary-1.py` 를 처음 실행하면 알아서 옮긴다. 에이전트가 파일을 직접 옮기지 않는다.
-
-- 옆의 `D:\OPENCODE\jaba` 에서 `config.json` · 일정 · 학습 규칙 · 위키를 가져온다 (새 폴더에 `config.json` 이 아직 없을 때만, 덮어쓰지 않음)
-- 켜져 있는 예전 비서는 먼저 끈다 · 파일 이름을 `secretary-1.db` · `secretary-1-rules.json` · `secretary-1-wiki.json` 으로 바꾸고 `config.json` 도 맞춘다
-- 자동 실행(`jaba.lnk`)은 `secretary-1.lnk` 로 바꿔 단다 · 환경변수 `JABA_*` 도 계속 읽는다 (새 이름은 `SECRETARY_*`)
-
-옮긴 뒤 `D:\OPENCODE\jaba` 에는 예전 코드만 남는다. **[질문]** 사용자가 원할 때만 그 폴더를 지운다.
+- 이 폴더의 `config.json` 에 `jaba.db` 같은 예전 파일 이름이 적혀 있으면 그대로 읽는다 — 이미 여기서 쓰던 설치는 계속 동작한다
+- `D:\OPENCODE\jaba` 에 따로 받은 예전 설치가 남아 있으면 **[질문]** 사용자에게 알린다: "예전 폴더의 설정 · 일정은 자동으로 가져오지 않습니다. 쓰시려면 그 폴더의 `config.json` · `jaba.db` · `jaba_rules.json` · `jaba_wiki.json` 을 `D:\OPENCODE\secretary-1` 로 직접 옮겨 주세요 (옮기기 전에 예전 비서 창을 닫기)"
+- 환경변수는 `SECRETARY_*` 만 읽는다 (`JABA_*` 는 읽지 않음)
 
 ## 제거
 

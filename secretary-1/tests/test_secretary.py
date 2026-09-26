@@ -175,13 +175,13 @@ class TestConfig(unittest.TestCase):
 
     def test_env_override(self):
         with tempfile.TemporaryDirectory() as d:
-            os.environ["JABA_API_KEY"] = "secret-from-old-env"   # 예전 이름도 계속 읽는다
+            os.environ["JABA_API_KEY"] = "secret-from-old-env"   # 예전 이름의 환경 변수는 더 읽지 않는다
             try:
                 cfg, _ = sec.load_config(os.path.join(d, "config.json"))
-                self.assertEqual(cfg["llm"]["api_key"], "secret-from-old-env")
+                self.assertEqual(cfg["llm"]["api_key"], "")
                 os.environ["SECRETARY_API_KEY"] = "secret-from-env"
                 cfg, _ = sec.load_config(os.path.join(d, "config.json"))
-                self.assertEqual(cfg["llm"]["api_key"], "secret-from-env")  # 새 이름이 우선
+                self.assertEqual(cfg["llm"]["api_key"], "secret-from-env")
             finally:
                 os.environ.pop("JABA_API_KEY", None)
                 os.environ.pop("SECRETARY_API_KEY", None)
@@ -1868,8 +1868,8 @@ class TestSetup(unittest.TestCase):
             sec.BASE_DIR = saved
 
 
-class TestLegacyJaba(unittest.TestCase):
-    """이름을 바꾸기 전(jaba) 설치에서 넘어올 때: 파일 · 실행기 · 켜져 있는 예전 비서"""
+class TestLauncherAndStop(unittest.TestCase):
+    """실행기(secretary-1.bat)와 --stop — 예전 이름(jaba)의 흔적은 더 찾지도 끄지도 않는다"""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -1883,82 +1883,21 @@ class TestLegacyJaba(unittest.TestCase):
     def path(self, name):
         return os.path.join(self.tmp.name, name)
 
-    def write(self, name, text):
-        with open(self.path(name), "w", encoding="utf-8") as f:
-            f.write(text)
-
-    def test_migrate_files_and_config(self):
-        cfg = self.path("config.json")
-        with open(cfg, "w", encoding="utf-8") as f:  # 첫 실행 때 기본값 전체가 적힌 예전 config.json
-            json.dump(sec.deep_merge(sec.DEFAULT_CONFIG, {"calendar": {"local_db": "jaba.db"},
-                                                          "learn_file": "jaba_rules.json", "wiki_file": "jaba_wiki.json"}), f)
-        cal = sec.LocalCalendar(self.path("jaba.db"))
-        cal.create_event("주간 회의", datetime(2026, 9, 28, 10), datetime(2026, 9, 28, 11))
-        cal.close()
-        self.write("jaba_rules.json", '{"rules": []}')
-        with contextlib.redirect_stdout(io.StringIO()):
-            moved = sec.migrate_legacy(cfg)
-        self.assertEqual(moved, ["jaba.db → secretary-1.db", "jaba_rules.json → secretary-1-rules.json"])
-        self.assertFalse(os.path.exists(self.path("jaba.db")))
-        loaded, _ = sec.load_config(cfg)
-        self.assertEqual((loaded["calendar"]["local_db"], loaded["learn_file"], loaded["wiki_file"]),
-                         ("secretary-1.db", "secretary-1-rules.json", "secretary-1-wiki.json"))
-        cal = sec.LocalCalendar(self.path("secretary-1.db"))
-        try:
-            self.assertEqual([e.title for e in cal.list_events(datetime(2026, 9, 28), datetime(2026, 9, 29))], ["주간 회의"])
-        finally:
-            cal.close()
-        self.assertEqual(sec.migrate_legacy(cfg), [])  # 두 번째부터는 할 일 없음
-
-    def test_migrate_leaves_custom_paths_and_conflicts(self):
-        cfg = self.path("config.json")
-        with open(cfg, "w", encoding="utf-8") as f:
-            json.dump({"calendar": {"local_db": "D:/my/cal.db"}, "learn_file": "jaba_rules.json"}, f)
-        self.write("jaba_rules.json", "old")
-        self.write("secretary-1-rules.json", "new")   # 둘 다 있으면 고르지 않는다
-        self.write("jaba_wiki.json", "wiki")           # 설정에 없으면 기본값(새 이름)으로 옮긴다
-        with contextlib.redirect_stdout(io.StringIO()):
-            moved = sec.migrate_legacy(cfg)
-        self.assertEqual(moved, ["jaba_wiki.json → secretary-1-wiki.json"])
-        with open(cfg, encoding="utf-8") as f:
-            user = json.load(f)
-        self.assertEqual((user["calendar"]["local_db"], user["learn_file"]), ("D:/my/cal.db", "jaba_rules.json"))
-        self.assertNotIn("wiki_file", user)
-
-    def test_adopt_separate_jaba_folder(self):
-        """예전엔 D:\\OPENCODE\\jaba 에 따로 받았다 → Works 의 secretary-1 폴더에서 처음 켜면 옆 폴더에서 가져온다"""
-        old, new = self.path("jaba"), self.path("secretary-1")
-        os.makedirs(old)
-        os.makedirs(new)
-        with open(os.path.join(old, "config.json"), "w", encoding="utf-8") as f:
-            json.dump({"calendar": {"local_db": "jaba.db"}, "learn_file": "jaba_rules.json", "port": 1}, f)
-        for name in ("jaba.db", "jaba_rules.json"):
-            with open(os.path.join(old, name), "w") as f:
-                f.write(name)
-        sec.BASE_DIR = new
-        cfg = os.path.join(new, "config.json")
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(sec.adopt_legacy_dir(cfg), ["config.json", "jaba.db", "jaba_rules.json"])
-            sec.migrate_legacy(cfg)
-        self.assertEqual(sorted(os.listdir(new)), ["config.json", "secretary-1-rules.json", "secretary-1.db"])
-        self.assertEqual(os.listdir(old), [])
-        self.assertEqual(sec.adopt_legacy_dir(cfg), [])   # config.json 이 생긴 뒤로는 다시 가져오지 않는다
-
-    def test_old_launcher_is_removed(self):
-        self.write("jaba.bat", '@echo off\r\nstart "jaba" /min "python" "%~dp0jaba.py" %*\r\n')
-        self.write("mine.bat", "@echo off")
+    def test_launcher_is_made_and_other_files_are_left(self):
+        with open(self.path("mine.bat"), "w", encoding="utf-8") as f:
+            f.write("@echo off")
         with contextlib.redirect_stdout(io.StringIO()):
             sec.ensure_launcher()
-        self.assertFalse(os.path.exists(self.path("jaba.bat")))
-        self.assertTrue(os.path.exists(self.path("secretary-1.bat")))
+        with open(self.path("secretary-1.bat"), "rb") as f:
+            self.assertIn(b'start "secretary-1" /min', f.read())
         self.assertTrue(os.path.exists(self.path("mine.bat")))
 
-    def test_stops_running_old_jaba(self):
-        """예전 비서는 ping 에 app=jaba, 화면에 jaba-token, 끄기에 X-Jaba-Token 을 쓴다"""
+    def test_stop_uses_page_token_and_ignores_other_apps(self):
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
         stopped = threading.Event()
+        app = {"name": "jaba"}
 
-        class Old(BaseHTTPRequestHandler):
+        class Fake(BaseHTTPRequestHandler):
             def log_message(self, *a):
                 pass
 
@@ -1972,23 +1911,28 @@ class TestLegacyJaba(unittest.TestCase):
 
             def do_GET(self):
                 if self.path == "/api/ping":
-                    return self.reply(json.dumps({"app": "jaba", "version": "0.4.0"}))
-                self.reply('<meta name="jaba-token" content="t0k">', "text/html")
+                    return self.reply(json.dumps({"app": app["name"], "version": "0.6.0"}))
+                meta = "secretary-token" if app["name"] == "secretary-1" else "jaba-token"
+                self.reply(f'<meta name="{meta}" content="t0k">', "text/html")
 
             def do_POST(self):
                 self.rfile.read(int(self.headers.get("Content-Length") or 0))
-                ok = self.path == "/api/shutdown" and self.headers.get("X-Jaba-Token") == "t0k"
+                ok = self.path == "/api/shutdown" and self.headers.get("X-Secretary-Token") == "t0k"
                 self.reply("{}")
                 if ok:
                     stopped.set()
                     threading.Thread(target=srv.shutdown, daemon=True).start()
 
-        srv = ThreadingHTTPServer(("127.0.0.1", 0), Old)
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
         port = srv.server_address[1]
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
-            self.assertIsNone(sec.find_running(port))                     # 새 이름만 찾으면 안 보이고
-            self.assertTrue(sec.find_running(port, (sec.LEGACY_APP,)))    # 예전 이름으로 찾으면 보인다
+            self.assertIsNone(sec.find_running(port))                     # 다른 이름(예전 jaba)으로 켜진 것은 모른다
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(sec.stop_running(port, quiet=True), 0)
+            self.assertFalse(stopped.is_set())
+            app["name"] = "secretary-1"
+            self.assertTrue(sec.find_running(port))
             rc = sec.stop_running(port, quiet=True)
         finally:
             srv.server_close()

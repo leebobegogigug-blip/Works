@@ -112,14 +112,14 @@ python secretary-1.py --export-events --from 2026-09-21 --to 2026-09-27
 ```
 
 ```json
-{"app": "secretary-1", "version": "0.6.0", "format": 1, "backend": "local",
+{"app": "secretary-1", "version": "0.7.0", "format": 1, "backend": "local",
  "from": "2026-09-21T00:00", "to": "2026-09-28T00:00",
  "events": [{"id": "L1", "title": "주간회의", "start": "2026-09-21T10:00", "end": "2026-09-21T11:00",
              "all_day": false, "location": "3A", "recurring": false}]}
 ```
 
 - `--from` · `--to` 는 `YYYY-MM-DD`, 두 날 모두 포함합니다. 설정한 캘린더(local · outlook)를 그대로 읽습니다
-- **읽기만 합니다.** 설정 · 일정 DB 를 만들거나 고치지 않고, 예전 이름 이전이나 실행기 만들기도 하지 않습니다. 비서가 켜져 있어도 됩니다
+- **읽기만 합니다.** 설정 · 일정 DB 를 만들거나 고치지 않고, 실행기 만들기도 하지 않습니다. 비서가 켜져 있어도 됩니다
 - 일정의 **메모는 내주지 않습니다.** 제목 · 시각 · 장소 · 종일 · 반복 여부만
 - 표준 출력에 UTF-8 JSON 한 줄. 실패하면 `"error"` 와 함께 종료 코드 1, 날짜가 틀리면 2
 - 모양을 바꾸면 `format` 을 올립니다 (`EXPORT_FORMAT`). 부르는 쪽은 모르는 `format` 이면 일정 없이 동작합니다
@@ -128,7 +128,7 @@ python secretary-1.py --export-events --from 2026-09-21 --to 2026-09-27
 
 `config.json`(API 키) · `secretary-1.db`(일정) · `secretary-1-rules.json`(학습 규칙) · `secretary-1-wiki.json`(일정 위키) · `secretary-1.bat`(PC별 경로) — 모두 `.gitignore`에 들어 있습니다.
 
-예전 이름(jaba)의 `jaba.db` · `jaba_rules.json` · `jaba_wiki.json` · `jaba.bat` · 자동 실행 `jaba.lnk` 는 `secretary-1.py` 를 처음 실행할 때 새 이름으로 옮겨집니다 (켜져 있는 예전 비서는 먼저 끕니다). 환경변수 `JABA_*` 도 계속 읽고, 새 이름은 `SECRETARY_BASE_URL` · `SECRETARY_API_KEY` · `SECRETARY_MODEL` 입니다.
+환경변수는 `SECRETARY_BASE_URL` · `SECRETARY_API_KEY` · `SECRETARY_MODEL` 입니다. 예전 이름(jaba)에서 자동으로 옮기는 기능과 `JABA_*` 환경변수는 0.7.0 에서 없앴습니다 — `config.json` 에 적힌 예전 파일 이름은 그대로 읽습니다 ([INSTALL.md › 예전 이름(jaba) 설치](../INSTALL.md#예전-이름jaba-설치)).
 
 ## 알려진 한계
 

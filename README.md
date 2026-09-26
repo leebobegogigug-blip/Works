@@ -71,8 +71,7 @@ API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에�
 ```
 
 <p align="center"><sub>
-예전 이름으로 쓰고 있었다면 — ocmux: <code>terminal-1.cmd setup</code> 한 번 (<a href="terminal-1/docs/MANUAL.md#예전-이름ocmux에서-넘어올-때">자세히</a>) ·
-jaba(<code>D:\OPENCODE\jaba</code> 에 따로 받은 것): <code>secretary-1.py</code> 를 처음 켜면 옆 폴더에서 설정 · 일정을 가져옵니다 (<a href="secretary-1/INSTALL.md#예전-이름jaba에서-넘어올-때">자세히</a>)
+예전 이름으로 쓰고 있었다면 — ocmux: <code>terminal-1.cmd setup</code> 한 번 (<a href="terminal-1/docs/MANUAL.md#예전-이름ocmux에서-넘어올-때">자세히</a>)
 </sub></p>
 
 <br>

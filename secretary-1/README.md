@@ -62,9 +62,8 @@ OPENCODE 설정에서 LLM 값 가져오기 · --SETUP<br>
 빨강 없는 팔레트 · 네이비 · 라임 · 회색<br>
 설치는 OPENCODE 에게 · INSTALL.MD<br>
 가짜 LLM 서버로 도는 브라우저 E2E<br>
-예전 이름(JABA) 데이터 자동 이전<br>
 공개 명령 · 일정 JSON · --EXPORT-EVENTS<br>
-단위 테스트 124 · WINDOWS + UBUNTU CI
+단위 테스트 121 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -260,7 +259,7 @@ Secretary–1 은 works 시스템의 한 부품입니다.<br>
 <tr><td>키</td><td><code>Ctrl+Alt+J</code> 전역 · <code>Alt+1–4</code> · <code>Alt+D</code> · <code>Alt+M</code> · <code>Alt+W</code> · <code>Ctrl+Z</code></td></tr>
 <tr><td>테마</td><td>dark (기본) · light · system — 둘 다 네이비 주색 · 라임 강조</td></tr>
 <tr><td>글꼴</td><td>Secretary1DOS — GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1</td></tr>
-<tr><td>테스트</td><td>단위 · 통합 124 · 브라우저 E2E (가짜 LLM) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
+<tr><td>테스트</td><td>단위 · 통합 121 · 브라우저 E2E (가짜 LLM) · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>
@@ -289,8 +288,6 @@ python secretary-1.py --autostart on    :: (선택) 로그인할 때 자동 실�
 ```
 
 <p align="center">그다음부터는 <code>secretary-1.bat</code> 더블클릭, 또는 어디서든 <b>Ctrl+Alt+J</b>.</p>
-
-<p align="center"><sub>예전 이름(jaba)으로 쓰고 있었다면 <code>git pull</code> 뒤 <code>python secretary-1.py</code> 한 번이면 일정 · 학습 · 위키 · 실행기 · 자동 실행이 새 이름으로 옮겨집니다 — <a href="INSTALL.md#예전-이름jaba에서-넘어올-때">INSTALL.md › 예전 이름(jaba)에서 넘어올 때</a></sub></p>
 
 <br>
 
