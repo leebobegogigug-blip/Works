@@ -1,0 +1,42 @@
+name: terminal-1
+
+on:
+  push:
+    paths: ["terminal-1/**", ".github/workflows/terminal-1.yml"]
+  pull_request:
+    paths: ["terminal-1/**", ".github/workflows/terminal-1.yml"]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # README 약속: Python 3.8+ · Windows 가 본 무대 (ubuntu 는 pwsh 로 terminal-1.ps1 실제 실행 테스트)
+        os: [windows-latest, ubuntu-22.04]
+        python: ["3.8", "3.13"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: terminal-1
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: 단위 테스트 (+ ubuntu 는 terminal-1.ps1 실행 테스트)
+        run: python -m unittest discover -s tests -v
+      - name: terminal-1.ps1 문법 검사 (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $e = $null; $t = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path .\terminal-1.ps1), [ref]$t, [ref]$e)
+          if ($e.Count) { $e | ForEach-Object { "$($_.Message) @ line $($_.Extent.StartLineNumber)" }; exit 1 }
+          "terminal-1.ps1: 문법 오류 없음"
+      - name: terminal-1.cmd ls (Windows PowerShell 5.1 로 실제 실행)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: terminal-1.cmd ls
