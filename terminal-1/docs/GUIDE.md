@@ -11,7 +11,7 @@ Every pane speaks the same design language. Press `?` in any pane (`F1` in compo
 
 Screenshots: [channel tab](images/channel-tab.png) · [overview tab](images/overview-tab.png) ·
 [TOKEN QUEST gallery](images/token-quest-gallery.png) · [TOKEN QUEST motion](images/token-quest-motion.png) ·
-[demo GIF](images/token-quest-demo.gif) · [guide](images/guide.png) · [main story](images/story.png) — Korean manual: [README](../README.md) · product page: [repository home](../../README.md)
+[demo GIF](images/token-quest-demo.gif) · [guide](images/guide.png) · [main story](images/story.png) — Korean manual: [MANUAL](MANUAL.md) · product page: [README](../README.md) · system: [works](../../README.md)
 
 ---
 
@@ -112,7 +112,7 @@ No product's screens or logos are copied.
 
 Palette = the three reference swatches (navy · lime · gray) plus their lighter/darker steps, on pure black.
 Navy is the primary color (number badges, pane labels, bars); lime is only for *on / busy / selected*.
-There is no red: warnings are the brightest white. The schedule assistant [Secretary–1](https://github.com/leebobegogigug-blip/jaba) uses the same palette and rules.
+There is no red: warnings are the brightest white. The schedule assistant [Secretary–1](../../secretary-1/README.md) uses the same palette and rules.
 
 ### 04.2 icon map
 
