@@ -2315,5 +2315,63 @@ class TestAgentWiki(AgentBase):
         self.assertEqual(item["wiki"], "w1")
         self.assertTrue(n.shown[0][1].endswith("· 준비: 견적서, 노트북"))
 
+
+class ExportEvents(unittest.TestCase):
+    """공개 명령 --export-events: Report–1 이 읽는 약속 (docs/REGISTRY.md › 공개 명령). 실제 프로세스로 실행해 바이트를 본다"""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.db = os.path.join(self.dir, "cal.db")
+        self.cfg = os.path.join(self.dir, "config.json")
+        with open(self.cfg, "w", encoding="utf-8") as f:
+            json.dump({"calendar": {"backend": "local", "local_db": self.db}}, f)
+
+    def run_export(self, *args, config=None):
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "secretary-1.py"), "--export-events", *args,
+                            "--config", config or self.cfg], capture_output=True, timeout=60,
+                           env=dict(os.environ, PYTHONIOENCODING="cp949"))   # 콘솔 코드 페이지가 달라도 UTF-8 로 나와야 한다
+        return r.returncode, json.loads(r.stdout.decode("utf-8"))
+
+    def test_events_in_range_without_notes(self):
+        cal = sec.LocalCalendar(self.db)
+        cal.create_event("주간회의", datetime(2026, 9, 21, 10), datetime(2026, 9, 21, 11), location="3A", notes="비밀 메모")
+        cal.create_event("고객사 방문", datetime(2026, 9, 27, 23), datetime(2026, 9, 28, 1))
+        cal.create_event("다음 주", datetime(2026, 9, 28, 9), datetime(2026, 9, 28, 10))
+        cal.close()
+        code, out = self.run_export("--from", "2026-09-21", "--to", "2026-09-27")
+        self.assertEqual(code, 0, out)
+        self.assertEqual((out["app"], out["format"], out["backend"]), ("secretary-1", sec.EXPORT_FORMAT, "local"))
+        self.assertEqual([e["title"] for e in out["events"]], ["주간회의", "고객사 방문"])   # --to 날짜는 끝까지 포함
+        self.assertEqual(out["events"][0]["location"], "3A")
+        self.assertNotIn("notes", out["events"][0])
+        self.assertNotIn("비밀 메모", json.dumps(out, ensure_ascii=False))
+
+    def test_reads_only(self):
+        cal = sec.LocalCalendar(self.db)
+        cal.create_event("주간회의", datetime(2026, 9, 21, 10), datetime(2026, 9, 21, 11))
+        cal.close()
+        with open(self.db, "rb") as f:
+            before = f.read()
+        self.assertEqual(self.run_export("--from", "2026-09-21", "--to", "2026-09-21")[0], 0)
+        with open(self.db, "rb") as f:
+            self.assertEqual(f.read(), before)
+        self.assertEqual(sorted(os.listdir(self.dir)), ["cal.db", "config.json"])
+
+    def test_nothing_is_created_when_missing(self):
+        missing = os.path.join(self.dir, "none", "config.json")
+        code, out = self.run_export("--from", "2026-09-21", "--to", "2026-09-27", config=missing)
+        self.assertEqual((code, out["events"]), (0, []))
+        self.assertFalse(os.path.exists(missing))
+        code, out = self.run_export("--from", "2026-09-21", "--to", "2026-09-27")
+        self.assertEqual((code, out["events"]), (0, []))
+        self.assertFalse(os.path.exists(self.db))
+
+    def test_bad_dates(self):
+        code, out = self.run_export("--from", "2026-09-27", "--to", "2026-09-21")
+        self.assertEqual(code, 2)
+        self.assertIn("--from", out["error"])
+        self.assertEqual(self.run_export("--from", "9/21", "--to", "2026-09-27")[0], 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

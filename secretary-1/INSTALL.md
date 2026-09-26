@@ -261,3 +261,4 @@ works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워
 | `--autostart on` · `--autostart off` | 로그인할 때 자동 실행 등록 · 해제 |
 | `--status` · `--stop` | 실행 중인지 확인 · 끄기 |
 | `--version` | 버전 |
+| `--export-events --from 날짜 --to 날짜` | 공개 명령: 기간 안의 일정을 JSON 으로 (다른 works 도구가 읽음 · 읽기만) |

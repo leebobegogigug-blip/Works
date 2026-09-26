@@ -12,6 +12,7 @@ Secretary–1 - 사내 일정 비서 (텍스트 채팅 · 내 PC에서만 동작
   예전 이름(jaba)의 파일 · 실행기 · 자동 실행은 처음 실행할 때 새 이름으로 옮긴다 (migrate_legacy)
   기타: --set 키=값 (설정 바꾸기) · --autostart on|off (로그인 때 자동 실행) · --status · --stop
         --no-window (창 자동 열기 끔) · --port 8765 · --config 경로.  설치 순서는 INSTALL.md
+  공개 명령: --export-events --from YYYY-MM-DD --to YYYY-MM-DD  기간 안의 일정을 JSON 으로 (다른 works 앱이 읽는다 · 읽기만)
 
 [config.json]
   llm.base_url       사내 LLM 주소 (OpenAI 호환, 보통 .../v1). OpenCode 설정의 baseURL 과 같은 값
@@ -63,6 +64,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import json
 import os
 import re
@@ -92,7 +94,7 @@ from urllib.parse import parse_qs, urlparse
 APP = "secretary-1"          # 명령 · 파일 이름
 NAME = "Secretary–1"         # 화면에 보이는 이름
 LEGACY_APP = "jaba"          # 이름을 바꾸기 전 (migrate_legacy 가 한 번 옮긴다)
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 TITLE = f"{NAME} · 일정 비서"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -450,6 +452,25 @@ class LocalCalendar:
             self.db.close()
         except Exception:
             pass
+
+
+class ReadOnlyLocalCalendar(LocalCalendar):
+    """공개 명령(--export-events)용 — DB 파일을 만들거나 고치지 않고 읽기만 한다. 파일이 없으면 빈 달력"""
+
+    def __init__(self, path: str):  # LocalCalendar.__init__ 은 표를 만들고 저장하므로 부르지 않는다
+        self.path = path
+        self.db = None
+        if os.path.exists(path):
+            uri = "file:" + urllib.request.pathname2url(os.path.abspath(path)) + "?mode=ro"
+            self.db = sqlite3.connect(uri, uri=True)
+            self.db.row_factory = sqlite3.Row
+
+    def list_events(self, start: datetime, end: datetime) -> List[Event]:
+        return [] if self.db is None else super().list_events(start, end)
+
+    def close(self) -> None:
+        if self.db is not None:
+            super().close()
 
 
 def _com_dt(v: Any) -> datetime:
@@ -3667,6 +3688,58 @@ def stop_running(port: int, apps: Tuple[str, ...] = (APP, LEGACY_APP), quiet: bo
     return 1
 
 
+# ─────────────────────────────────────────────────────────────── 공개 명령 (다른 works 앱이 읽는 것)
+# 대장(docs/REGISTRY.md › 공개 명령)에 올린 약속이다. 모양을 바꾸면 EXPORT_FORMAT 을 올리고 대장 · MANUAL 도 고친다.
+
+EXPORT_FORMAT = 1
+
+
+def export_events(config_path: str, date_from: str, date_to: str) -> int:
+    """--export-events: 기간(--from 부터 --to 까지, 두 날 모두 포함) 안의 일정을 JSON 한 줄로 표준 출력에 쓴다.
+    읽기만 한다 — 설정 · DB 파일을 만들거나 고치지 않고, 예전 이름 이전 · 실행기 만들기도 하지 않는다.
+    일정의 메모는 내주지 않는다. 로그는 표준 오류로 보내 JSON 을 더럽히지 않는다. 종료 코드 0 성공 · 1 실패 · 2 사용법"""
+    out: Dict[str, Any] = {"app": APP, "version": VERSION, "format": EXPORT_FORMAT}
+    code = 0
+    with contextlib.redirect_stdout(sys.stderr):
+        try:
+            d0 = datetime.strptime(str(date_from or ""), "%Y-%m-%d")
+            d1 = datetime.strptime(str(date_to or ""), "%Y-%m-%d") + timedelta(days=1)
+            if d1 <= d0:
+                raise ValueError
+        except ValueError:
+            out["error"] = "--from · --to 는 YYYY-MM-DD 이고, --to 가 --from 보다 앞서면 안 됩니다"
+            code = 2
+        else:
+            try:
+                user = _read_user_config(config_path) if os.path.exists(config_path) else {}
+                c = deep_merge(DEFAULT_CONFIG, user).get("calendar") or {}
+                if str(c.get("backend", "local")).lower() == "outlook":
+                    cal: Any = CalendarService(deep_merge(DEFAULT_CONFIG, user))
+                    if not cal.ok:
+                        raise RuntimeError(cal.error)
+                    backend = "outlook"
+                else:
+                    cal = ReadOnlyLocalCalendar(resolve_path(str(c.get("local_db") or "secretary-1.db")))
+                    backend = "local"
+                try:
+                    evs = cal.list_events(d0, d1)
+                finally:
+                    cal.close()
+                out.update({"backend": backend, "from": fmt_iso(d0), "to": fmt_iso(d1), "events": [
+                    {"id": e.id, "title": e.title, "start": fmt_iso(e.start), "end": fmt_iso(e.end),
+                     "all_day": e.all_day, "location": e.location, "recurring": e.recurring} for e in evs]})
+            except Exception as e:
+                out["error"] = f"일정을 읽지 못했습니다: {e}"
+                code = 1
+    data = (json.dumps(out, ensure_ascii=False) + "\n").encode("utf-8")   # 콘솔 코드 페이지와 상관없이 UTF-8
+    try:
+        sys.stdout.buffer.write(data)
+        sys.stdout.buffer.flush()
+    except AttributeError:
+        sys.stdout.write(data.decode("utf-8"))
+    return code
+
+
 # ─────────────────────────────────────────────────────────────── 점검 · 진입점
 
 def run_check(cfg: Dict[str, Any], config_path: str = CONFIG_PATH) -> int:
@@ -3746,7 +3819,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--test-notify", action="store_true", help="윈도우 알림 테스트")
     ap.add_argument("--config", default=CONFIG_PATH, help="설정 파일 경로")
     ap.add_argument("--version", action="version", version=f"Secretary-1 {VERSION}")
+    ap.add_argument("--export-events", action="store_true",
+                    help="공개 명령: --from ~ --to (YYYY-MM-DD, 둘 다 포함) 일정을 JSON 으로 표준 출력에 (읽기만)")
+    ap.add_argument("--from", dest="date_from", default="", help="--export-events: 시작 날짜 YYYY-MM-DD")
+    ap.add_argument("--to", dest="date_to", default="", help="--export-events: 끝 날짜 YYYY-MM-DD (포함)")
     args = ap.parse_args(argv)
+    if args.export_events:  # 다른 앱이 부르는 읽기 전용 명령 — 아래의 이전 · 실행기 만들기 같은 부작용보다 먼저
+        return export_events(args.config, args.date_from, args.date_to)
     if not (args.status or args.stop) and os.path.abspath(args.config) == os.path.abspath(CONFIG_PATH):
         for m in adopt_legacy_dir(args.config):
             log(f"예전 jaba 폴더에서 가져옴: {m}")

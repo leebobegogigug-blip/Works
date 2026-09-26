@@ -23,6 +23,7 @@
 
 | 앱 | 명령 | 내주는 것 | 형식 | 쓰는 앱 |
 |---|---|---|---|---|
+| `secretary-1` | `secretary-1.py --export-events --from YYYY-MM-DD --to YYYY-MM-DD` | 기간 안의 일정 — id · 제목 · 시각 · 장소 · 종일 · 반복 (메모는 안 줌) | 1 | `report-1` |
 
 ## PC 에 남기는 것
 

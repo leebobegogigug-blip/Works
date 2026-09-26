@@ -96,12 +96,33 @@ works 공통 규격(원칙 일곱 가지 · 팔레트 · 아이콘)은 [docs/DES
 | UI 수정 | `ui.html` 수정 → `python build.py` (secretary-1.py에 내장됨 · `INDEX_HTML`을 직접 고치지 말 것) |
 | 반영 확인 | `python build.py --check` (UI · 폰트 둘 다) |
 | 폰트 다시 만들기 (선택) | `pip install fonttools` → `python tools/make_font.py <unifont.otf>` → `python build.py` |
-| 테스트 | `python -m unittest tests.test_secretary` (표준 라이브러리만) |
+| 테스트 | `python -m unittest tests.test_secretary` (표준 라이브러리만 · 공개 명령은 `ExportEvents`) |
 | works 규칙 검사 | 저장소 루트에서 `python tools/works_check.py` ([RULES.md](../../RULES.md)) |
 | 브라우저 E2E (선택 · CI 에서는 자동) | `pip install playwright` → `python -m playwright install chromium` → `python tests/e2e_ui.py` (시간대는 알아서 낮으로 맞춤) |
 
 `tests/fake_llm_server.py`는 OpenAI 호환 가짜 서버라서 사내 LLM 없이도 전체 흐름을 돌려볼 수 있습니다.
 CI(`.github/workflows/secretary-1.yml`)는 Windows · Ubuntu × Python 3.8 · 3.13 에서 `build.py --check` 와 단위 테스트를, Ubuntu 에서 브라우저 E2E 를 돌립니다.
+
+## 공개 명령
+
+다른 works 도구가 Secretary–1 의 일정을 읽는 유일한 길입니다 ([RULES.md › W-01](../../RULES.md#w-01-폴더--앱--명령) · [대장 › 공개 명령](../../docs/REGISTRY.md#공개-명령)). 지금은 [Report–1](../../README.md) 이 주간보고의 근거로 씁니다.
+
+```text
+python secretary-1.py --export-events --from 2026-09-21 --to 2026-09-27
+```
+
+```json
+{"app": "secretary-1", "version": "0.6.0", "format": 1, "backend": "local",
+ "from": "2026-09-21T00:00", "to": "2026-09-28T00:00",
+ "events": [{"id": "L1", "title": "주간회의", "start": "2026-09-21T10:00", "end": "2026-09-21T11:00",
+             "all_day": false, "location": "3A", "recurring": false}]}
+```
+
+- `--from` · `--to` 는 `YYYY-MM-DD`, 두 날 모두 포함합니다. 설정한 캘린더(local · outlook)를 그대로 읽습니다
+- **읽기만 합니다.** 설정 · 일정 DB 를 만들거나 고치지 않고, 예전 이름 이전이나 실행기 만들기도 하지 않습니다. 비서가 켜져 있어도 됩니다
+- 일정의 **메모는 내주지 않습니다.** 제목 · 시각 · 장소 · 종일 · 반복 여부만
+- 표준 출력에 UTF-8 JSON 한 줄. 실패하면 `"error"` 와 함께 종료 코드 1, 날짜가 틀리면 2
+- 모양을 바꾸면 `format` 을 올립니다 (`EXPORT_FORMAT`). 부르는 쪽은 모르는 `format` 이면 일정 없이 동작합니다
 
 ## 커밋하면 안 되는 것
 
