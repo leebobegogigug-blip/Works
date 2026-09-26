@@ -285,7 +285,7 @@ terminal-1/
 ├─ t1_pet_ui.py    TOKEN QUEST 화면 (7개 모드 · 오버레이 · 대화 · 연출)
 ├─ t1_pet_run.py   펫 창 실행 루프 · opencode 이벤트 → 게임 신호 · 목장
 ├─ docs/           GUIDE.md (상세 매뉴얼, 영문) · images/
-└─ tests/          unittest 149개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
+└─ tests/          unittest 161개 (pwsh 가 있으면 terminal-1.ps1 실제 실행 테스트 포함)
 ```
 
 ```
@@ -307,7 +307,7 @@ t1_monitor.py ──HTTP──▶ opencode (127.0.0.1:4096)
 ## 09 개발
 
 ```powershell
-# 테스트 149개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
+# 테스트 161개 (표준 라이브러리 unittest · pwsh 가 있는 Linux/macOS 에선 terminal-1.ps1 도 가짜 wt 로 실제 실행)
 py -3 -m unittest discover -s tests
 # CI(.github/workflows/terminal-1.yml): Windows + Ubuntu × Python 3.8·3.13, Windows PowerShell 5.1 문법 검사 · terminal-1.cmd ls · version
 

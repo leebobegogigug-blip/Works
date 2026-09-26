@@ -1382,13 +1382,22 @@ class PetUI:
             for i, ln in enumerate(art):
                 if y0 < sy + i < y0 + h - 1:
                     cv.text(sx, sy + i, ln, colr)
+        # 커밋 조각 선반 (벽 가운데 위): 모은 조각은 초록불
+        st = g.story()
+        top_y = y0 + 1
+        if st and st.get("cleared") and W >= 30 and not egg:
+            n_sh, n_all = len(st["cleared"]), len(D.CHAPTERS)
+            shelf = f"{NV3}[{RST}" + "".join((LIME if not dark else G0) + "▮" + RST if k < n_sh else NV2 + "·" + RST
+                                              for k in range(n_all)) + f"{NV3}]{RST}"
+            cv.ansi(x0 + (W - n_all - 2) // 2, top_y, shelf)
+            top_y += 1
         # 시즌 장식 (벽 가운데 위)
         se = P.current_season(g.now())
         if se and se.get("deco"):
             dx = x0 + (W - max(vlen(ln) for ln in se["deco"])) // 2
             for i, ln in enumerate(se["deco"]):
-                if y0 < y0 + 1 + i < floor_y - 3:
-                    cv.text(dx, y0 + 1 + i, ln, (LIME3 if not dark else G0))
+                if y0 < top_y + i < floor_y - 3:
+                    cv.text(dx, top_y + i, ln, (LIME3 if not dark else G0))
         # 바닥 버그
         bs = g.fx.get("bug_spawn")
         for i in range(p["bugs"]):
@@ -1475,8 +1484,11 @@ class PetUI:
             # 놀러온 친구 펫
             vis = g.visitor
             if vis and vis["until"] > gnow:
-                vf = D.FORMS.get(vis["form"], D.FORMS["bit"])
-                vart = [ln.replace("{f}", vis.get("face", "^_^")) for ln in vf["art"][int(now * 2) % 2]]
+                if vis.get("npc") in D.NPCS:
+                    vart = list(D.NPCS[vis["npc"]]["art"])
+                else:
+                    vf = D.FORMS.get(vis.get("form"), D.FORMS["bit"])
+                    vart = [ln.replace("{f}", vis.get("face", "^_^")) for ln in vf["art"][int(now * 2) % 2]]
                 vx = min(x0 + W - 13, x0 + int(W * 0.6)) + (int(now) % 2)
                 for i, ln in enumerate(vart):
                     if y0 < py + i < y0 + h - 1:
@@ -1684,7 +1696,8 @@ class PetUI:
             return
         left = max(0, int(ev["deadline"] - gnow))
         foot = "" if ev.get("result") else f"AUTO {left}s"
-        self._modbox(cv, x0, y, W, h, "EV", "EVENT", foot_r=foot, color=NV3)
+        story = bool(ev.get("story"))
+        self._modbox(cv, x0, y, W, h, "EV", "STORY" if story else "EVENT", foot_r=foot, color=LIME3 if story else NV3)
         lines = wrap(ev["ev"]["text"], W - 4)
         yy = y + 1
         # 선택지 줄을 먼저 확보하고 남는 줄에 본문 (작은 창에서 [2] 가 잘리지 않게)

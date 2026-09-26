@@ -412,7 +412,7 @@ def new_story(now, fast=None):
     fast = int(max(1, min(len(D.CHAPTERS), fast)))
     return {"start": day_key(now), "fast": fast, "rel": fast, "ch": 0, "phase": "play", "since": now,
             "base": {}, "mdone": [], "bonus": False, "bonus_n": 0, "seen": [], "cleared": [], "log": [],
-            "fails": 0, "fail_lvl": 0, "pending": None, "heir": False}
+            "fails": 0, "fail_lvl": 0, "pending": None, "heir": False, "sev": []}
 
 
 def fmt_age(sec):
@@ -1730,6 +1730,16 @@ class PetGame:
             if first or self.visitor or self.rng.random() > 0.35:
                 return
             friends = self._find_friends(now)
+            npcs = [v for v in D.NPC_VISITS if self.npc_met(v[1])]
+            if npcs and (not friends or self.rng.random() < 0.4):
+                npc, _, line = self.rng.choice(npcs)
+                n = D.NPCS[npc]
+                self.visitor = dict(npc=npc, name=n["name"], color=n["color"], until=now + 120)
+                p["mood"] = clamp(p["mood"] + 5, 0, 100)
+                self.inc("npc_visits")
+                self.flash(line, n["color"], 5)
+                self.note(f"[집] {line}")
+                return
             if friends:
                 sc, sm = self.rng.choice(friends)
                 self.visitor = dict(scope=sc, name=sm["name"], form=sm.get("form", "bit"), face=sm.get("face", "^_^"),
@@ -2607,6 +2617,10 @@ class PetGame:
             self.s["boss_flag"] = None
             self.start_battle(flag, "boss", max(lvl, self.p["lvl"]))
             return
+        sev = self._story_event_for(z)
+        if sev and self.rng.random() < 0.3:
+            self._start_event(sev, now, story=True)
+            return
         r = self.rng.random()
         if r < 0.62:
             mid = self.rng.choice(z["normals"])
@@ -2625,11 +2639,7 @@ class PetGame:
             e["state"], e["t"] = "pause", now
         elif r < 0.84:
             cands = [ev for ev in D.EVENTS if ev["zone"] <= e["zone"] + 1]
-            ev = self.rng.choice(cands)
-            manual = (now - self.last_input) < 90
-            self.event = dict(ev=ev, deadline=now + (T["event_manual"] if manual else T["event_auto"]),
-                              result=None, until=0)
-            self.note(f"이벤트! {ev['text']}")
+            self._start_event(self.rng.choice(cands), now)
         elif r < 0.92:
             S = self.stats()
             p = self.p
@@ -2647,6 +2657,62 @@ class PetGame:
             else:
                 self.note(self.rng.choice(NOTHING_LINES))
             e["state"], e["t"] = "pause", now
+
+    def _start_event(self, ev, now, story=False):
+        manual = (now - self.last_input) < 90
+        self.event = dict(ev=ev, deadline=now + (T["event_manual"] if manual else T["event_auto"]),
+                          result=None, until=0, story=story)
+        if story:
+            st = self.story()
+            st.setdefault("sev", []).append(ev["id"])
+            self.flash("◈ 이야기 조각 발견! ◈", "#6ABA23", 3)
+        self.note(f"{'◈ ' if story else ''}이벤트! {ev['text']}")
+
+    def _story_event_for(self, z):
+        """지금 챕터 지역에서 아직 못 본 스토리 이벤트 (없으면 None)"""
+        st = self.story()
+        if not st or st["phase"] not in ("play", "boss"):
+            return None
+        c = D.CHAPTERS[st["ch"]]
+        if c["zone"] != z["id"]:
+            return None
+        seen = st.get("sev") or []
+        left = [ev for ev in D.STORY_EVENTS.get(c["id"], []) if ev["id"] not in seen]
+        return left[0] if left else None
+
+    def _npc_say(self, npc, text, dur=5.0, **fmt):
+        """NPC 한마디: 메시지 줄 + 기록"""
+        n = D.NPCS.get(npc)
+        if not n:
+            return
+        try:
+            text = text.format(name=self.p["name"], **fmt)
+        except (KeyError, IndexError):
+            pass
+        line = fix_josa(f"{n['name']}: {text}")
+        self.flash(line, n["color"], dur)
+        self.note(line)
+
+    def npc_met(self, need):
+        """need 번째 챕터(0부터)를 시작했으면 그 NPC 를 만난 것"""
+        st = self.story()
+        return bool(st) and (st["ch"] >= need or len(st.get("cleared", [])) > need)
+
+    def world_react(self, kind, chance=1.0, **fmt):
+        """실제 opencode 일에 이미 만난 NPC 가 한마디 (25분에 한 번까지)"""
+        if self.is_egg() or self.rng.random() > chance:
+            return False
+        now, tm = self.now(), self.s["timers"]
+        if now < tm.get("react", 0):
+            return False
+        cands = [(npc, t) for npc, need, t in D.WORLD_REACTS.get(kind, []) if self.npc_met(need)]
+        if not cands:
+            return False
+        npc, text = self.rng.choice(cands)
+        tm["react"] = now + D.WORLD_REACT_COOL
+        self._npc_say(npc, text, dur=6, **fmt)
+        self.inc("reacts")
+        return True
 
     def _carry_add(self, iid, n=1):
         c = self.expd["carry"]
@@ -3706,6 +3772,9 @@ class PetGame:
             self.ring = True
         if self.expd and self.expd["auto"] and not self.busy_roots:
             self.expd["ret"] = True
+        if dur >= 20 * 60:
+            m = int(dur // 60)
+            self.world_react("long_wait", chance=0.5, m=m, cmp="빠릅니다" if m < 47 else "깁니다")
 
     def _on_sub_start(self, sid="", agent="general"):
         a = D.ALLIES.get(agent) or D.ALLIES["_"]
@@ -3766,6 +3835,10 @@ class PetGame:
             self.say("ratelimit" if rate else "error")
         self.flash("에러 감지! 불길한 기운… (다음 원정에 보스 출현)", "#F2F2F3", 4)
         self.note(f"에러: {msg[:60]}")
+        if rate:
+            self.world_react("ratelimit")
+        elif 0 <= local_hour(self.now()) < 6:
+            self.world_react("error_night")
 
     def _on_retry(self, msg=""):
         self.anxious_until = self.now() + 30
@@ -3785,10 +3858,13 @@ class PetGame:
         self.s["buffs"]["inspired"] = now + 600
         if chars >= 2000:
             self.unlock("longprompt")
+        kind = ctx if ctx in D.LINES else reaction_context(text, chars)
         if not self.is_egg():
             self.p["mood"] = clamp(self.p["mood"] + 3, 0, 100)
-            self.say(ctx if ctx in D.LINES else reaction_context(text, chars))
+            self.say(kind)
         self.note(f"주인님의 지시 수신 ({chars}자) → 영감 버프 (경험치 +10%, 10분)")
+        if kind == "compose_deploy" and weekday(now) == 4:
+            self.world_react("friday_deploy")
 
     # --- opencode 할 일(todo) = 메인 퀘스트
     def quest_progress(self):
@@ -3845,6 +3921,8 @@ class PetGame:
             if not self.is_egg():
                 self.say("todo_new", n=len(items))
             self.note(f"새 할 일 목록 ({len(items)}개)" + (f": {title[:30]}" if title else ""))
+            if len(items) >= 6:
+                self.world_react("big_todo", chance=0.6, n=len(items))
         else:
             ql["items"], ql["updated"], ql["sig"] = items, now, sig
             if title:
@@ -3890,6 +3968,7 @@ class PetGame:
             self.notify("할 일 완주", f"{p['name']}: 할 일 {n}개 완료! +{gold}G")
             if not self.is_egg():
                 self.say("todo_all")
+            self.world_react("todo_all", chance=0.3)
 
     # --- opencode가 사용자 응답(허락/질문)을 기다림
     def _on_wait(self, id="", sid="", wkind="perm", label=""):
@@ -3920,6 +3999,7 @@ class PetGame:
                 self.p["mood"] = clamp(self.p["mood"] + 3, 0, 100)
                 self._care_good(0.5)
                 self.say("perm_fast")
+                self.world_react("perm_fast", chance=0.15)
         self.note(f"응답 완료{f' ({reply})' if reply else ''} · {int(took)}초")
 
     def _on_compacted(self, sid=""):
@@ -3932,12 +4012,14 @@ class PetGame:
         self.fx["burp"] = self.now() + 2.2
         self.say("compacted")
         self.note("컨텍스트 압축! 꺼억~ 대화를 소화했다 (포만 +4)")
+        self.world_react("compacted", chance=0.5)
 
     def _on_abort(self, sid=""):
         self.inc("aborts")
         if not self.is_egg():
             self.say("abort")
         self.note("작업 중단 (사용자 중단은 에러가 아니에요)")
+        self.world_react("abort", chance=0.3)
 
     def _on_command(self, name=""):
         self.inc("commands")
@@ -3961,7 +4043,7 @@ class PetGame:
             return
         fresh = new_story(self.s.get("created") or time.time())
         kinds = {"start": str, "phase": str, "base": dict, "mdone": list, "seen": list, "cleared": list, "log": list,
-                 "bonus": bool, "heir": bool}
+                 "bonus": bool, "heir": bool, "sev": list}
         for k, v in fresh.items():
             cur = st.get(k)
             if k == "pending":
@@ -3985,6 +4067,7 @@ class PetGame:
         except (TypeError, ValueError):
             st["start"] = day_key(time.time())
         st["mdone"] = [i for i in st["mdone"] if isinstance(i, int)]
+        st["sev"] = [x for x in st["sev"] if isinstance(x, str)][-60:]
         ids = {c["id"] for c in D.CHAPTERS}
         st["cleared"] = [c for c in st["cleared"] if c in ids]
         st["log"] = [x for x in st["log"] if isinstance(x, list) and len(x) == 2][-30:]
@@ -4129,6 +4212,9 @@ class PetGame:
                     self.note(f"스토리 미션 완료: {m['text']}")
                     self._story_log(f"미션 완료 · {m['text']}")
                     self.flash(f"√ 스토리 미션 완료: {m['text']}", "#95D85A", 4)
+                says = D.MISSION_SAYS.get(c["id"]) or []
+                if idx < len(says) and not self.is_egg():
+                    self._npc_say(*says[idx], dur=5)
                 self.mark()
         if st["phase"] == "play" and all(m["done"] for m in ms if not m["opt"]):
             st["phase"] = "boss"
