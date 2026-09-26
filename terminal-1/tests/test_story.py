@@ -604,7 +604,9 @@ class DataIntegrity(unittest.TestCase):
             self.assertEqual(c["zone"], D.ZONES[i]["id"])
             self.assertIn(c["boss"]["mid"], D.MONSTERS)
             for spk, _ in c["intro"] + c["outro"] + c["boss"]["intro"] + c["boss"].get("phase2_lines", []):
-                self.assertTrue(spk in D.NPCS or spk in ("pet", "boss", "narr"), spk)
+                base, _, face = spk.partition(":")
+                self.assertTrue(base in D.NPCS or base in ("pet", "boss", "narr"), spk)
+                self.assertTrue(not face or (base == "pet" and face in D.FACES), spk)
             r = c["reward"]
             for iid in list(r.get("items", {})) + list(r.get("mats", {})) + r.get("gear", []) + r.get("decos", []):
                 self.assertIn(iid, D.ITEMS)

@@ -412,7 +412,8 @@ def new_story(now, fast=None):
     fast = int(max(1, min(len(D.CHAPTERS), fast)))
     return {"start": day_key(now), "fast": fast, "rel": fast, "ch": 0, "phase": "play", "since": now,
             "base": {}, "mdone": [], "bonus": False, "bonus_n": 0, "seen": [], "cleared": [], "log": [],
-            "fails": 0, "fail_lvl": 0, "pending": None}
+            "fails": 0, "fail_lvl": 0, "pending": None, "heir": False, "sev": [],
+            "side": None, "side_done": [], "side_t": 0, "choices": {}, "debt": None}
 
 
 def fmt_age(sec):
@@ -1238,7 +1239,17 @@ class PetGame:
             m *= 1.1
         if self.p["mood"] < 25:
             m *= 0.8
+        if self.catching_up():
+            m *= D.STORY["catchup"]
         return m
+
+    def catching_up(self):
+        """과외: 지금 챕터 지역 보스를 넘기엔 레벨이 한참 모자라면 경험치 보정 (조금 쓰는 사람도 이야기를 따라가게)"""
+        st = self.s.get("story")
+        if not isinstance(st, dict) or st.get("phase") not in ("play", "boss") or self.is_egg():
+            return False
+        z = D.ZONES[min(st.get("ch", 0), len(D.ZONES) - 1)]
+        return self.p["lvl"] < z["base"] + D.BOSS_FLOOR + 1 - D.STORY["catchup_gap"]
 
     def stats(self):
         p = self.p
@@ -1730,6 +1741,16 @@ class PetGame:
             if first or self.visitor or self.rng.random() > 0.35:
                 return
             friends = self._find_friends(now)
+            npcs = [v for v in D.NPC_VISITS if self.npc_met(v[1])]
+            if npcs and (not friends or self.rng.random() < 0.4):
+                npc, _, line = self.rng.choice(npcs)
+                n = D.NPCS[npc]
+                self.visitor = dict(npc=npc, name=n["name"], color=n["color"], until=now + 120)
+                p["mood"] = clamp(p["mood"] + 5, 0, 100)
+                self.inc("npc_visits")
+                self.flash(line, n["color"], 5)
+                self.note(f"[집] {line}")
+                return
             if friends:
                 sc, sm = self.rng.choice(friends)
                 self.visitor = dict(scope=sc, name=sm["name"], form=sm.get("form", "bit"), face=sm.get("face", "^_^"),
@@ -2607,6 +2628,10 @@ class PetGame:
             self.s["boss_flag"] = None
             self.start_battle(flag, "boss", max(lvl, self.p["lvl"]))
             return
+        sev = self._story_event_for(z)
+        if sev and self.rng.random() < 0.3:
+            self._start_event(sev, now, story=True)
+            return
         r = self.rng.random()
         if r < 0.62:
             mid = self.rng.choice(z["normals"])
@@ -2625,11 +2650,7 @@ class PetGame:
             e["state"], e["t"] = "pause", now
         elif r < 0.84:
             cands = [ev for ev in D.EVENTS if ev["zone"] <= e["zone"] + 1]
-            ev = self.rng.choice(cands)
-            manual = (now - self.last_input) < 90
-            self.event = dict(ev=ev, deadline=now + (T["event_manual"] if manual else T["event_auto"]),
-                              result=None, until=0)
-            self.note(f"이벤트! {ev['text']}")
+            self._start_event(self.rng.choice(cands), now)
         elif r < 0.92:
             S = self.stats()
             p = self.p
@@ -2647,6 +2668,62 @@ class PetGame:
             else:
                 self.note(self.rng.choice(NOTHING_LINES))
             e["state"], e["t"] = "pause", now
+
+    def _start_event(self, ev, now, story=False):
+        manual = (now - self.last_input) < 90
+        self.event = dict(ev=ev, deadline=now + (T["event_manual"] if manual else T["event_auto"]),
+                          result=None, until=0, story=story)
+        if story:
+            st = self.story()
+            st.setdefault("sev", []).append(ev["id"])
+            self.flash("◈ 이야기 조각 발견! ◈", "#6ABA23", 3)
+        self.note(f"{'◈ ' if story else ''}이벤트! {ev['text']}")
+
+    def _story_event_for(self, z):
+        """지금 챕터 지역에서 아직 못 본 스토리 이벤트 (없으면 None)"""
+        st = self.story()
+        if not st or st["phase"] not in ("play", "boss"):
+            return None
+        c = D.CHAPTERS[st["ch"]]
+        if c["zone"] != z["id"]:
+            return None
+        seen = st.get("sev") or []
+        left = [ev for ev in D.STORY_EVENTS.get(c["id"], []) if ev["id"] not in seen]
+        return left[0] if left else None
+
+    def _npc_say(self, npc, text, dur=5.0, **fmt):
+        """NPC 한마디: 메시지 줄 + 기록"""
+        n = D.NPCS.get(npc)
+        if not n:
+            return
+        try:
+            text = text.format(name=self.p["name"], **fmt)
+        except (KeyError, IndexError):
+            pass
+        line = fix_josa(f"{n['name']}: {text}")
+        self.flash(line, n["color"], dur)
+        self.note(line)
+
+    def npc_met(self, need):
+        """need 번째 챕터(0부터)를 시작했으면 그 NPC 를 만난 것"""
+        st = self.story()
+        return bool(st) and (st["ch"] >= need or len(st.get("cleared", [])) > need)
+
+    def world_react(self, kind, chance=1.0, **fmt):
+        """실제 opencode 일에 이미 만난 NPC 가 한마디 (25분에 한 번까지)"""
+        if self.is_egg() or self.rng.random() > chance:
+            return False
+        now, tm = self.now(), self.s["timers"]
+        if now < tm.get("react", 0):
+            return False
+        cands = [(npc, t) for npc, need, t in D.WORLD_REACTS.get(kind, []) if self.npc_met(need)]
+        if not cands:
+            return False
+        npc, text = self.rng.choice(cands)
+        tm["react"] = now + D.WORLD_REACT_COOL
+        self._npc_say(npc, text, dur=6, **fmt)
+        self.inc("reacts")
+        return True
 
     def _carry_add(self, iid, n=1):
         c = self.expd["carry"]
@@ -2813,6 +2890,10 @@ class PetGame:
             if now >= b["end_at"]:
                 self._battle_resolve(now)
             return
+        if b.get("tele"):
+            if now >= b["tele"]["until"]:
+                self._gim_resolve(None, auto=True)      # 대응 창이 닫혔다 → 자동 대응
+            return
         auto = self.s["settings"]["auto_battle"] and now >= self.manual_until
         if auto:
             if now >= b["next"]:
@@ -2840,7 +2921,7 @@ class PetGame:
 
     def battle_action(self, kind, arg=None):
         b, now = self.battle, self.now()
-        if not b or b["over"] or now - b["last_round_at"] < 0.3:
+        if not b or b["over"] or b.get("tele") or now - b["last_round_at"] < 0.3:
             return False
         self.manual_until = now + 15
         disc = self.p.get("discipline", 50)
@@ -2882,6 +2963,7 @@ class PetGame:
         _, _, pspd, _ = self._pet_eff(S, b)
         pet_first = pspd >= m["spd"] * 0.9
         seq = ["pet", "ally", "mon"] if pet_first else ["mon", "pet", "ally"]
+        hp0 = m["hp"]
         for who in seq:
             if b["over"]:
                 break
@@ -2891,6 +2973,8 @@ class PetGame:
                 self._allies_act(S, b)
             else:
                 self._enemy_act(S, b)
+            if who != "mon" and b.get("story") is not None:
+                self._story_shield(b, hp0)
             self._check_end(b)
         if not b["over"]:
             # 라운드 종료 처리
@@ -2910,6 +2994,8 @@ class PetGame:
                     m["st"][k] -= 1
                     if m["st"][k] <= 0:
                         del m["st"][k]
+                        if k == "def_down":
+                            m["df"] = m.get("df0", m["df"])
             for k in list(b["cd"]):
                 b["cd"][k] -= 1
                 if b["cd"][k] <= 0:
@@ -2921,11 +3007,24 @@ class PetGame:
             if b.get("raid") and not b["over"] and b["round"] >= b["rounds_max"]:
                 b["over"], b["end_at"] = "timeup", now + T["result_time"]
                 self.note("레이드 제한 시간 종료! 공대 대기실로 돌아간다")
-        b["next"] = now + T["round_time"]
+            if b.get("story") is not None:
+                self._gim_round_end(b, now)
+        if not b.get("tele"):
+            b["next"] = now + T["round_time"]
         b["last_round_at"] = now
         b["wait_since"] = now
         b["defend"] = False
         return True
+
+    def _story_shield(self, b, hp0):
+        """챕터 보스 보호막: 한 라운드에 최대 HP 의 STORY_SHIELD 까지만 깎인다 (기믹 반격은 예외)"""
+        m = b["mon"]
+        cap = int(m["maxhp"] * D.STORY["shield"])
+        if hp0 - m["hp"] > cap:
+            m["hp"] = hp0 - cap
+            if not b.get("shield_said"):
+                b["shield_said"] = True
+                self.note(f"{m['name']}의 보호막! 한 번에 {int(D.STORY['shield'] * 100)}%까지만 깎인다 — 예고에 대응하면 보호막을 뚫는다")
 
     def _auto_action(self, b, S):
         p, m = self.p, b["mon"]
@@ -3168,6 +3267,18 @@ class PetGame:
 
     def _allies_act(self, S, b):
         m = b["mon"]
+        for h in b.get("helpers") or []:
+            if b["over"] or m["hp"] <= 0:
+                break
+            if h["kind"] == "attack":
+                dmg = max(1, int((S["atk"] * 0.45 + self.p["lvl"]) * h["power"] * self.rng.uniform(0.8, 1.2) - m["df"] * 0.3))
+                m["hp"] -= dmg
+                self.pop(f"-{dmg}", "mon", h["color"])
+                self.note(f"{h['name']}의 지원! -{dmg}")
+            elif h["kind"] == "heal" and self.p["hp"] < S["maxhp"] * 0.8:
+                d = int(S["maxhp"] * h["power"])
+                self.p["hp"] = min(S["maxhp"], self.p["hp"] + d)
+                self.note(f"{h['name']}이(가) 들어 준다… +{d} HP")
         helpers = list(self.allies.values())
         if b["pair"] > 0:
             helpers.append(dict(name="짝꿍"))
@@ -3190,9 +3301,11 @@ class PetGame:
             self.note(f"{m['name']}은(는) 멈춰 있다…")
             return
         _, pdf, pspd, _ = self._pet_eff(S, b)
-        atk = m["atk"]
+        atk = m["atk"] * self._gim_atk(b)
         if m["special"] == "enrage":
             b["enrage"] += 1
+            if b.get("story") is not None:
+                b["enrage"] = min(b["enrage"], 8)      # 챕터 보스는 기믹이 시계 역할 → 데드라인 가속은 +64%까지
             atk *= 1 + 0.08 * b["enrage"]
         sp = m["special"] if (m["special"] and m["special"] != "reboot" and self.rng.random() < m["chance"]) else None
         mult, hits, extra = 1.0, 1, None
@@ -3682,6 +3795,9 @@ class PetGame:
             self.ring = True
         if self.expd and self.expd["auto"] and not self.busy_roots:
             self.expd["ret"] = True
+        if dur >= 20 * 60:
+            m = int(dur // 60)
+            self.world_react("long_wait", chance=0.5, m=m, cmp="빠릅니다" if m < 47 else "깁니다")
 
     def _on_sub_start(self, sid="", agent="general"):
         a = D.ALLIES.get(agent) or D.ALLIES["_"]
@@ -3742,6 +3858,10 @@ class PetGame:
             self.say("ratelimit" if rate else "error")
         self.flash("에러 감지! 불길한 기운… (다음 원정에 보스 출현)", "#F2F2F3", 4)
         self.note(f"에러: {msg[:60]}")
+        if rate:
+            self.world_react("ratelimit")
+        elif 0 <= local_hour(self.now()) < 6:
+            self.world_react("error_night")
 
     def _on_retry(self, msg=""):
         self.anxious_until = self.now() + 30
@@ -3761,10 +3881,13 @@ class PetGame:
         self.s["buffs"]["inspired"] = now + 600
         if chars >= 2000:
             self.unlock("longprompt")
+        kind = ctx if ctx in D.LINES else reaction_context(text, chars)
         if not self.is_egg():
             self.p["mood"] = clamp(self.p["mood"] + 3, 0, 100)
-            self.say(ctx if ctx in D.LINES else reaction_context(text, chars))
+            self.say(kind)
         self.note(f"주인님의 지시 수신 ({chars}자) → 영감 버프 (경험치 +10%, 10분)")
+        if kind == "compose_deploy" and weekday(now) == 4:
+            self.world_react("friday_deploy")
 
     # --- opencode 할 일(todo) = 메인 퀘스트
     def quest_progress(self):
@@ -3821,6 +3944,8 @@ class PetGame:
             if not self.is_egg():
                 self.say("todo_new", n=len(items))
             self.note(f"새 할 일 목록 ({len(items)}개)" + (f": {title[:30]}" if title else ""))
+            if len(items) >= 6:
+                self.world_react("big_todo", chance=0.6, n=len(items))
         else:
             ql["items"], ql["updated"], ql["sig"] = items, now, sig
             if title:
@@ -3866,6 +3991,7 @@ class PetGame:
             self.notify("할 일 완주", f"{p['name']}: 할 일 {n}개 완료! +{gold}G")
             if not self.is_egg():
                 self.say("todo_all")
+            self.world_react("todo_all", chance=0.3)
 
     # --- opencode가 사용자 응답(허락/질문)을 기다림
     def _on_wait(self, id="", sid="", wkind="perm", label=""):
@@ -3896,6 +4022,7 @@ class PetGame:
                 self.p["mood"] = clamp(self.p["mood"] + 3, 0, 100)
                 self._care_good(0.5)
                 self.say("perm_fast")
+                self.world_react("perm_fast", chance=0.15)
         self.note(f"응답 완료{f' ({reply})' if reply else ''} · {int(took)}초")
 
     def _on_compacted(self, sid=""):
@@ -3908,12 +4035,14 @@ class PetGame:
         self.fx["burp"] = self.now() + 2.2
         self.say("compacted")
         self.note("컨텍스트 압축! 꺼억~ 대화를 소화했다 (포만 +4)")
+        self.world_react("compacted", chance=0.5)
 
     def _on_abort(self, sid=""):
         self.inc("aborts")
         if not self.is_egg():
             self.say("abort")
         self.note("작업 중단 (사용자 중단은 에러가 아니에요)")
+        self.world_react("abort", chance=0.3)
 
     def _on_command(self, name=""):
         self.inc("commands")
@@ -3937,12 +4066,14 @@ class PetGame:
             return
         fresh = new_story(self.s.get("created") or time.time())
         kinds = {"start": str, "phase": str, "base": dict, "mdone": list, "seen": list, "cleared": list, "log": list,
-                 "bonus": bool}
+                 "bonus": bool, "heir": bool, "sev": list, "side_done": list, "choices": dict}
         for k, v in fresh.items():
             cur = st.get(k)
             if k == "pending":
                 if cur is not None and (isinstance(cur, bool) or not isinstance(cur, int)):
                     st[k] = None
+            elif k in ("side", "debt"):
+                st.setdefault(k, None)      # None 또는 dict — 아래에서 따로 검사
             elif k in kinds:
                 if not isinstance(cur, kinds[k]):
                     st[k] = v
@@ -3961,6 +4092,18 @@ class PetGame:
         except (TypeError, ValueError):
             st["start"] = day_key(time.time())
         st["mdone"] = [i for i in st["mdone"] if isinstance(i, int)]
+        st["sev"] = [x for x in st["sev"] if isinstance(x, str)][-60:]
+        ep_ids = {e["id"] for e in D.SIDE_EPISODES}
+        st["side_done"] = [x for x in st["side_done"] if x in ep_ids]
+        sd = st.get("side")
+        if sd is not None and not (isinstance(sd, dict) and sd.get("id") in ep_ids and sd.get("phase") in ("new", "play", "done")
+                                   and isinstance(sd.get("base", {}), dict)):
+            st["side"] = None
+        st["choices"] = {k: v for k, v in st["choices"].items() if k in D.CHOICES and v in ("now", "share")}
+        db = st.get("debt")
+        if db is not None and not (isinstance(db, dict) and isinstance(db.get("paid", 0), (int, float))
+                                   and isinstance(db.get("weeks", 0), int)):
+            st["debt"] = None
         ids = {c["id"] for c in D.CHAPTERS}
         st["cleared"] = [c for c in st["cleared"] if c in ids]
         st["log"] = [x for x in st["log"] if isinstance(x, list) and len(x) == 2][-30:]
@@ -4088,6 +4231,9 @@ class PetGame:
         self._story_t = now
         rel = self.story_released_n(now)
         i = st["ch"]
+        self._tick_side(now)
+        if st["phase"] == "end":
+            self.debt_info()            # 주가 바뀌면 이자가 붙는다
         if st["phase"] == "wait":
             if i + 1 < len(D.CHAPTERS) and i + 1 < rel:
                 self._story_begin(i + 1, now)
@@ -4105,6 +4251,9 @@ class PetGame:
                     self.note(f"스토리 미션 완료: {m['text']}")
                     self._story_log(f"미션 완료 · {m['text']}")
                     self.flash(f"√ 스토리 미션 완료: {m['text']}", "#95D85A", 4)
+                says = D.MISSION_SAYS.get(c["id"]) or []
+                if idx < len(says) and not self.is_egg():
+                    self._npc_say(*says[idx], dur=5)
                 self.mark()
         if st["phase"] == "play" and all(m["done"] for m in ms if not m["opt"]):
             st["phase"] = "boss"
@@ -4139,6 +4288,269 @@ class PetGame:
         if st["bonus_n"] >= 6:
             self.unlock("story_bonus")
 
+    def story_scene(self, i, part):
+        """챕터 i 의 대화 → [(말하는 이, 문장, 표정)]. 펫 대사는 성격대로, 형태가 챕터와 맞으면 공명 대사,
+        새 세대가 이어받은 뒤 첫 프롤로그엔 선대 이야기. part: intro / boss / outro / replay"""
+        c = D.CHAPTERS[i]
+        if part == "replay":
+            gap = [("narr", "· · ·", None)]
+            return self.story_scene(i, "intro") + gap + self.story_scene(i, "boss") + gap + self.story_scene(i, "outro")
+        lines = list({"intro": c["intro"], "boss": c["boss"]["intro"], "outro": c["outro"]}[part])
+        p, st = self.p, self.story() or {}
+        if part == "intro":
+            extra = (D.FORM_LINES.get(c["id"]) or {}).get(p["form"])
+            if extra:
+                lines = lines[:-1] + list(extra) + lines[-1:]
+            fam = self.s.get("family") or {}
+            hall = fam.get("hall") or []
+            if st.get("heir") and hall and i == st.get("ch"):
+                lines = list(D.HEIR_LINES if fam.get("gen", 1) <= 2 else D.HEIR_LINES_OLD) + lines
+        if part == "outro":
+            cid = c["id"]
+            if i == len(D.CHAPTERS) - 1 and cid in st.get("cleared", []):
+                lines = lines[:-2] + list(D.ENDINGS[self.story_path()]) + lines[-2:]
+            if cid in D.CHOICES and cid in st.get("cleared", []) and cid not in st.get("choices", {}):
+                return self._resolve_lines(lines) + [("choice", cid, None)]
+        return self._resolve_lines(lines)
+
+    def _resolve_lines(self, lines):
+        """(말하는 이[:표정], 문장) → (말하는 이, 문장, 표정): 펫 대사는 성격대로, {name} {ancestor} {gen} 채우기"""
+        p = self.p
+        anc = ((self.s.get("family") or {}).get("hall") or [{}])[-1].get("name", "")
+        gen = (self.s.get("family") or {}).get("gen", 1)
+        out = []
+        for spk, text in lines:
+            base, _, face = spk.partition(":")
+            if base == "pet":
+                text = (D.PET_LINES.get(text) or {}).get(p.get("personality"), text)
+            text = text.replace("{name}", p["name"]).replace("{ancestor}", anc).replace("{gen}", str(gen))
+            out.append((base, fix_josa(text), face if face in D.FACES else None))
+        return out
+
+    # ------------------------------------------------------------ 챕터 선택 · 엔딩
+    def story_choose(self, cid, idx):
+        """에필로그 끝 선택. 반환: 펫이 한 말 + NPC 답 [(말하는 이, 문장, 표정)]"""
+        st, ch = self.story(), D.CHOICES.get(cid)
+        if not st or not ch or not (0 <= idx < len(ch["opts"])) or cid in st["choices"]:
+            return []
+        path, label, reply = ch["opts"][idx]
+        st["choices"][cid] = path
+        self._story_log(f"선택 · {label}")
+        self.mark()
+        return self._resolve_lines([("pet:proud", label.split(" — ")[0] + "!"), reply])
+
+    def story_path(self):
+        """고른 길: now / share / balance"""
+        ch = list((self.story() or {}).get("choices", {}).values())
+        a, b = ch.count("now"), ch.count("share")
+        return "now" if a > b else "share" if b > a else "balance"
+
+    # ------------------------------------------------------------ 사이드 에피소드
+    def side_ep(self):
+        st = self.story()
+        sd = st.get("side") if st else None
+        return (next((e for e in D.SIDE_EPISODES if e["id"] == sd["id"]), None), sd) if sd else (None, None)
+
+    def side_info(self):
+        """화면용: 지금 사이드 에피소드 (없으면 None)"""
+        ep, sd = self.side_ep()
+        if not ep:
+            return None
+        g = ep["goal"]
+        prog = max(0, self.stat(g["s"]) - sd.get("base", {}).get(g["s"], 0)) if sd["phase"] == "play" else 0
+        if sd["phase"] == "done":
+            prog = g["n"]
+        text = D.STORY_STAT_TEXT.get(g["s"], g["s"] + " {n}").format(n=g["n"])
+        return dict(ep=ep, phase=sd["phase"], prog=min(prog, g["n"]), target=g["n"], text=text,
+                    npc=D.NPCS[ep["npc"]]["name"], left=sum(1 for e in D.SIDE_EPISODES if e["id"] not in self.story()["side_done"]))
+
+    def _tick_side(self, now):
+        st = self.story()
+        ep, sd = self.side_ep()
+        if not ep:
+            # 기다리는 주(다음 챕터 공개 대기)엔 바로, 아니면 며칠 간격으로 하나씩 — 조연 이야기가 한꺼번에 몰리지 않게
+            if st["phase"] != "wait" and 0 <= now - st.get("side_t", 0) < D.SIDE_GAP:
+                return
+            nxt = next((e for e in D.SIDE_EPISODES if e["id"] not in st["side_done"]
+                        and D.CHAPTERS[e["need"]]["id"] in st["cleared"]), None)
+            if nxt:
+                st["side"] = dict(id=nxt["id"], phase="new", base={})
+                st["side_t"] = now
+                who = D.NPCS[nxt["npc"]]["name"]
+                self.flash(f"◇ 사이드 에피소드 「{nxt['title']}」 · {who} [7] → [E]", "#75A1C7", 6)
+                self.note(f"사이드 에피소드 도착: {who} 「{nxt['title']}」")
+                self._story_log(f"사이드 · 「{nxt['title']}」 도착")
+                self.mark()
+            return
+        if sd["phase"] == "play":
+            g = ep["goal"]
+            if self.stat(g["s"]) - sd["base"].get(g["s"], 0) >= g["n"]:
+                sd["phase"] = "done"
+                self.flash(f"◇ 사이드 목표 달성! 「{ep['title']}」 마무리는 [7] → [E]", "#6ABA23", 6)
+                self._story_log(f"사이드 · 「{ep['title']}」 목표 달성")
+                self.mark()
+
+    def side_scene(self):
+        """지금 볼 사이드 대화 (new → 도입, done → 마무리). 없으면 []"""
+        ep, sd = self.side_ep()
+        if not ep or sd["phase"] == "play":
+            return []
+        return self._resolve_lines(ep["intro"] if sd["phase"] == "new" else ep["outro"])
+
+    def side_seen(self):
+        """사이드 대화를 다 봤다: 도입이면 목표 시작, 마무리면 보상"""
+        st = self.story()
+        ep, sd = self.side_ep()
+        if not ep:
+            return False
+        if sd["phase"] == "new":
+            sd["phase"], sd["base"] = "play", {ep["goal"]["s"]: self.stat(ep["goal"]["s"])}
+            self._story_log(f"사이드 · 「{ep['title']}」 시작")
+        elif sd["phase"] == "done":
+            r = ep.get("reward") or {}
+            gold = int(r.get("gold", 0) * self.gold_mult())
+            self.s["gold"] += gold
+            for iid in r.get("decos") or []:
+                self.add_item(iid)
+            st["side_done"].append(ep["id"])
+            st["side"] = None
+            h = ep.get("help")
+            self.flash(f"◇ 「{ep['title']}」 완료! +{gold}G" + (f" · {h['name']}이(가) 챕터 보스전 동료로 합류" if h else ""),
+                       "#6ABA23", 7)
+            self.note(f"사이드 에피소드 완료: 「{ep['title']}」 (+{gold}G" + (f", {', '.join(item_name(x) for x in r.get('decos') or [])}" if r.get("decos") else "") + ")")
+            self._story_log(f"사이드 · 「{ep['title']}」 완료")
+            if len(st["side_done"]) >= len(D.SIDE_EPISODES):
+                self.unlock("side_all")
+        self.mark()
+        return True
+
+    def story_helpers(self):
+        """사이드 에피소드를 끝낸 NPC 동료 (최근 셋)"""
+        st = self.story()
+        done = st.get("side_done", []) if st else []
+        eps = [e for e in D.SIDE_EPISODES if e["id"] in done and e.get("help")]
+        eps.sort(key=lambda e: done.index(e["id"]))
+        return [dict(e["help"], npc=e["npc"], color=D.NPCS[e["npc"]]["color"]) for e in eps[-3:]]
+
+    # ------------------------------------------------------------ 시즌 후: 주간 부채 상환
+    def debt_info(self):
+        st = self.story()
+        if not st or st["phase"] != "end":
+            return None
+        now = self.now()
+        wk = week_key(now)
+        db = st.get("debt")
+        if not isinstance(db, dict) or db.get("week") != wk:
+            weeks = db.get("weeks", 0) if isinstance(db, dict) else 0
+            db = st["debt"] = dict(week=wk, paid=0.0, cleared=False, weeks=weeks, fails=0)
+        principal = int(D.DEBT["base"] * (1 + D.DEBT["growth"]) ** db["weeks"])
+        cost = int(principal * D.DEBT["step"])
+        return dict(db, principal=principal, cost=cost, can_pay=db["paid"] + 1e-9 < D.DEBT["max_pay"] and not db["cleared"])
+
+    def debt_pay(self):
+        info = self.debt_info()
+        if not info:
+            return self._nope("시즌을 끝내면 열려요")
+        if info["cleared"]:
+            return self._nope("이번 주 상환은 끝났어요! 다음 주 월요일에 이자가 붙어요")
+        if not info["can_pay"]:
+            return self._nope(f"이번 주엔 원금의 {int(D.DEBT['max_pay'] * 100)}%까지만 미리 갚을 수 있어요")
+        if self.s["gold"] < info["cost"]:
+            return self._nope(f"골드가 부족해요 ({fmt_num(info['cost'])}G 필요)")
+        self.s["gold"] -= info["cost"]
+        db = self.story()["debt"]
+        db["paid"] = round(db["paid"] + D.DEBT["step"], 4)
+        self.inc("debt_paid", info["cost"])
+        self.note(f"원금 상환 -{fmt_num(info['cost'])}G → 이번 주 부채 {int(db['paid'] * 100)}% 상환 (보스 HP -{int(db['paid'] * 100)}%)")
+        self.flash(f"$ 원금 상환 {int(db['paid'] * 100)}% · -{fmt_num(info['cost'])}G", "#95D85A", 3)
+        self.mark()
+        return True
+
+    def can_debt_boss(self):
+        info = self.debt_info()
+        if not info:
+            return False, "시즌을 끝내면 열려요"
+        if info["cleared"]:
+            return False, "이번 주 상환 완료! 다음 주에 다시"
+        st = self.story()
+        ph = st["phase"]
+        st["phase"] = "boss"           # 준비 조건(체력 · 원정 중 등)은 챕터 보스와 같다
+        try:
+            return self.can_story_boss()
+        finally:
+            st["phase"] = ph
+
+    def start_debt_boss(self):
+        ok, why = self.can_debt_boss()
+        if not ok:
+            return self._nope(why)
+        info, p, now = self.debt_info(), self.p, self.now()
+        p["energy"] = clamp(p["energy"] - D.STORY["boss_energy"], 0, 100)
+        p["full"] = clamp(p["full"] - D.STORY["boss_full"], 0, 120)
+        mid = D.DEBT["mid"]
+        ms = monster_stats(mid, p["lvl"] + D.DEBT["lvl_add"], "story")
+        tune = D.GIMMICKS[mid].get("tune") or (1.0, 1.0)
+        fails = int(min(info.get("fails", 0), D.GIM_RETRO["cap"]))
+        hp = ms["maxhp"] * tune[0] * (1 - info["paid"]) * (1 - D.GIM_RETRO["hp"] * fails)
+        ms["hp"] = ms["maxhp"] = max(1, int(hp))
+        ms["atk"] *= tune[1] * (1 - D.GIM_RETRO["atk"] * fails)
+        ms["name"] = "기술 부채 (이번 주 이자)"
+        self.battle = dict(mid=mid, mon=ms, pst={}, round=0, next=now + 1.5, over=None, end_at=0.0, last_dmg=0,
+                           cd={}, pair=0, wait_since=now, last_round_at=0.0, defend=False, enrage=0,
+                           story=len(D.CHAPTERS) - 1, debt=True, phase2=None, p2_done=False, mid_said=True,
+                           gim=self._gim_new(mid, fails), tele=None)
+        self._story_helpers_join(self.battle)
+        if self.s["call"]:
+            self.s["call"] = None
+        self.inc("debt_fights")
+        self.flash(f"$ 주간 부채 상환전! 원금 {int(info['paid'] * 100)}% 미리 갚음", "#F2F2F3", 4)
+        self.note(f"주간 부채 상환전: {ms['name']} (Lv.{ms['level']}) · 미리 갚은 원금 {int(info['paid'] * 100)}%")
+        self.mark()
+        return True
+
+    def _debt_end(self, b, now):
+        st, p = self.story(), self.p
+        db = st.get("debt") or {}
+        m = b["mon"]
+        if b["over"] == "win":
+            r = D.DEBT["reward"]
+            exp = int(exp_to_next(p["lvl"]) * r.get("exp", 0))
+            self.gain_exp(exp)
+            loot = []
+            for iid, n in (r.get("mats") or {}).items():
+                self.add_item(iid, n)
+                loot.append(f"{item_name(iid)} x{n}")
+            db["cleared"] = True
+            db["weeks"] = db.get("weeks", 0) + 1
+            if db["weeks"] >= 4:
+                self.unlock("debt4")
+            msg = f"이번 주 이자 상환 완료! ({db['weeks']}주째) +{exp}EXP · {', '.join(loot)}"
+            self.flash(f"$ {msg}", "#6ABA23", 7)
+            self._story_log(f"부채 상환 {db['weeks']}주째 완료")
+        else:
+            if b["over"] == "lose":
+                db["fails"] = db.get("fails", 0) + 1
+                p["hp"] = max(1, int(self.stats()["maxhp"] * 0.1))
+            msg = f"{m['name']}에게 밀렸다… 골드로 원금을 더 갚거나 다시 도전 (회고 {db.get('fails', 0)}번)"
+        self.note(msg)
+        self.last_summary = (dict(story=True, win=b["over"] == "win", ch=b["story"], title="주간 부채 상환",
+                                  boss=m["name"], lvl=m["level"], reason=msg, left=max(0, int(m["hp"])), maxhp=m["maxhp"],
+                                  gold=0, exp=0, loot=[], hash="", shards=len(st["cleared"]), fainted=b["over"] == "lose",
+                                  gim=((b.get("gim") or {}).get("ok", 0), (b.get("gim") or {}).get("n", 0)), perfect=False,
+                                  debt=True), now + 9)
+        self.mark()
+
+    def _story_helpers_join(self, b):
+        """사이드 에피소드를 끝낸 NPC 가 챕터 보스전에 합류: guard 는 시작할 때 보스 공격력을 깎는다"""
+        hs = self.story_helpers()
+        b["helpers"] = hs
+        guard = sum(h["power"] for h in hs if h["kind"] == "guard")
+        if guard:
+            b["mon"]["atk"] *= 1 - min(0.3, guard)
+        if hs:
+            self.note("동료 합류: " + " · ".join(h["name"] for h in hs)
+                      + (f" (보스 공격력 -{int(min(0.3, guard) * 100)}%)" if guard else ""))
+
     def story_seen(self, i, part):
         st = self.story()
         return bool(st) and f"{D.CHAPTERS[i]['id']}:{part}" in st["seen"]
@@ -4152,6 +4564,8 @@ class PetGame:
         if key not in st["seen"]:
             st["seen"].append(key)
             self.mark()
+        if part == "intro" and st.get("heir") and i == st["ch"]:
+            st["heir"] = False          # 새 세대 인사는 한 번만
         if part == "outro" and st.get("pending") == i:
             st["pending"] = None
 
@@ -4195,15 +4609,31 @@ class PetGame:
         p["energy"] = clamp(p["energy"] - D.STORY["boss_energy"], 0, 100)
         p["full"] = clamp(p["full"] - D.STORY["boss_full"], 0, 120)
         ms = monster_stats(bd["mid"], bd["lvl"], "story")
+        tune = (D.GIMMICKS.get(bd["mid"]) or {}).get("tune")
+        if tune:        # 챕터마다 난이도 손질 (hp, atk 배율) — tools/tq_sim.py --duel 로 잰 값
+            ms["hp"] = ms["maxhp"] = max(1, int(ms["maxhp"] * tune[0]))
+            ms["atk"] *= tune[1]
+        fails = int(min(st.get("fails", 0), D.GIM_RETRO["cap"]))
+        if fails:       # 회고: 진 만큼 보스가 조금씩 약해진다 (끝내 못 깨서 이야기가 멈추는 일은 없게)
+            ms["hp"] = ms["maxhp"] = max(1, int(ms["maxhp"] * (1 - D.GIM_RETRO["hp"] * fails)))
+            ms["atk"] *= 1 - D.GIM_RETRO["atk"] * fails
         self.battle = dict(mid=bd["mid"], mon=ms, pst={}, round=0, next=now + 1.5, over=None, end_at=0.0, last_dmg=0,
                            cd={}, pair=0, wait_since=now, last_round_at=0.0, defend=False, enrage=0,
-                           story=i, phase2=bd.get("phase2"), p2_done=False, mid_said=False)
+                           story=i, phase2=bd.get("phase2"), p2_done=False, mid_said=False,
+                           gim=self._gim_new(bd["mid"], fails), tele=None)
+        self._story_helpers_join(self.battle)
         self.s["seen"][bd["mid"]] = self.s["seen"].get(bd["mid"], 0) + 1
         if self.s["call"]:
             self.s["call"] = None
         self.inc("story_fights")
         self.flash(f"◆ 챕터 보스! vs {ms['name']} (LV{ms['level']})", "#F2F2F3", 4)
         self.note(f"CH{i + 1:02d} 챕터 보스전: {ms['name']} (Lv.{ms['level']}) — 지면 HP만 줄어요 (기절 페널티 없음)")
+        gd = D.GIMMICKS.get(bd["mid"])
+        if gd:
+            self.note(f"기믹 「{gd['name']}」: 보스가 큰 기술을 예고하면 알맞은 키로 대응! (안 보면 자동 대응)")
+        if fails:
+            self.note(f"회고 {fails}번: 보스 HP −{int(D.GIM_RETRO['hp'] * fails * 100)}% · "
+                      f"자동 대응 +{int(D.GIM_RETRO['auto'] * fails * 100)}%")
         self.mark()
         return True
 
@@ -4251,8 +4681,15 @@ class PetGame:
 
     def _story_battle_end(self, b, now):
         st, i, p = self.story(), b["story"], self.p
+        gm = b.get("gim") or {}
+        if gm.get("n"):
+            self.inc("gim_seen", gm["n"])
+            self.inc("gim_ok", gm["ok"])
+        if b.get("debt"):
+            self._debt_end(b, now)
+            return
         if b["over"] == "win" and st and st["ch"] == i and st["phase"] == "boss":
-            self._story_clear(i, now)
+            self._story_clear(i, now, gm)
             return
         S = self.stats()
         if b["over"] == "lose":
@@ -4261,7 +4698,9 @@ class PetGame:
             if st:
                 st["fails"] = st.get("fails", 0) + 1
                 st["fail_lvl"] = p["lvl"]
-            msg = f"{b['mon']['name']}에게 패배… 레벨을 올리거나 장비를 강화해서 다시 도전!"
+            k = min(st.get("fails", 0) if st else 0, D.GIM_RETRO["cap"])
+            msg = (f"{b['mon']['name']}에게 패배… 회고 {k}번: 다음엔 보스 HP −{int(D.GIM_RETRO['hp'] * k * 100)}% · "
+                   f"자동 대응 +{int(D.GIM_RETRO['auto'] * k * 100)}%")
         else:
             msg = f"{b['mon']['name']}과(와)의 싸움에서 물러났다"
         m = b["mon"]
@@ -4271,10 +4710,18 @@ class PetGame:
                                   left=max(0, int(m["hp"])), maxhp=m["maxhp"], fainted=b["over"] == "lose"), now + 9)
         self.mark()
 
-    def _story_clear(self, i, now):
+    def _story_clear(self, i, now, gm=None):
         st, c, p = self.story(), D.CHAPTERS[i], self.p
         r = c.get("reward") or {}
         gold = int(r.get("gold", 0) * self.gold_mult())
+        gm = gm or {}
+        perfect = gm.get("n", 0) >= 2 and gm.get("ok") == gm.get("n")
+        if perfect:         # 예고를 전부 맞게 받아친 판: 보상 +30%
+            gold = int(gold * 1.3)
+            self.inc("gim_perfect")
+            self.note(f"완벽한 대응! 예고 {gm['n']}번 모두 받아쳤다 (보상 +30%)")
+            if self.stat("gim_perfect") >= 3:
+                self.unlock("gim_perfect3")
         self.s["gold"] += gold
         loot = []
         for iid, n in list((r.get("items") or {}).items()) + list((r.get("mats") or {}).items()):
@@ -4299,7 +4746,8 @@ class PetGame:
         if not self.is_egg():
             self.say("story_clear", dur=8)
         self.last_summary = (dict(story=True, win=True, ch=i, title=c["title"], boss=D.MONSTERS[c["boss"]["mid"]]["name"],
-                                  gold=gold, exp=exp, loot=loot, hash=c["hash"], shards=n_sh), now + 9)
+                                  gold=gold, exp=exp, loot=loot, hash=c["hash"], shards=n_sh,
+                                  gim=(gm.get("ok", 0), gm.get("n", 0)), perfect=perfect), now + 9)
         if i + 1 >= len(D.CHAPTERS):
             st["phase"] = "end"
             self._story_log(f"시즌 {D.STORY['season']} 「{D.STORY['title']}」 완결")
@@ -4308,6 +4756,175 @@ class PetGame:
         else:
             st["phase"] = "wait"
         self.mark()
+
+    # ------------------------------------------------------------ 챕터 보스 기믹 (예고 → 대응 창 → 결과)
+    def _gim_new(self, mid, fails):
+        gd = D.GIMMICKS.get(mid)
+        if not gd:
+            return None
+        mt = gd.get("meter")
+        return dict(n=0, ok=0, next=2, atk=0.0, retro=fails, full=False, meter=(mt["start"] if mt else None), hist=[])
+
+    def gim_info(self):
+        """화면용: 지금 싸우는 챕터 보스의 기믹 상태 (없으면 None)"""
+        b = self.battle
+        if not b or b.get("story") is None or not b.get("gim"):
+            return None
+        gd, gm = D.GIMMICKS[b["mid"]], b["gim"]
+        mt = gd.get("meter")
+        return dict(name=gd["name"], n=gm["n"], ok=gm["ok"], done=len(gm["hist"]), left=max(0, gm["next"] - b["round"]),
+                    count=gd.get("count"),
+                    meter=(dict(label=mt["label"], value=gm["meter"], unit=mt.get("unit", ""), goal=mt.get("goal"),
+                                start=mt["start"]) if mt else None),
+                    tele=b.get("tele"), retro=gm["retro"])
+
+    def _gim_every(self, b):
+        gd = D.GIMMICKS[b["mid"]]
+        return gd.get("every2", gd["every"]) if b.get("p2_done") else gd["every"]
+
+    def _gim_round_end(self, b, now):
+        """라운드가 끝날 때: 계기 자동 증가(이자 등), 예고 때가 됐으면 예고"""
+        gm = b.get("gim")
+        if not gm or b["over"] or b.get("tele"):
+            return
+        gd = D.GIMMICKS[b["mid"]]
+        mt = gd.get("meter")
+        if mt and mt.get("auto"):
+            gm["meter"] += mt["auto"]
+        if b["round"] >= gm["next"]:
+            gm["next"] = b["round"] + self._gim_every(b)
+            self._gim_tele(b, now)
+
+    def _gim_tele(self, b, now):
+        gd, gm, m = D.GIMMICKS[b["mid"]], b["gim"], b["mon"]
+        ans, why, fmt = gd.get("ans"), "", dict(agenda=self.rng.choice(D.AGENDAS), n=gm.get("meter") or 0, q="", clue="")
+        if gd.get("quiz"):
+            q, a, why = self.rng.choice(D.QUIZ)
+            fmt["q"], ans = q, "1" if a else "2"
+        elif gd.get("clue"):
+            fmt["clue"], ans = self.rng.choice(D.ZERO_DAY_CLUES)
+        text = gd["warn"].format(**fmt)
+        watching = now - self.last_input < 60
+        win = D.GIM_WINDOW["watch" if watching else "away"]
+        auto_p = min(0.95, gd["auto"] + D.GIM_RETRO["auto"] * gm["retro"])
+        b["tele"] = dict(text=text, hint=gd.get("hint", ""), opts=list(gd["opts"]), ans=ans, why=why, t0=now,
+                         until=now + win, auto_p=auto_p)
+        b["next"] = now + win + 0.6
+        gm["n"] += 1
+        self.fx["tele"] = now + 1.2
+        self.flash(fix_josa(f"!! {m['name']}: {text} !!"), "#F2F2F3", win + 0.5)
+        self.note(f"예고! {m['name']}: {text}")
+
+    def gim_answer(self, key):
+        """대응 창에서 고른 키 (a / d / 1 / 2 / 3). 창이 없거나 없는 선택지면 False"""
+        b = self.battle
+        tl = b.get("tele") if b else None
+        if not tl or b.get("over") or key not in [k for k, _ in tl["opts"]]:
+            return False
+        self._gim_resolve(key, auto=False)
+        return True
+
+    def _gim_resolve(self, key, auto):
+        b, now = self.battle, self.now()
+        tl, gm = b["tele"], b["gim"]
+        gd = D.GIMMICKS[b["mid"]]
+        if auto:
+            if self.rng.random() < tl["auto_p"]:
+                key = tl["ans"]
+            else:
+                wrong = [k for k, _ in tl["opts"] if k != tl["ans"]]
+                key = self.rng.choice(wrong) if wrong else tl["ans"]
+        b["tele"] = None
+        b["next"] = now + 0.9
+        b["wait_since"] = now
+        good = key == tl["ans"]
+        label = dict(tl["opts"]).get(key, key)
+        tag = "(자동) " if auto else ""
+        S = self.stats()
+        m = b["mon"]
+        mt = gd.get("meter")
+        if good:
+            gm["ok"] += 1
+            msg = gd["ok"]
+            self._gim_apply(gd.get("good") or {}, b, S)
+            if mt:
+                gm["meter"] = 0 if mt.get("reset") else gm["meter"] + mt.get("win", 0)
+            self.flash(f"√ {tag}{label} — {msg}", "#95D85A", 3.5)
+            self.pop("GOOD!", "pet", "#95D85A", 1.2)
+        else:
+            ng = gd["ng"]
+            msg = ng.get(key, next(iter(ng.values()))) if isinstance(ng, dict) else ng
+            self._gim_apply(gd.get("bad") or {}, b, S)
+            if mt:
+                gm["meter"] += mt.get("lose", 0)
+            self.flash(f"× {tag}{label} — {msg}", "#F2F2F3", 3.5)
+        if mt and mt.get("goal") is not None:
+            lo, hi = sorted((mt["start"], mt["goal"]))
+            gm["meter"] = int(clamp(gm["meter"], min(lo, 0), max(hi, 0)))
+            reached = gm["meter"] >= mt["goal"] if mt["goal"] > mt["start"] else gm["meter"] <= mt["goal"]
+            if reached and not gm["full"]:
+                gm["full"] = True
+                self._gim_apply(mt.get("full") or {}, b, S)
+                self.note(f"◆ {mt['full_text']}")
+                self.flash(f"◆ {mt['full_text']} ◆", "#6ABA23", 4)
+        elif mt:
+            gm["meter"] = max(0, gm["meter"])
+        gm["hist"].append(bool(good))
+        self.note(f"{tag}대응: {label} → {msg}" + (f" ({tl['why']})" if tl.get("why") else ""))
+        self._check_end(b)
+        self.mark()
+
+    def _gim_apply(self, eff, b, S):
+        p, m = self.p, b["mon"]
+        if eff.get("dmg"):
+            atk, _, _, crit = self._pet_eff(S, b)
+            dmg, c = self._dmg(atk * 0.55 + S["int"] * 0.75, m["df"], eff["dmg"], 0.3, crit)
+            self._hit_mon(dmg, c, color="#95D85A")
+            self.note(f"{p['name']}의 반격!! -{dmg}")
+        if eff.get("pct"):
+            self._hit_mon(max(1, int(m["maxhp"] * eff["pct"])), False, color="#F2F2F3")
+        if eff.get("stun"):
+            m["st"]["stun"] = max(m["st"].get("stun", 0), int(eff["stun"]))
+        if eff.get("def_down"):
+            if "def_down" not in m["st"]:
+                m["df0"] = m["df"]
+                m["df"] *= 0.65
+            m["st"]["def_down"] = int(eff["def_down"]) + 1
+        if eff.get("heal"):
+            h = int(S["maxhp"] * eff["heal"])
+            p["hp"] = min(S["maxhp"], p["hp"] + h)
+            self.pop(f"+{h}", "pet", "#95D85A")
+        if eff.get("mp"):
+            p["mp"] = min(S["maxmp"], p["mp"] + int(S["maxmp"] * eff["mp"]))
+        if eff.get("boss_heal"):
+            h = int(m["maxhp"] * eff["boss_heal"])
+            m["hp"] = min(m["maxhp"], m["hp"] + h)
+            self.pop(f"+{h}", "mon", "#95D85A")
+        if eff.get("boss_atk"):
+            b["gim"]["atk"] += eff["boss_atk"]
+        if eff.get("wipe"):
+            for st in ("def_up", "spd_up", "focus"):
+                b["pst"].pop(st, None)
+        if eff.get("mp_drain"):
+            p["mp"] = max(0, p["mp"] - int(S["maxmp"] * eff["mp_drain"]))
+        for st, key in (("sleep", "sleep"), ("stun", "pstun"), ("confuse", "confuse"), ("poison", "poison")):
+            if eff.get(key):
+                b["pst"][st] = max(b["pst"].get(st, 0), int(eff[key]))
+        if eff.get("hit"):
+            _, pdf, _, _ = self._pet_eff(S, b)
+            dmg, c = self._dmg(m["atk"] * self._gim_atk(b), pdf, eff["hit"], 0.0, 0.05)
+            p["hp"] -= dmg
+            b["last_dmg"] = dmg
+            self.fx["hurt"] = self.now() + 0.5
+            self.pop(("☼" if c else "") + f"-{dmg}", "pet", "#F2F2F3")
+
+    def _gim_atk(self, b):
+        """기믹이 보탠 보스 공격력 배율 (계약서 · 이자 등)"""
+        gm = b.get("gim")
+        if not gm:
+            return 1.0
+        mt = D.GIMMICKS[b["mid"]].get("meter")
+        return 1.0 + gm["atk"] + ((mt.get("atk_per", 0) * max(0, gm["meter"])) if mt else 0.0)
 
     # ------------------------------------------------------------ 세대: 은퇴 → 명예의 전당 → 새 알
     def can_retire(self):
@@ -4365,6 +4982,12 @@ class PetGame:
         self.unlock("retire")
         if fam["gen"] >= 3:
             self.unlock("gen3")
+        sto = self.story()
+        if sto and sto["phase"] in ("play", "boss"):
+            # 새 아이가 이야기를 이어받는다: 지금 챕터의 프롤로그를 선대 인사와 함께 다시 보여 준다
+            sto["heir"] = True
+            key = f"{D.CHAPTERS[sto['ch']]['id']}:intro"
+            sto["seen"] = [k for k in sto["seen"] if k != key]
         self.fx["retire"] = (old_form, old_name, now + 6.0)
         self.flash(f"◈ {old_name} 은퇴! 명예의 전당에 올랐어요 ◈ {fam['gen']}대 알 도착", "#6ABA23", 7)
         self.note(f"은퇴식: {old_name} ({D.FORMS[old_form]['name']} Lv.{rec['lvl']}) → 명예의 전당. "
