@@ -1,6 +1,7 @@
 # Flow–1 가공 가이드 — 사내 LLM 용
 
 이 문서는 Flow–1 을 **사내에서 이어 고치는 LLM**(opencode 등)이 읽는다. 사람은 [MANUAL](MANUAL.md) 을 읽으면 된다.
+opencode 에 자동으로 붙는 요약(절대 바꾸지 않는 것 · 같이 바꾸는 곳 · 끝내기 전 · 사내 사본 업데이트)은 [flow-1/AGENTS.md](../AGENTS.md), 화면을 고치는 법은 [UI.md](UI.md) 에 있다.
 목표는 하나다: 사내에서 고친 Flow–1 이 이 저장소의 Flow–1 과 **같은 품질** — 같은 분석 결과 · 같은 화면 · 같은 안전장치 — 로 도는 것.
 
 > **원칙 넷**
@@ -18,7 +19,7 @@
 | 설치 · 사내 패키지 이름 넣기 | [INSTALL.md](../INSTALL.md) 4단계 → [05](#05-사내-쿼리-패키지-맞추기) | 없음 (설정) |
 | 어떤 호출이 쿼리로 안 잡힘 · 잘못 잡힘 | [04](#04-분석-규칙) → [09](#09-작업-절차) → [10](#10-자주-틀리는-것) | `flow1_scan.py` |
 | SQL 절이 이상하게 나뉨 · 테이블을 못 찾음 | [06](#06-sql-방언-맞추기) | `flow1_sql.py` |
-| 카드 · 선 · 색 · 치수 | [07](#07-화면-규격) · [08](#08-바꾸면-안-되는-것) | `flow1_graph.py` · `ui.html` |
+| 화면 · 카드 · 선 · 색 · 치수 · 문구 | [UI.md](UI.md) (고치는 법 · 레시피) · [07](#07-화면-규격) (치수 · 색 자리) · [08](#08-바꾸면-안-되는-것) | `ui.html` · `flow1_graph.py` |
 | 실행 시간 · 행 수 (`--run`) | [03](#03-데이터-모델) › 실행 기록 · [12](#12-문제-해결) | `flow1_trace.py` |
 | 서버 · 설정 · 감시 · 탐색기 | [02](#02-코드-지도) › HTTP API | `flow-1.py` |
 | 사용자가 붙여 넣을 요청 글 | [11](#11-프롬프트-모음) | — |
@@ -48,7 +49,7 @@
 | 2 | 화면 내장 | `python build.py --check` | 종료 코드 0 |
 | 3 | 자체 시험 | `python flow-1.py --check` | `- 자체 시험 : 내장 예시 쿼리 6 · 테이블 6 · 조인 5 · 정상` 과 마지막 줄 `결과: OK` |
 | 4 | 분석 결과 | `python flow-1.py --scan tests/examples/daily_sales.py` | `tests/golden/daily_sales.py.txt` 와 한 글자도 다르지 않다 (1번이 확인한다) |
-| 5 | 브라우저 | `python tests/e2e_ui.py` | 마지막 줄 `E2E OK` (Playwright 가 있을 때 · CI 에서는 자동) |
+| 5 | 브라우저 | `python tests/e2e_ui.py` | 마지막 줄 `E2E OK` (Playwright 가 있을 때 · CI 에서는 자동). 화면을 고쳤는데 Playwright 가 없으면 `python tests/ui_check.py shots` → `결과: OK` + 사진 네 장을 [UI.md › 09](UI.md#09-확인) 표로 |
 | 6 | 속도 | 1번의 `test_big_graph_is_fast` | 쿼리 150개 파일의 흐름도 + SVG 10초 안. 기준 PC: 분석 0.3초 · 배치 + SVG 0.04초 · 예시 파일 분석 5 ms |
 | 7 | 사내 코드 | 사내 분석 스크립트 세 개 이상 `--scan` | 아래 표 |
 
@@ -622,6 +623,11 @@ x 0        40    48                                              w
 | 14 | 설정 키 이름을 바꾸지 않는다 (바꾸면 옛 키를 읽어 옮긴다) | W-09 | `Config` 테스트 |
 | 15 | 포트 8785 (대장의 8785–8794 안) | 다른 works 앱과 겹치지 않게 | [docs/REGISTRY.md](../../docs/REGISTRY.md) |
 | 16 | 사내 패키지 · 테이블 · 서버 이름은 이 공개 저장소에 커밋하지 않는다 (사내 사본 · 설정은 괜찮다) | W-12 | 사람의 눈 |
+| 17 | `ui.html` 의 자리표시자 `__THEME__` · `__TOKEN__` · `__BOOT__` · `__SVGCSS__` 를 지우거나 바꾸지 않는다 · 안에 큰따옴표 세 개를 쓰지 않는다 | 서버가 실행마다 바꿔 넣고, `build.py` 가 파이썬 문자열로 묶는다 | `test_build_is_in_sync` · `Http` |
+| 18 | 색 값은 `ui.html` 의 토큰 블록 세 곳(다크 · 라이트 · 시스템의 라이트)에만 · 시스템의 라이트 = 라이트 | 한 곳만 고치면 어느 한 테마에서만 옛 색이 남는다 | `test_colors_only_in_token_blocks` · `test_system_theme_repeats_light` |
+| 19 | `innerHTML` 에는 고정 문구만 (값은 `el()` · `textContent`) | 파일 이름 · 경로에 든 태그가 토큰을 가진 창에서 스크립트로 돈다 | `test_inner_html_only_fixed_text` |
+| 20 | 브라우저 E2E 가 찾는 id 를 지우거나 이름을 바꾸지 않는다 | 사내에서 못 돌리는 E2E 가 CI 에서만 깨진다 | `test_e2e_selectors_exist` |
+| 21 | 내장 폰트 `fonts/flow-1-dos.woff` · `fonts/OFL.txt` 를 바꾸거나 지우지 않는다 | 흐름도 글자 폭(`cw`)이 이 폰트에 맞춰져 있다 · 라이선스 (W-12) | `Measure` · `tools/works_check.py` |
 
 ---
 
@@ -637,7 +643,7 @@ x 0        40    48                                              w
    | `flow1_scan.py` | `tests/test_scan.py` | `r = scan("""…""")` → `r["queries"]` · `r["edges"]` … |
    | `flow1_graph.py` | `tests/test_graph.py` | `g = fg.build([r], 2)` → 노드 · 줄 · 간선 · 좌표 |
    | `flow1_trace.py` · `flow-1.py` | `tests/test_app.py` | 임시 데이터 폴더(`FLOW_HOME`) · 가짜 패키지 `tests/fake_pkg` |
-   | `ui.html` | `tests/e2e_ui.py` | Playwright |
+   | `ui.html` | `tests/test_app.py` › `Assets` · `tests/e2e_ui.py` | 색 · id · `innerHTML` 가드 (문자열 검사) · Playwright |
 
 4. **고친다** — [02](#02-코드-지도) 에서 구역을 찾아 그 구역만 읽는다. 한 번에 한 모듈 · 한 함수. 새 한도 · 이름은 모듈 위의 상수로 둔다
 5. **전부 돌린다** — `python -m unittest discover -s tests`. 골든(`tests/golden/*.txt`)이 달라지면, 의도한 변화일 때만 다시 쓰고 **`git diff tests/golden` 을 한 줄씩** 본다. 의도하지 않은 줄이 하나라도 바뀌었으면 되돌리고 다시 고친다
@@ -647,7 +653,7 @@ x 0        40    48                                              w
    PowerShell  $env:FLOW_GOLDEN_WRITE=1; python -m unittest tests.test_graph; $env:FLOW_GOLDEN_WRITE=""
    ```
 
-6. **화면을 고쳤으면** — `python build.py` → `python build.py --check` → `python tests/e2e_ui.py` → 문서 사진이 바뀌면 `python tests/e2e_ui.py --pages` (`docs/page/`)
+6. **화면을 고쳤으면** — [UI.md](UI.md) 의 레시피대로 → `python build.py` → `python build.py --check` → `python tests/ui_check.py shots` (Playwright 없이 사진 네 장 · [UI.md › 09](UI.md#09-확인)) → Playwright 가 있으면 `python tests/e2e_ui.py` → 문서 사진이 바뀌면 `python tests/e2e_ui.py --pages` (`docs/page/`)
 7. **합격 기준** [01](#01-합격-기준) 을 전부 돌린다
 8. **문서** — 사용자에게 보이는 것이 바뀌면 `docs/MANUAL.md`, 규칙이 바뀌면 이 문서의 그 절, 숫자가 바뀌면 README
 9. **버전** — `flow-1.py` 의 `VERSION`: 고침은 셋째 자리 · 새 기능은 둘째 자리
@@ -725,9 +731,10 @@ D:\OPENCODE\flow-1\docs\GUIDE.md 06 절 표에서 고칠 곳을 찾아, tests/te
 
 ```text
 Flow–1 화면에서 <무엇을 어떻게>.
-D:\OPENCODE\flow-1\docs\GUIDE.md 07 · 08 절과 D:\OPENCODE\docs\DESIGN.md 를 먼저 읽어 줘.
-ui.html 만 고치고 python build.py → python build.py --check → python tests/e2e_ui.py.
-색은 :root 토큰만 (새 hex 금지), 굵게는 text-shadow. 다크 · 라이트 스크린숏을 보여 줘.
+D:\OPENCODE\flow-1\AGENTS.md · docs\UI.md · docs\GUIDE.md 07 · 08 절과 D:\OPENCODE\docs\DESIGN.md 를 먼저 읽어 줘.
+UI.md 08 절에 맞는 레시피가 있으면 그대로. 색은 토큰만 (새 hex 금지), 굵게는 text-shadow.
+python build.py → python -m unittest discover -s tests → python tests/ui_check.py shots.
+사진 네 장을 UI.md 09 절 표로 점검한 결과와 사진 경로를 보여 줘.
 ```
 
 **11-6 보고 틀** — 사내 LLM 이 일을 끝내면 이 모양으로 보고한다.

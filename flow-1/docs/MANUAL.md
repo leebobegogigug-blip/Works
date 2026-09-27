@@ -1,7 +1,7 @@
 # Flow–1 매뉴얼
 
 파이썬 데이터 쿼리를 흐름도 한 장으로. 분석 스크립트 · 노트북을 읽어 쿼리마다 SELECT · FROM · JOIN · WHERE 를 카드 한 장에, 쿼리 사이의 조인 · 조건 · 병합 · 임시 테이블을 선으로 잇습니다.
-소개는 [README](../README.md), 설치 절차는 [INSTALL.md](../INSTALL.md), 사내 LLM 이 이어서 고치는 법은 [GUIDE.md](GUIDE.md)에 있습니다.
+소개는 [README](../README.md), 설치 절차는 [INSTALL.md](../INSTALL.md), 사내 LLM 이 이어서 고치는 법은 [GUIDE.md](GUIDE.md) · 화면은 [UI.md](UI.md), 고치는 에이전트가 자동으로 읽는 규칙은 [AGENTS.md](../AGENTS.md)에 있습니다.
 
 - **읽기만** — 코드를 실행하지 않고 파이썬 문법 트리(ast)로 읽습니다. `--run` 을 줄 때만 스크립트를 돌립니다
 - **패키지 이름을 몰라도** — 인자에 SQL 이 들어간 호출이면 쿼리로 봅니다. 사내 패키지 이름을 알려 주면 SQL 이 변수인 호출까지
@@ -132,11 +132,13 @@ works 공통 규격(원칙 일곱 가지 · 팔레트 · 아이콘)은 [docs/DES
 | 반영 확인 | `python build.py --check` |
 | 테스트 | `python -m unittest discover -s tests` (표준 라이브러리만 · 가짜 사내 패키지 `tests/fake_pkg`) |
 | 분석 결과 확인 | `python flow-1.py --scan tests/examples/daily_sales.py` = `tests/golden/daily_sales.py.txt` |
+| 화면 사진 (Playwright 없이 · Edge · Chrome) | `python tests/ui_check.py shots` → `shots/ui-{dark,light}-{1440,500}.png` · 보는 법 [UI.md › 09](UI.md#09-확인) |
+| 글자가 내장 폰트에 있나 | `python tests/ui_check.py glyphs "새 문구"` |
 | 브라우저 E2E (선택 · CI 에서는 자동) | `pip install playwright` → `python -m playwright install chromium` → `python tests/e2e_ui.py` |
 | 문서 사진 다시 찍기 | `python tests/e2e_ui.py --pages` (`docs/page/` 의 hero · title · card · flow · explorer · run) |
 | works 규칙 검사 | 저장소 루트에서 `python tools/works_check.py` ([RULES.md](../../RULES.md)) |
 
-코드를 고치는 절차 · 규칙 · 합격 기준은 [GUIDE.md](GUIDE.md)가 정본입니다.
+코드를 고치는 절차 · 규칙 · 합격 기준은 [GUIDE.md](GUIDE.md), 화면을 고치는 법은 [UI.md](UI.md)가 정본입니다. 사내 사본을 고친 뒤 업데이트하는 법은 [AGENTS.md › 04](../AGENTS.md#04-사내-사본에서-고칠-때--업데이트와-부딪히지-않게).
 CI(`.github/workflows/flow-1.yml`)는 Windows · Ubuntu × Python 3.8 · 3.13 에서 `build.py --check` · 단위 테스트 · `--check` 를, Ubuntu 에서 브라우저 E2E 를 돌립니다.
 
 ## 데이터

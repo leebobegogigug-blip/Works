@@ -8,6 +8,7 @@
 1. [RULES.md](RULES.md) 를 끝까지 읽는다. 화면 · 문서 · 이미지를 만지면 [docs/DESIGN.md](docs/DESIGN.md) 도 읽는다.
 2. 새 앱이면 코드보다 먼저 [docs/REGISTRY.md](docs/REGISTRY.md) 에 등록한다 (RULES.md › 새 앱 만드는 순서).
 3. 규칙과 부딪히는 요청을 받으면, 하기 전에 어느 조항과 부딪히는지 사용자에게 말한다.
+4. 고칠 앱 폴더에 `AGENTS.md` 가 있으면(예: `flow-1/AGENTS.md`) 그 앱의 파일을 고치기 전에 끝까지 읽는다 — 그 앱에만 있는 금지 · 같이 바꿀 곳 · 합격 기준이 있다.
 
 ## 헌법 요약 — 정본은 RULES.md
 

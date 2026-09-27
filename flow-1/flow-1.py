@@ -68,7 +68,7 @@ import flow1_trace  # noqa: E402
 
 APP = "flow-1"              # 명령 · 파일 · 데이터 폴더 이름
 NAME = "Flow–1"             # 화면에 보이는 이름
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 ENV = "FLOW"                # 환경 변수 접두어 (docs/REGISTRY.md)
 IS_WINDOWS = sys.platform == "win32"
 NO_WINDOW = 0x08000000 if IS_WINDOWS else 0
