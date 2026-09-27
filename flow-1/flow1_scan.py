@@ -910,6 +910,7 @@ class Scanner:
         cand = path if os.path.isabs(path) else (os.path.join(self.dir, path) if self.dir else "")
         if not cand or not cand.lower().endswith(SQL_FILE_EXT):
             return Val()
+        cand = os.path.normpath(cand)       # sql/a.sql · ./sql//a.sql · (Windows) sql\a.sql 는 같은 파일
         try:
             if os.path.getsize(cand) > MAX_SQL_FILE:
                 self.warnings.append(f"{path}: 1 MB 가 넘어 읽지 않았습니다")
@@ -919,7 +920,7 @@ class Scanner:
             self.warnings.append(f"L{getattr(node, 'lineno', 0)} {path}: SQL 파일을 찾지 못했습니다")
             return Val()
         rel = os.path.relpath(cand, self.dir) if self.dir else path
-        if cand not in self.sql_files:
+        if all(os.path.normcase(f) != os.path.normcase(cand) for f in self.sql_files):     # Windows 는 대소문자도 같은 파일
             self.sql_files.append(cand)
         return S(text, src="file:" + rel.replace("\\", "/"))
 

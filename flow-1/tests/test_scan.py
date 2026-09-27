@@ -160,12 +160,14 @@ class SqlFiles(unittest.TestCase):
                 a = dq.query(f.read())
             b = dq.query(open("sql/a.sql").read())
             c = dq.query((Path(__file__).parent / "sql" / "a.sql").read_text())
+            b2 = dq.query(open("./sql//a.sql").read())
             d = dq.query(open("secret.env").read())
             e = dq.query(open("sql/missing.sql").read())
         """, path=path)
-        self.assertEqual([q["sql_src"] for q in r["queries"]], ["file:sql/a.sql"] * 3 + ["dynamic", "dynamic"])
+        self.assertEqual([q["sql_src"] for q in r["queries"]], ["file:sql/a.sql"] * 4 + ["dynamic", "dynamic"])
         self.assertEqual(r["queries"][0]["reads"][0]["name"], "s.from_file")
-        self.assertEqual(r["sql_files"], [os.path.join(self.dir, "sql", "a.sql")])     # .sql · .hql · .txt 만 읽는다
+        # .sql · .hql · .txt 만 읽는다. 같은 파일은 적은 모양(sql/a.sql · ./sql//a.sql · Windows 의 sql\a.sql)이 달라도 한 번
+        self.assertEqual(r["sql_files"], [os.path.join(self.dir, "sql", "a.sql")])
         self.assertTrue(any("missing.sql" in w for w in r["warnings"]))
 
     def test_package_call_that_takes_a_sql_file_path(self):
