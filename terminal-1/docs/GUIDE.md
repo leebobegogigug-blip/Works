@@ -194,7 +194,7 @@ and comes home with loot when the response arrives. One pet per channel.
 | 4 상점 | pages · GOLD · 01 BUY / SELL | `←→` `↑↓` `Enter` |
 | 5 공방 | pages · MATS · 01 GEAR / RECIPES · 02 ENHANCE (`+7 › +8`) | `Enter` · `P` rubber-duck protection |
 | 6 도감 | profile (01 SPEC · 02 RECORD) · quests · diary · monsters · forms · hall of fame · achievements · settings (01 SETTINGS · 02 SYS) | `←→` `↑↓` `Enter` · `R` retire |
-| 7 스토리 | season header · 01 CHAPTER · 02 SHARDS · 03 MISSIONS · 04 NEXT (+ SIDE · PARTY) · 05 LOG — talk: place caption · stage · dialogue box — boss: `CHxx BOSS` · FIELD · HP · LOG / 02 TELEGRAPH | `←→` chapter · `Enter` talk · `B` chapter boss · `E` side episode · `F` party · talk: `Enter` next, `Esc` skip, `1` `2` choice · after the season `P` pay `B` debt fight |
+| 7 스토리 | season header · 01 CHAPTER · 02 SHARDS · 03 MISSIONS · 04 NEXT (+ SIDE · PARTY) · 05 LOG — talk: place caption · stage · dialogue box — boss: `CHxx BOSS` · FIELD · HP · LOG / 02 TELEGRAPH | `←→` chapter · `Enter` talk · `B` chapter boss · `E` side episode · `F` party (`↑↓` `Enter` · `1`-`9` · `R`) · talk: `Enter` next, `Esc` skip, `1` `2` choice · after the season `P` pay `B` debt fight |
 
 `?` guide everywhere. Pages show as dots `●●○○` next to the page switch.
 Korean keyboard mode works (ㄹ = F, ㅁ = A …, syllables like 러 = F); a one-time hint suggests 한/영.
@@ -217,7 +217,7 @@ Adult Lv.25 + 3 days (or any legend) → **retire** (Dex → Profile → `R`) �
 Kept: gold, bag, decorations, achievements, dexes, streak. **Family bonus**: +5% EXP / +3% gold per ancestor (max 10).
 
 ### 07.5 adventure · raid · minigames
-- 20 zones × 10 floors, mini-boss B5F, boss B10F, 126 monsters + 20 chapter bosses, choice events, level skills,
+- 24 zones × 10 floors, mini-boss B5F, boss B10F, 150 monsters + 24 chapter bosses, choice events, level skills,
   gear +10 enhancing, room decorations. Zone *n* opens together with story chapter *n* (07.6).
 - auto-expeditions only try a boss near its level (waits two levels after a loss).
 - **weekly raid**: all pets of all channels hit one boss (HP 6,000 + 350 × level each), 3 sorties/day, 12 rounds, rewards + MVP.
@@ -255,25 +255,31 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 - **after the season**: a weekly *debt repayment* boss — pay principal with gold (`P`, 5% per step, up to 60% a week)
   to weaken it, fight with `B`. Premium decorations in the shop soak up late-game gold.
 - **catch-up**: a pet more than 4 levels under the current chapter's zone boss gets ×1.5 EXP (`과외 ×1.5` chip).
-- **R&D** (`5` forge → `R&D`): permanent upgrades bought with gold (EXP, slower needs, drops, telegraph window, auto-answer);
+- **R&D** (`5` forge → `R&D`): permanent upgrades bought with gold (EXP, slower needs, drops, telegraph window, auto-answer,
+  party training +1%p specialist bonus, boss analysis −1% chapter-boss HP);
   each step costs ×1.8 — the late-game gold sink.
 - **season 2 「Esc를 찾아서」 (THE LAST ESCAPE KEY)** starts after season 1's epilogue (2 chapters at once, then weekly).
   Chapters ship in batches of four; a chapter that is not in your version yet waits as *준비 중* and starts on the update
   if its release date has passed. The weekly debt fight keeps running (`B` = chapter boss when signalled, else debt).
-  In this version: chapters 1–8 (auto-approve factory, cron jungle, retry falls, prompt-injection bazaar, privilege
-  ladder, silent log cave, the mirror of auto expeditions, the agent hive; Lv 102+), new cast (Autopilot — the polite
-  villain who approves everything for you —, a junior agent, a README turtle, a permissions hedgehog), eight new gear
-  pieces and four side episodes. Season 2 bosses draw a fresh question each telegraph: approve or reject a command
+  Complete: chapters 1–12 (auto-approve factory, cron jungle, retry falls, prompt-injection bazaar, privilege ladder,
+  silent log cave, the mirror of auto expeditions, the agent hive, dark-launch theater, no-rollback canyon, fog of no
+  data, the root tower; Lv 102–168), new cast (Autopilot — the polite villain who approves everything for you —, a junior
+  agent, a README turtle, a permissions hedgehog), twelve new gear pieces and six side episodes. The finale boss remixes
+  every season-2 gimmick (two phases); the latest two hall-of-fame ancestors fight alongside you, and a family that
+  chose *share* more often in season 1 may bring a fourth companion. Six season-2 epilogues offer *stop* / *teach to ask*
+  and pick one of three endings (counted per season). After the finale, the home "결재 부탁!" sign gains
+  "오토: 해도 될까요?". Season 2 bosses draw a fresh question each telegraph: approve or reject a command
   (`--yes` is always wrong), read a cron line (does it fire in a minute?), retry-or-stop for an error, and spot a hidden
   instruction in the telegraph itself (if it tells you what to pick, check the source), grant the least privilege,
   name the cause of a log line, read which of *your own* skills the mirror is about to copy, and decide whether to
-  delegate. **Party** (`F` on the story tab): take up to three finished side-episode NPCs into boss fights (default: the
-  latest three); each has specialties, and a specialist against a season-2 gimmick (★) adds +15% auto-answer (`R` = suggest).
+  delegate, widen / watch / kill a feature flag from its metrics, decide whether a command can be undone (run, back up
+  first, dry-run), and prescribe for the one gauge you can see (scale out, cache, memory). **Party** (`F` on the story tab): take up to three finished side-episode NPCs into boss fights (default: the
+  latest three); each has specialties, and a specialist against a season-2 gimmick (★) adds +15% auto-answer (`↑↓` + `Enter` or `1`-`9` to toggle, `R` = suggest; for the finale it spreads specialties).
 - balance is measured with `tools/tq_sim.py` (three token profiles on the real engine; `--duel` replays boss fights).
 - **news LED**: a new chapter, a ready boss or a waiting epilogue lights the LED next to `7스토리`, shows a `STORY` chip at home,
   and the ranch cards show each pet's chapter and mission count.
-- **achievements**: CH3, CH6, CH9, the season finale, season 2 CH4 and CH8, 6 bonus missions and a perfect code review
-  (six of them also give a title).
+- **achievements**: CH3, CH6, CH9, both season finales, season 2 CH4 and CH8, 6 bonus missions, a perfect code review and
+  both seasons' side casts (nine of them also give a title).
 - **playtime**: about 9–10 weeks to the finale at 10 h per weekday. Simulated with 0.25M–25M tokens per day:
   day 60–71, around Lv.100 at the end.
 - **token EXP taper**: per day, the first 2M tokens give full EXP, up to 10M give 25%, beyond that 5% — heavy days no longer
@@ -331,7 +337,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 208 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 223 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `terminal-1.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `terminal-1.ps1` with Windows PowerShell 5.1
 - works rules check (repo root): `python tools/works_check.py` — see [RULES.md](../../RULES.md)

@@ -72,7 +72,10 @@ class Data(unittest.TestCase):
             self.assertLessEqual(set(e["help"]["counters"]), set(D.GIM_TAGS), e["id"])
         # 시즌 2 보스마다 특기가 맞는 동료가 적어도 하나 (그 보스 전에 사귈 수 있는)
         for i in range(S1, len(D.CHAPTERS)):
-            tag = D.GIMMICKS[D.CHAPTERS[i]["boss"]["mid"]].get("tag") or D.GIMMICKS[D.CHAPTERS[i]["boss"]["mid"]].get("pool")
+            gd = D.GIMMICKS[D.CHAPTERS[i]["boss"]["mid"]]
+            if gd.get("remix"):
+                continue                                    # 피날레는 섞어 쓰니 동료를 고루 데려가는 게 답
+            tag = gd.get("tag") or gd.get("pool")
             pros = [e for e in D.SIDE_EPISODES if tag in e["help"]["counters"] and e["need"] < i]
             self.assertTrue(pros, (D.CHAPTERS[i]["id"], tag))
 

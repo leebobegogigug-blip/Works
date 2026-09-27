@@ -4208,7 +4208,7 @@ class PetGame:
         if pt is not None:          # 편성: None = 최근 셋(기본), 목록 = 고른 동료 (끝낸 사이드만, 최대 PARTY_MAX)
             ok = {e["id"] for e in D.SIDE_EPISODES if e.get("help")} & set(st["side_done"])
             pt = pt if isinstance(pt, list) else []
-            st["party"] = [x for i, x in enumerate(pt) if x in ok and x not in pt[:i]][:D.PARTY_MAX]
+            st["party"] = [x for i, x in enumerate(pt) if x in ok and x not in pt[:i]][:D.PARTY_MAX + 1]
         db = st.get("debt")
         if db is not None and not (isinstance(db, dict) and isinstance(db.get("paid", 0), (int, float))
                                    and isinstance(db.get("weeks", 0), int)):
@@ -4437,11 +4437,13 @@ class PetGame:
             hall = fam.get("hall") or []
             if st.get("heir") and hall and i == st.get("ch"):
                 lines = list(D.HEIR_LINES if fam.get("gen", 1) <= 2 else D.HEIR_LINES_OLD) + lines
+        if part == "boss" and c["id"] == D.FINALE["ch"] and (self.s.get("family") or {}).get("hall"):
+            lines = lines[:-1] + list(D.FINALE["lines"]) + lines[-1:]           # 명예의 전당에서 선대가 내려온다
         if part == "outro":
             cid = c["id"]
             ends = D.ENDINGS_BY_CH.get(cid)
             if ends and cid in st.get("cleared", []):
-                lines = lines[:-2] + list(ends[self.story_path()]) + lines[-2:]
+                lines = lines[:-2] + list(ends[self.story_path(season_of(i)["season"])]) + lines[-2:]
             if cid in D.CHOICES and cid in st.get("cleared", []) and cid not in st.get("choices", {}):
                 return self._resolve_lines(lines) + [("choice", cid, None)]
         return self._resolve_lines(lines)
@@ -4473,9 +4475,11 @@ class PetGame:
         self.mark()
         return self._resolve_lines([("pet:proud", label.split(" — ")[0] + "!"), reply])
 
-    def story_path(self):
-        """고른 길: now / share / balance"""
-        ch = list((self.story() or {}).get("choices", {}).values())
+    def story_path(self, season=None):
+        """고른 길: now / share / balance (season 을 주면 그 시즌 챕터의 선택만 센다)"""
+        chs = (self.story() or {}).get("choices", {})
+        ids = None if season is None else {c["id"] for i, c in enumerate(D.CHAPTERS) if season_of(i)["season"] == season}
+        ch = [v for k, v in chs.items() if ids is None or k in ids]
         a, b = ch.count("now"), ch.count("share")
         return "now" if a > b else "share" if b > a else "balance"
 
@@ -4503,8 +4507,10 @@ class PetGame:
         ep, sd = self.side_ep()
         if not ep:
             # 한 편씩 간격을 두고: 기다리는 주(다음 챕터 공개 대기)엔 SIDE_GAP_WAIT, 아니면 SIDE_GAP — 뒤쪽 대기 주까지 남게
-            gap = D.SIDE_GAP_WAIT if st["phase"] == "wait" else D.SIDE_GAP
-            if 0 <= now - st.get("side_t", 0) < gap or len(st["cleared"]) < st.get("side_at", -9) + D.SIDE_EVERY:
+            # 완결(end) 뒤엔 깰 챕터가 없으니 챕터 간격은 세지 않는다 — 밀린 조연 이야기가 날짜 간격으로 마저 온다
+            end = st["phase"] == "end"
+            gap = D.SIDE_GAP_WAIT if st["phase"] in ("wait", "end") else D.SIDE_GAP
+            if 0 <= now - st.get("side_t", 0) < gap or (not end and len(st["cleared"]) < st.get("side_at", -9) + D.SIDE_EVERY):
                 return          # 챕터 두 개에 한 편 — 시즌 끝까지 조연 이야기가 남게
             nxt = next((e for e in D.SIDE_EPISODES if e["id"] not in st["side_done"] and e["need"] < len(D.CHAPTERS)
                         and D.CHAPTERS[e["need"]]["id"] in st["cleared"]), None)
@@ -4554,8 +4560,10 @@ class PetGame:
                        "#6ABA23", 7)
             self.note(f"사이드 에피소드 완료: 「{ep['title']}」 (+{gold}G" + (f", {', '.join(item_name(x) for x in r.get('decos') or [])}" if r.get("decos") else "") + ")")
             self._story_log(f"사이드 · 「{ep['title']}」 완료")
-            if all(e["id"] in st["side_done"] for e in D.SIDE_EPISODES if season_of(e["need"])["season"] == 1):
-                self.unlock("side_all")         # 시즌 1 조연 6명
+            for se, ach in ((1, "side_all"), (2, "side_all2")):   # 시즌마다 조연 6명
+                eps = [e for e in D.SIDE_EPISODES if season_of(e["need"])["season"] == se]
+                if eps and all(e["id"] in st["side_done"] for e in eps):
+                    self.unlock(ach)
         self.mark()
         return True
 
@@ -4565,7 +4573,8 @@ class PetGame:
         done = st.get("side_done", []) if st else []
         eps = {e["id"]: e for e in D.SIDE_EPISODES if e["id"] in done and e.get("help")}
         party = st.get("party") if st else None
-        ids = [x for x in party if x in eps] if isinstance(party, list) else sorted(eps, key=done.index)[-D.PARTY_MAX:]
+        n = self.party_max()
+        ids = [x for x in party if x in eps][:n] if isinstance(party, list) else sorted(eps, key=done.index)[-n:]
         return [dict(eps[x]["help"], npc=eps[x]["npc"], eid=x, color=D.NPCS[eps[x]["npc"]]["color"]) for x in ids]
 
     # ------------------------------------------------------------ 편성: 보스전에 데려갈 동료 (특기가 기믹과 맞으면 자동 대응 ↑)
@@ -4577,6 +4586,15 @@ class PetGame:
             return None
         gd = D.GIMMICKS.get(D.CHAPTERS[i]["boss"]["mid"]) or {}
         return gd.get("tag") or gd.get("pool")
+
+    def story_boss_mix(self, i=None):
+        """피날레처럼 지난 기믹을 섞어 쓰는 보스면 그 기믹 종류들 (아니면 [])"""
+        st = self.story()
+        i = st["ch"] if (i is None and st) else i
+        if i is None or not (0 <= i < len(D.CHAPTERS)):
+            return []
+        gd = D.GIMMICKS.get(D.CHAPTERS[i]["boss"]["mid"]) or {}
+        return [D.GIMMICKS[x].get("tag") or D.GIMMICKS[x].get("pool") for x in gd.get("remix") or []]
 
     def party_options(self):
         """편성 화면: 끝낸 사이드 에피소드의 조연 — on(지금 편성) · match(지금 챕터 보스에 특기)"""
@@ -4592,6 +4610,16 @@ class PetGame:
                                 on=e["id"] in cur, match=bool(tag) and tag in h.get("counters", [])))
         return out
 
+    def party_max(self):
+        """보스전에 데려갈 동료 수: 시즌 1 에서 '함께'를 더 많이 고른 가문은 시즌 2 피날레에 한 명 더"""
+        st = self.story()
+        fin = bool(st) and st.get("phase") in ("play", "boss") and D.CHAPTERS[min(st["ch"], len(D.CHAPTERS) - 1)]["id"] == D.FINALE["ch"]
+        return D.PARTY_MAX + (1 if fin and self.story_path(1) == "share" else 0)
+
+    def party_bonus(self):
+        """특기가 맞는 동료가 올려 주는 자동 대응 (+ R&D 동료 훈련)"""
+        return D.PARTY_BONUS + self.rnd_value("party") / 100
+
     def party_toggle(self, eid):
         st = self.story()
         if not st or eid not in {o["eid"] for o in self.party_options()}:
@@ -4599,8 +4627,8 @@ class PetGame:
         cur = [h["eid"] for h in self.story_helpers()]
         if eid in cur:
             cur.remove(eid)
-        elif len(cur) >= D.PARTY_MAX:
-            return self._nope(f"동료는 {D.PARTY_MAX}명까지예요 · 한 명을 먼저 빼 주세요")
+        elif len(cur) >= self.party_max():
+            return self._nope(f"동료는 {self.party_max()}명까지예요 · 한 명을 먼저 빼 주세요")
         else:
             cur.append(eid)
         st["party"] = cur
@@ -4614,12 +4642,30 @@ class PetGame:
         if not st or not opts:
             return False
         done = st.get("side_done", [])
-        opts.sort(key=lambda o: (not o["match"], -done.index(o["eid"])))
-        st["party"] = [o["eid"] for o in opts[:D.PARTY_MAX]]
+        need = set(self.story_boss_mix())
+        if need:            # 피날레: 아직 못 막는 기믹을 가장 많이 막는 동료부터 (같으면 최근에 사귄 쪽)
+            pick = []
+            while opts and len(pick) < self.party_max():
+                o = max(opts, key=lambda o: (len(need & set(o["counters"])), done.index(o["eid"])))
+                pick.append(o)
+                opts.remove(o)
+                need -= set(o["counters"])
+            st["party"] = [o["eid"] for o in pick]
+        else:
+            opts.sort(key=lambda o: (not o["match"], -done.index(o["eid"])))
+            st["party"] = [o["eid"] for o in opts[:self.party_max()]]
         self.mark()
         return True
 
     # ------------------------------------------------------------ 시즌 후: 주간 부채 상환
+    def season_done(self, n):
+        """시즌 n 의 마지막 챕터를 깼나"""
+        st = self.story()
+        se = next((x for x in D.STORY_SEASONS if x["season"] == n), None)
+        if not st or not se or se["first"] + se["n"] > len(D.CHAPTERS):
+            return False
+        return D.CHAPTERS[se["first"] + se["n"] - 1]["id"] in st.get("cleared", [])
+
     def debt_done_s1(self):
         st = self.story()
         s1 = D.STORY_SEASONS[0]
@@ -4733,9 +4779,23 @@ class PetGame:
                                   debt=True), now + 9)
         self.mark()
 
+    def finale_ancestors(self):
+        """시즌 2 피날레에 함께 싸우러 오는 선대 (명예의 전당 최근 순)"""
+        hall = (self.s.get("family") or {}).get("hall") or []
+        out = []
+        for rec in hall[::-1][:D.FINALE["n"]]:
+            f = D.FORMS.get(rec.get("form")) or {}
+            out.append(dict(kind="attack", power=D.FINALE["power"], name=f"{rec.get('name', '?')}(선대)", counters=[],
+                            label=str(rec.get("name", "?"))[:3],
+                            color=f.get("color", "#A5AAAE"), art=list(D.FINALE["art"]), ancestor=True))
+        return out
+
     def _story_helpers_join(self, b):
         """사이드 에피소드를 끝낸 NPC 가 챕터 보스전에 합류: guard 는 시작할 때 보스 공격력을 깎는다"""
         hs = self.story_helpers()
+        i = b.get("story")
+        if not b.get("debt") and isinstance(i, int) and 0 <= i < len(D.CHAPTERS) and D.CHAPTERS[i]["id"] == D.FINALE["ch"]:
+            hs = self.finale_ancestors() + hs
         b["helpers"] = hs
         guard = sum(h["power"] for h in hs if h["kind"] == "guard")
         if guard:
@@ -4806,6 +4866,8 @@ class PetGame:
         if tune:        # 챕터마다 난이도 손질 (hp, atk 배율) — tools/tq_sim.py --duel 로 잰 값
             ms["hp"] = ms["maxhp"] = max(1, int(ms["maxhp"] * tune[0]))
             ms["atk"] *= tune[1]
+        if self.rnd_value("boss"):     # 사내 R&D 보스 분석
+            ms["hp"] = ms["maxhp"] = max(1, int(ms["maxhp"] * (1 - self.rnd_value("boss") / 100)))
         fails = int(min(st.get("fails", 0), D.GIM_RETRO["cap"]))
         if fails:       # 회고: 진 만큼 보스가 조금씩 약해진다 (끝내 못 깨서 이야기가 멈추는 일은 없게)
             ms["hp"] = ms["maxhp"] = max(1, int(ms["maxhp"] * (1 - D.GIM_RETRO["hp"] * fails)))
@@ -4992,37 +5054,42 @@ class PetGame:
 
     def _gim_tele(self, b, now):
         gd, gm, m = D.GIMMICKS[b["mid"]], b["gim"], b["mon"]
-        ans, why, fmt = gd.get("ans"), "", dict(agenda=self.rng.choice(D.AGENDAS), n=gm.get("meter") or 0, q="", clue="")
-        if gd.get("quiz"):
+        sub = self.rng.choice(gd["remix"]) if gd.get("remix") else None     # 피날레: 지난 보스들의 기믹을 섞어 쓴다
+        src = D.GIMMICKS[sub] if sub else gd
+        ans, why, fmt = src.get("ans"), "", dict(agenda=self.rng.choice(D.AGENDAS), n=gm.get("meter") or 0, q="", clue="")
+        if src.get("quiz"):
             q, a, why = self.rng.choice(D.QUIZ)
             fmt["q"], ans = q, "1" if a else "2"
-        elif gd.get("clue"):
+        elif src.get("clue"):
             fmt["clue"], ans = self.rng.choice(D.ZERO_DAY_CLUES)
-        elif gd.get("pool"):
-            pool = D.GIM_POOLS[gd["pool"]]
-            recent = gm.setdefault("recent", [])        # 최근 3문제는 다시 안 낸다
+        elif src.get("pool"):
+            pool = D.GIM_POOLS[src["pool"]]
+            recent = gm.setdefault("recent", {}).setdefault(src["pool"], [])      # 문제 은행마다 최근 3문제는 다시 안 낸다
             k = self.rng.choice([i for i in range(len(pool)) if i not in recent] or list(range(len(pool))))
             recent[:] = (recent + [k])[-3:]
             fmt["q"], ans, why = pool[k]
-        elif gd.get("mirror"):
+        elif src.get("mirror"):
             sid = self.rng.choice(self.available_skills() or D.BASIC_SKILLS)     # 거울은 내 스킬(궁극기 포함)을 흉내 낸다
             fmt["q"], ans = D.SKILLS[sid]["name"], D.MIRROR_ANS.get(sid, "d")
             why = "공격 기술 — 막는다" if ans == "d" else "회복 · 준비 기술 — 그 틈에 친다"
-        text = fix_josa(gd["warn"].format(**fmt))
+        text = fix_josa(src["warn"].format(**fmt))
+        if sub:
+            text = f"〈{src['name']}〉 {text}"            # 피날레: 어느 보스를 흉내 내는지
         watching = now - self.last_input < 60
         win = D.GIM_WINDOW["watch" if watching else "away"] + self.rnd_value("window")
         auto_p = min(0.95, gd["auto"] + D.GIM_RETRO["auto"] * gm["retro"] + self.rnd_value("auto") / 100)
-        tag = gd.get("tag") or gd.get("pool")
+        tag = src.get("tag") or src.get("pool")
         pro = next((h for h in b.get("helpers") or [] if tag and tag in h.get("counters", ())), None)
+        bonus = self.party_bonus()
         if pro:
-            auto_p = min(0.95, auto_p + D.PARTY_BONUS)       # 특기가 맞는 동료가 거든다
-        b["tele"] = dict(text=text, hint=gd.get("hint", ""), opts=list(gd["opts"]), ans=ans, why=why, t0=now,
-                         until=now + win, auto_p=auto_p, pro=pro["name"] if pro else None)
+            auto_p = min(0.95, auto_p + bonus)                # 특기가 맞는 동료가 거든다
+        b["tele"] = dict(text=text, hint=src.get("hint", ""), opts=list(src["opts"]), ans=ans, why=why, t0=now,
+                         until=now + win, auto_p=auto_p, pro=pro["name"] if pro else None, sub=sub)
         b["next"] = now + win + 0.6
         gm["n"] += 1
         self.fx["tele"] = now + 1.2
         self.flash(fix_josa(f"!! {m['name']}: {text} !!"), "#F2F2F3", win + 0.5)
-        self.note(f"예고! {m['name']}: {text}" + (f" — {pro['name']}의 특기 (자동 대응 +{int(D.PARTY_BONUS * 100)}%)" if pro else ""))
+        self.note(f"예고! {m['name']}: {text}" + (f" — {pro['name']}의 특기 (자동 대응 +{int(round(bonus * 100))}%)" if pro else ""))
 
     def gim_answer(self, key):
         """대응 창에서 고른 키 (a / d / 1 / 2 / 3). 창이 없거나 없는 선택지면 False"""
@@ -5052,16 +5119,17 @@ class PetGame:
         S = self.stats()
         m = b["mon"]
         mt = gd.get("meter")
+        say = D.GIMMICKS[tl["sub"]] if tl.get("sub") else gd      # 피날레는 흉내 낸 보스의 문구로
         if good:
             gm["ok"] += 1
-            msg = gd["ok"]
+            msg = say["ok"]
             self._gim_apply(gd.get("good") or {}, b, S)
             if mt:
                 gm["meter"] = 0 if mt.get("reset") else gm["meter"] + mt.get("win", 0)
             self.flash(f"√ {tag}{label} — {msg}", "#95D85A", 3.5)
             self.pop("GOOD!", "pet", "#95D85A", 1.2)
         else:
-            ng = gd["ng"]
+            ng = say["ng"]
             msg = ng.get(key, next(iter(ng.values()))) if isinstance(ng, dict) else ng
             self._gim_apply(gd.get("bad") or {}, b, S)
             if mt:

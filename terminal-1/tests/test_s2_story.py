@@ -181,10 +181,18 @@ class RealTransition(unittest.TestCase):
         self.assertTrue(any(it["id"] == "shell_pack" for it in g.s["inv"]["gear"]))
 
     def test_last_chapter_in_this_version_waits_as_coming_soon(self):
+        n = S2[0] + 8                                       # 2부까지만 들어 있는 버전인 척 (9장부터 준비 중)
+        ch, zn = list(D.CHAPTERS), list(D.ZONES)
+        D.CHAPTERS[:], D.ZONES[:] = ch[:n], zn[:n]
+        try:
+            self._waits_as_coming_soon(n - 1)
+        finally:
+            D.CHAPTERS[:], D.ZONES[:] = ch, zn
+
+    def _waits_as_coming_soon(self, last):
         g, clk = mk("s2soon")
         hatch(g, clk)
         st = g.story()
-        last = S2[-1]
         st["cleared"] = [c["id"] for c in D.CHAPTERS[:last]]
         st["fast"] = st["rel"] = len(D.CHAPTERS)
         g._story_begin(last, clk.t, quiet=True)

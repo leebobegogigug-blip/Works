@@ -207,7 +207,7 @@ class Player:
         g = self.g
         if not hasattr(g, "rnd_cost"):
             return
-        for key in ("exp", "care", "auto", "window", "drop"):
+        for key in ("exp", "care", "auto", "window", "drop", "party", "boss"):
             cost = g.rnd_cost(key)
             if cost is not None and g.s["gold"] >= cost * 5:
                 g.rnd_buy(key)
@@ -284,8 +284,8 @@ class Player:
             return
         self.last_boss_try, self.last_boss_lvl = now, g.p["lvl"]
         i = st["ch"]
-        if self.prof.get("party", True) and g.story_boss_tag():
-            g.party_suggest()                       # 보스전 전에 [F] → [R] 추천 편성 (특기가 맞는 동료)
+        if self.prof.get("party", True) and (g.story_boss_tag() or g.story_boss_mix()):
+            g.party_suggest()                       # 보스전 전에 [F] → [R] 추천 편성 (특기가 맞는 동료 · 피날레는 고루)
         if g.start_story_boss():
             self.attempts.append(dict(ch=i + 1, lvl=g.p["lvl"], day=None, result=None))
 

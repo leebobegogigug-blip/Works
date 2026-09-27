@@ -43,6 +43,13 @@ class Data(unittest.TestCase):
         for c in D.CHAPTERS:
             gd = D.GIMMICKS.get(c["boss"]["mid"])
             self.assertIsNotNone(gd, c["id"])
+            if gd.get("remix"):                                  # 피날레: 지난 기믹을 섞어 쓴다 (각각은 아래에서 검사)
+                for sub in gd["remix"]:
+                    self.assertIn(sub, D.GIMMICKS, c["id"])
+                    self.assertTrue(D.GIMMICKS[sub].get("pool") or D.GIMMICKS[sub].get("mirror"), sub)
+                    self.assertFalse(D.GIMMICKS[sub].get("remix"), sub)
+                self.assertLessEqual(set(gd.get("good") or {}) | set(gd.get("bad") or {}), EFFECT_KEYS, c["id"])
+                continue
             keys = [k for k, _ in gd["opts"]]
             self.assertGreaterEqual(len(keys), 2, c["id"])
             self.assertEqual(len(keys), len(set(keys)))

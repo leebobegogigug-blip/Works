@@ -803,11 +803,13 @@ class PetUI:
             return
         if kind == "party":
             opts = g.party_options()
-            if 0 < num <= len(opts):
-                g.party_toggle(opts[num - 1]["eid"])
+            c = self._cursor("ov_party", len(opts), k)
+            if opts and (k in ("ENTER", " ") or 0 < num <= len(opts)):
+                g.party_toggle(opts[num - 1 if num else min(c, len(opts) - 1)]["eid"])
             elif k == "r":
                 g.party_suggest()
-                self._toast("추천 편성: 이번 보스에 특기가 맞는 동료부터", 3)
+                self._toast("추천 편성: 특기가 겹치지 않게 골랐어요" if g.story_boss_mix() else
+                            "추천 편성: 이번 보스에 특기가 맞는 동료부터", 3)
             return
         if kind == "play":
             if 0 < num <= len(D.MINIGAMES):
@@ -997,7 +999,7 @@ class PetUI:
     HINTS_OVERLAY = {
         "feed": [("↑↓", "선택"), ("↵", "먹이기"), ("Esc", "닫기")], "med": [("↑↓", "선택"), ("↵", "사용"), ("Esc", "닫기")],
         "play": [("1", "방향"), ("2", "버그"), ("3", "타자"), ("4", "퀴즈"), ("5", "리뷰"), ("Esc", "닫기")],
-        "party": [("1-9", "넣기 · 빼기"), ("R", "추천 편성"), ("Esc", "닫기")],
+        "party": [("↑↓", "선택"), ("↵", "넣기 · 빼기"), ("1-9", "바로"), ("R", "추천 편성"), ("Esc", "닫기")],
         "skill": [("1-9", "스킬"), ("Esc", "닫기")], "bitem": [("1-9", "아이템"), ("Esc", "닫기")],
         "rename": [("↵", "확인"), ("Esc", "취소")], "retire": [("↵", "은퇴식"), ("Esc", "취소")],
     }
@@ -1556,6 +1558,9 @@ class PetUI:
                 sx = max(x0 + 1, min(x0 + W - 1 - vlen(sign), self.pet_x + sw // 2 - vlen(sign) // 2))
                 st = (BG_LIME + BLACK + B) if int(now * 2) % 2 else (BG_NAVY2 + WH + B)
                 cv.text(sx, max(y0 + 1, fx_y - 1), sign, st)
+                ask = "오토: 해도 될까요?"              # 시즌 2 엔딩: 오토파일럿도 이제 묻는다 (팻말 오른쪽, 자리 있을 때만)
+                if w["kind"] == "perm" and g.season_done(2) and sx + vlen(sign) + 1 + vlen(ask) <= x0 + W - 1:
+                    cv.text(sx + vlen(sign) + 1, max(y0 + 1, fx_y - 1), ask, NV4)
             if typing:
                 lx = self.pet_x + sw + 1
                 cv.text(lx, floor_y - 1, " ____ ", NV4)
@@ -1736,14 +1741,20 @@ class PetUI:
         if g.battle and g.battle.get("pair", 0) > 0:
             helpers.append(dict(name="짝꿍", color=P3["gray4"], art=[r" (^^)", r" /||\ "]))
         if g.battle:
-            helpers = [dict(name=h["name"], color=h["color"], art=h["art"]) for h in g.battle.get("helpers") or []] + helpers
-        for a in helpers[:3]:
+            helpers = [dict(name=h["name"], color=h["color"], art=h["art"], label=h.get("label"))
+                       for h in g.battle.get("helpers") or []] + helpers
+        cap = 6 if g.battle and g.battle.get("story") is not None else 3     # 챕터 보스전: 선대 + 편성 동료까지
+        shown = 0
+        for a in helpers[:cap]:
             if ax + 6 >= x0 + W - 14:
                 break
             for i, ln in enumerate(a["art"]):
                 cv.text(ax, ground_y - 2 + i, ln, rgb(a["color"]))
-            cv.text(ax, ground_y - 3, a["name"].split()[-1][:3], G1)
+            cv.text(ax, ground_y - 3, (a.get("label") or a["name"].split()[-1])[:3], G1)
             ax += 7
+            shown += 1
+        if len(helpers) > shown and ax + 3 < x0 + W - 14:
+            cv.text(ax, ground_y - 1, f"+{len(helpers) - shown}", G1)      # 자리가 모자라면 남은 수만
         # 적
         if g.battle:
             m = g.battle["mon"]
@@ -3079,15 +3090,21 @@ class PetUI:
         elif kind == "party":
             rows = []
             kinds = {"attack": "공격", "heal": "회복", "guard": "보스 공격력 ↓"}
-            for i, o in enumerate(g.party_options()[:9]):
+            opts = g.party_options()
+            blank = " " * vlen(keycap("1"))
+            for i, o in enumerate(opts):
                 pro = " · ".join(D.GIM_TAGS.get(t, t) for t in o["counters"])
-                rows.append(f"{keycap(str(i + 1), on=o['on'])} {LIME if o['on'] else G2}{'●' if o['on'] else '○'}{RST} "
+                cap = keycap(str(i + 1), on=o["on"]) if i < 9 else blank          # 10번째부터는 ↑↓ + ↵
+                rows.append(f"{cap} {LIME if o['on'] else G2}{'●' if o['on'] else '○'}{RST} "
                             f"{G4 if o['on'] else G}{B}{o['name']}{RST} {G1}{kinds.get(o['kind'], o['kind'])}"
                             + (f" · 특기 {pro}" if pro else "") + f"{RST}" + (f" {LIME}★ 이번 보스{RST}" if o["match"] else ""))
             tag = g.story_boss_tag()
             if tag in D.GIM_TAGS:
-                rows.append(f"{G1}이번 챕터 보스: {D.GIM_TAGS[tag]} — ★ 동료가 있으면 자동 대응 +{int(D.PARTY_BONUS * 100)}%{RST}")
-            self._menu_box(cv, W, H, f"PARTY  동료 편성 (최대 {D.PARTY_MAX})", rows, None)
+                rows.append(f"{G1}이번 챕터 보스: {D.GIM_TAGS[tag]} — ★ 동료가 있으면 자동 대응 +{int(round(g.party_bonus() * 100))}%{RST}")
+            elif g.story_boss_mix():
+                rows.append(f"{G1}마지막 보스는 지난 기믹을 전부 섞어 쓴다 — 특기가 다양할수록 좋다{RST}")
+            self._menu_box(cv, W, H, f"PARTY  동료 편성 (최대 {g.party_max()})", rows,
+                           min(self.cur.get("ov_party", 0), max(0, len(opts) - 1)))
         elif kind == "skill":
             rows = []
             p = g.p
