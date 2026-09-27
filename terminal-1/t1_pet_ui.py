@@ -1556,6 +1556,9 @@ class PetUI:
                 sx = max(x0 + 1, min(x0 + W - 1 - vlen(sign), self.pet_x + sw // 2 - vlen(sign) // 2))
                 st = (BG_LIME + BLACK + B) if int(now * 2) % 2 else (BG_NAVY2 + WH + B)
                 cv.text(sx, max(y0 + 1, fx_y - 1), sign, st)
+                ask = "오토: 해도 될까요?"              # 시즌 2 엔딩: 오토파일럿도 이제 묻는다 (팻말 오른쪽, 자리 있을 때만)
+                if w["kind"] == "perm" and g.season_done(2) and sx + vlen(sign) + 1 + vlen(ask) <= x0 + W - 1:
+                    cv.text(sx + vlen(sign) + 1, max(y0 + 1, fx_y - 1), ask, NV4)
             if typing:
                 lx = self.pet_x + sw + 1
                 cv.text(lx, floor_y - 1, " ____ ", NV4)
@@ -1736,13 +1739,14 @@ class PetUI:
         if g.battle and g.battle.get("pair", 0) > 0:
             helpers.append(dict(name="짝꿍", color=P3["gray4"], art=[r" (^^)", r" /||\ "]))
         if g.battle:
-            helpers = [dict(name=h["name"], color=h["color"], art=h["art"]) for h in g.battle.get("helpers") or []] + helpers
+            helpers = [dict(name=h["name"], color=h["color"], art=h["art"], label=h.get("label"))
+                       for h in g.battle.get("helpers") or []] + helpers
         for a in helpers[:3]:
             if ax + 6 >= x0 + W - 14:
                 break
             for i, ln in enumerate(a["art"]):
                 cv.text(ax, ground_y - 2 + i, ln, rgb(a["color"]))
-            cv.text(ax, ground_y - 3, a["name"].split()[-1][:3], G1)
+            cv.text(ax, ground_y - 3, (a.get("label") or a["name"].split()[-1])[:3], G1)
             ax += 7
         # 적
         if g.battle:
@@ -3086,8 +3090,10 @@ class PetUI:
                             + (f" · 특기 {pro}" if pro else "") + f"{RST}" + (f" {LIME}★ 이번 보스{RST}" if o["match"] else ""))
             tag = g.story_boss_tag()
             if tag in D.GIM_TAGS:
-                rows.append(f"{G1}이번 챕터 보스: {D.GIM_TAGS[tag]} — ★ 동료가 있으면 자동 대응 +{int(D.PARTY_BONUS * 100)}%{RST}")
-            self._menu_box(cv, W, H, f"PARTY  동료 편성 (최대 {D.PARTY_MAX})", rows, None)
+                rows.append(f"{G1}이번 챕터 보스: {D.GIM_TAGS[tag]} — ★ 동료가 있으면 자동 대응 +{int(round(g.party_bonus() * 100))}%{RST}")
+            elif g.story() and D.CHAPTERS[min(g.story()["ch"], len(D.CHAPTERS) - 1)]["id"] == D.FINALE["ch"]:
+                rows.append(f"{G1}마지막 보스는 지난 기믹을 전부 섞어 쓴다 — 특기가 다양할수록 좋다{RST}")
+            self._menu_box(cv, W, H, f"PARTY  동료 편성 (최대 {g.party_max()})", rows, None)
         elif kind == "skill":
             rows = []
             p = g.p

@@ -207,7 +207,7 @@ class Player:
         g = self.g
         if not hasattr(g, "rnd_cost"):
             return
-        for key in ("exp", "care", "auto", "window", "drop"):
+        for key in ("exp", "care", "auto", "window", "drop", "party", "boss"):
             cost = g.rnd_cost(key)
             if cost is not None and g.s["gold"] >= cost * 5:
                 g.rnd_buy(key)

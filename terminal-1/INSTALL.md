@@ -126,7 +126,7 @@ if (Get-Command py -ErrorAction SilentlyContinue) { $py = 'py'; $pa = @('-3') } 
 & $py @pa -m unittest discover -s tests 2>&1 | Select-Object -Last 3
 ```
 
-**확인:** 마지막 줄이 `OK`이다. 테스트는 208개 전후.
+**확인:** 마지막 줄이 `OK`이다. 테스트는 219개 전후.
 
 **실패하면**
 - 실패한 테스트 이름과 에러 마지막 20줄을 보고에 넣는다.
@@ -308,7 +308,7 @@ Copy-Item "<백업 경로>" $s -Force
 위치        : D:\OPENCODE\terminal-1  (바꿨다면 이유)
 Python      : 3.x.x (py -3 | python)
 버전        : (terminal-1.cmd version 결과)
-테스트      : OK 208 / 실패 n개 (이름)
+테스트      : OK 219 / 실패 n개 (이름)
 PATH        : 추가됨 | 이미 있음
 색 테마     : 설치됨
 화면 점검   : exit=0
