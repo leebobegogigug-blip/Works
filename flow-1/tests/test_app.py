@@ -455,6 +455,56 @@ class Assets(unittest.TestCase):
         for name, value in flow1_graph.THEMES["light"].items():
             self.assertEqual(var(light, name) or var(dark, name), value, name)
 
+    # ── 화면 가드 (docs/UI.md): 사내에서 화면을 고칠 때 자주 빠뜨리는 것을 테스트가 잡는다
+    def _ui(self):
+        with open(os.path.join(ROOT, "ui.html"), encoding="utf-8") as f:
+            return f.read()
+
+    def _token_blocks(self, html):
+        return {k: m for k, m in (("dark", re.search(r":root\{([^}]*)\}", html)),
+                                   ("light", re.search(r':root\[data-theme="light"\]\{([^}]*)\}', html)),
+                                   ("system", re.search(r':root\[data-theme="system"\]\{([^}]*)\}', html)))}
+
+    def test_system_theme_repeats_light(self):
+        """theme=system 의 라이트 블록(@media)은 라이트 블록과 같아야 한다 — 한쪽만 고치면 시스템 테마에서만 옛 색"""
+        blocks = self._token_blocks(self._ui())
+        self.assertTrue(all(blocks.values()), "토큰 블록 세 곳(다크 · 라이트 · 시스템의 라이트)이 있어야 합니다")
+
+        def names(m):
+            return dict(re.findall(r"(--[\w-]+):([^;]+);", m.group(1)))
+
+        self.assertEqual(names(blocks["system"]), names(blocks["light"]))
+
+    def test_colors_only_in_token_blocks(self):
+        """색 값(#hex)은 토큰 블록에만 — 나머지는 var(--토큰). 블록 밖 rgba() 는 무채색 그림자 · 주사선만"""
+        html = self._ui()
+        spans = [m.span() for m in self._token_blocks(html).values() if m]
+        ids = set(re.findall(r'\bid="([\w-]+)"', html))            # #add · #bad 같은 id 는 색이 아니다
+        for m in re.finditer(r"(?<![\w&%])#[0-9a-fA-F]{3,8}\b", html):
+            if m.group(0)[1:] not in ids and not any(a <= m.start() < b for a, b in spans):
+                self.fail(f"ui.html {html.count(chr(10), 0, m.start()) + 1}행: 토큰 블록 밖의 색 {m.group(0)} → var(--토큰)")
+        for m in re.finditer(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", html):
+            if not any(a <= m.start() < b for a, b in spans):
+                self.assertTrue(m.group(1) == m.group(2) == m.group(3),
+                                f"ui.html {html.count(chr(10), 0, m.start()) + 1}행: 토큰 블록 밖의 유채색 {m.group(0)}")
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", flow1_graph.SVG_CSS), "SVG_CSS 는 var(--토큰) 만")
+
+    def test_inner_html_only_fixed_text(self):
+        """innerHTML 에는 고정 문구만 — 파일 이름 · 경로 · SQL 같은 값을 넣으면 스크립트가 끼어든다 (값은 el() · textContent)"""
+        for m in re.finditer(r"\.innerHTML\s*=\s*([^;]+);", self._ui()):
+            rhs = m.group(1).strip()
+            fixed = re.fullmatch(r'"[^"\\]*(?:\\.[^"\\]*)*"', rhs) is not None
+            self.assertTrue(fixed or rhs == "g.svg", f"innerHTML 에 값이 들어갑니다: {rhs[:80]}")   # g.svg = 서버가 esc() 로 만든 SVG
+
+    def test_e2e_selectors_exist(self):
+        """브라우저 E2E 가 찾는 id 가 화면에 있다 — 사내에 Playwright 가 없어도 이름 바꾸기를 여기서 잡는다"""
+        with open(os.path.join(HERE, "e2e_ui.py"), encoding="utf-8") as f:
+            e2e = f.read()
+        ids = set(re.findall(r'\bid="([\w-]+)"', self._ui()))
+        wanted = {s for s in re.findall(r"#([a-z][\w-]*)", e2e) if not re.fullmatch(r"[0-9a-f]{3}|[0-9a-f]{6}", s)}
+        self.assertTrue(wanted)
+        self.assertEqual(sorted(wanted - ids), [], "tests/e2e_ui.py 가 쓰는 id 가 ui.html 에 없습니다")
+
     def test_build_is_in_sync(self):
         p = subprocess.run([sys.executable, os.path.join(ROOT, "build.py"), "--check"], capture_output=True)
         self.assertEqual(p.returncode, 0, p.stdout.decode("utf-8", "replace"))

@@ -182,6 +182,7 @@ python "D:\OPENCODE\flow-1\flow-1.py" --check
 ```
 
 zip 으로 받았다면 `git pull` 대신 **[질문]** 새 zip 을 `D:\OPENCODE` 에 덮어 풀어 달라고 부탁한다.
+**사내에서 Flow–1 코드를 고쳐 쓰고 있다면** 위의 `pull --ff-only` 는 멈추고, zip 덮어 풀기는 고친 것을 지운다 → 이 순서 대신 [AGENTS.md › 04](AGENTS.md#04-사내-사본에서-고칠-때--업데이트와-부딪히지-않게) 의 순서로 한다 (`git status` 에 바뀐 파일이 보이거나 `inhouse` 가지에 있으면 고쳐 쓰는 중이다).
 설정 · 실행 기록은 `%LOCALAPPDATA%\flow-1\` 에 있어서 업데이트로 바뀌지 않는다.
 
 ## 제거

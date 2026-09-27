@@ -36,7 +36,7 @@ MERGE · JOIN · CONCAT · 출력(TO_CSV …) · 임시 테이블의 쓰기 → 
 유량계 바늘 · 읽을 때 휘젓고 쿼리가 도는 동안 떨림<br>
 다크 · 라이트 · 시스템 테마 · 빨강 없음<br>
 설치는 OPENCODE 에게 · INSTALL.MD · 사내 LLM 가공 가이드 · GUIDE.MD<br>
-단위 · 통합 테스트 86 · 브라우저 E2E · WINDOWS + UBUNTU CI
+단위 · 통합 테스트 90 · 브라우저 E2E · WINDOWS + UBUNTU CI
 </sub></p>
 
 <p align="center"><a href="#install">설치하기 ›</a></p>
@@ -137,7 +137,7 @@ Flow–1 은 works 시스템의 한 부품입니다.<br>
 <tr><td>네트워크</td><td><code>127.0.0.1</code> 전용 · 실행마다 새 토큰 · 밖으로 나가는 통신 없음</td></tr>
 <tr><td>키</td><td><code>Ctrl+V</code> 붙여 넣기 · <code>/</code> 찾기 · <code>[</code> <code>]</code> 앞 · 뒤 쿼리 · <code>+</code> <code>-</code> <code>0</code> 확대 · <code>R</code> 다시 읽기 · <code>Alt+1–4</code> 노브 · <code>Esc</code></td></tr>
 <tr><td>글꼴</td><td>GNU Unifont 15.1.01 부분집합 · SIL OFL 1.1 (<a href="fonts/OFL.txt">fonts/OFL.txt</a>)</td></tr>
-<tr><td>테스트</td><td>단위 · 통합 86 · 골든 요약 3 · 브라우저 E2E · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
+<tr><td>테스트</td><td>단위 · 통합 90 · 골든 요약 3 · 브라우저 E2E · CI Windows + Ubuntu × Python 3.8 · 3.13</td></tr>
 </table>
 
 <br>
@@ -167,6 +167,7 @@ Flow–1 을 설치해줘. works 저장소를 D:\OPENCODE 에 받고, 프로그�
 <tr><td width="620"><a href="INSTALL.md">설치 가이드</a> <sub>· OpenCode 에이전트용 단계별 절차 · 업데이트 · 제거</sub></td><td align="right" width="40">›</td></tr>
 <tr><td><a href="docs/MANUAL.md">매뉴얼</a> <sub>· 설정 · 쓰는 법 · 찾는 규칙 · 화면 · 실행 기록</sub></td><td align="right">›</td></tr>
 <tr><td><a href="docs/GUIDE.md">사내 LLM 가공 가이드</a> <sub>· 코드 지도 · 데이터 모델 · 분석 규칙 · 화면 치수 · 작업 절차 · 프롬프트</sub></td><td align="right">›</td></tr>
+<tr><td><a href="docs/UI.md">화면 가공 가이드</a> <sub>· 화면 지도 · 부품 · 색 고르기 · 레시피 · 사진으로 확인 (+ opencode 가 자동으로 읽는 <a href="AGENTS.md">AGENTS.md</a>)</sub></td><td align="right">›</td></tr>
 <tr><td><a href="../docs/DESIGN.md">디자인</a> <sub>· works 공통 원칙 일곱 가지 · 팔레트</sub></td><td align="right">›</td></tr>
 <tr><td><a href="https://github.com/leebobegogigug-blip/Works/issues">문제 알리기</a> <sub>· 이슈</sub></td><td align="right">›</td></tr>
 <tr><td><a href="../README.md">works</a> <sub>· 시스템 전체 · 다른 부품</sub></td><td align="right">›</td></tr>

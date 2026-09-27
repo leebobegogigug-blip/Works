@@ -790,7 +790,7 @@ async function openRuns() {
   try {
     const d = await api(`/api/runs?f=${encodeURIComponent(S.key)}`);
     body.appendChild(el("div", "d-meta", `${d.name} · 최근 ${d.runs.length}개 · ${d.dir}`));
-    if (!d.runs.length) { const hh = el("div", "hello"); hh.innerHTML = `아직 없습니다 — <b>python flow-1.py --run "${(fileOf(S.key) || {}).path || "스크립트.py"}"</b>`; body.appendChild(hh); }
+    if (!d.runs.length) { const hh = el("div", "hello"); hh.append("아직 없습니다 — ", el("b", null, `python flow-1.py --run "${(fileOf(S.key) || {}).path || "스크립트.py"}"`)); body.appendChild(hh); }   // 경로는 글자로만 (innerHTML 에 값 금지)
     for (const r of d.runs) {
       const row = el("div", "row" + (S.run === r.id || (!S.run && r === d.runs[0]) ? " on" : ""));
       row.append(el("span", null, r.live ? "◐" : (r.ok ? "√" : "×")));
