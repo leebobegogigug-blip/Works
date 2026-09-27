@@ -137,7 +137,7 @@ class StoryStart(unittest.TestCase):
         f, every = D.STORY["fast"], D.STORY["every"]
         self.assertEqual(g.story_released_n(clk.t + (every - 1) * 86400), f)
         self.assertEqual(g.story_released_n(clk.t + every * 86400), f + 1)
-        n_all = len(D.CHAPTERS)
+        n_all = D.STORY_SEASONS[0]["n"]                 # 공개 일정은 지금 시즌 안에서만 센다
         self.assertEqual(g.story_released_n(clk.t + every * (n_all - f) * 86400), n_all)
         self.assertEqual(g.story_released_n(clk.t + 999 * 86400), n_all)
         # 시계가 뒤로 가도 한 번 열린 건 닫히지 않는다
@@ -323,8 +323,8 @@ class BossFight(unittest.TestCase):
         g, clk = mk()
         hatch(g, clk)
         st = g.story()
-        n = len(D.CHAPTERS)
-        # 마지막 챕터 직전까지 건너뛰기
+        n = D.STORY_SEASONS[0]["n"]
+        # 시즌 1 마지막 챕터 직전까지 건너뛰기
         st["cleared"] = [c["id"] for c in D.CHAPTERS[:n - 1]]
         st["fast"] = n
         st["rel"] = n
@@ -335,7 +335,7 @@ class BossFight(unittest.TestCase):
         ready(g)
         self.assertTrue(g.start_story_boss())
         b = g.battle
-        self.assertEqual(b["phase2"], D.CHAPTERS[-1]["boss"]["phase2"])
+        self.assertEqual(b["phase2"], D.CHAPTERS[n - 1]["boss"]["phase2"])
         # 첫 번째 쓰러짐 → 리파이낸싱(부활)
         b["mon"]["hp"] = 0
         g._check_end(b)

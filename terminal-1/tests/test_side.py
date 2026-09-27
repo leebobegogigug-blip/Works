@@ -103,23 +103,44 @@ class SideEpisodes(unittest.TestCase):
         self.assertIn("duck_nest", g.s["inv"]["decos"])
         self.assertGreater(g.s["gold"], gold)
         self.assertEqual(g.story()["side_done"], ["e_duck"])
-        g.story()["side_t"] = 0
+        g.story().update(side_t=0, side_at=-9)
         tick_for(g, clk, 2)
         self.assertIsNone(g.side_info())                          # CI 봇 편은 2장을 깨야
-        cleared_upto(g, clk, 2)
-        g.story()["side_t"] = clk.t
+        cleared_upto(g, clk, 3)
+        g.story().update(side_t=clk.t, side_at=1)
         tick_for(g, clk, 2)
         self.assertIsNone(g.side_info())                          # 방금 하나 끝냈으면 며칠 뒤에
         g.story()["phase"] = "wait"
         tick_for(g, clk, 2)
-        self.assertEqual(g.side_info()["ep"]["id"], "e_ci")       # 기다리는 주엔 바로
+        self.assertIsNone(g.side_info())                          # 기다리는 주에도 최소 간격은 둔다
+        g.story()["phase"] = "wait"
+        g.story()["side_t"] = clk.t - D.SIDE_GAP_WAIT - 1
+        tick_for(g, clk, 2)
+        self.assertEqual(g.side_info()["ep"]["id"], "e_ci")       # 기다리는 주엔 짧은 간격으로
+
+    def test_one_side_episode_per_two_chapters(self):
+        g, clk = mk("side_one")
+        hatch(g, clk)
+        cleared_upto(g, clk, 3)
+        tick_for(g, clk, 2)
+        finish_side(g, clk)
+        self.assertEqual(g.story()["side_at"], 3)
+        for n in (3, 4):
+            cleared_upto(g, clk, n)
+            g.story().update(side_t=0, phase="wait")
+            tick_for(g, clk, 2)
+            self.assertIsNone(g.side_info(), n)                   # 챕터를 두 개 더 깨기 전엔 두 편째가 오지 않는다
+        cleared_upto(g, clk, 5)
+        g.story().update(side_t=0, phase="wait")
+        tick_for(g, clk, 2)
+        self.assertEqual(g.side_info()["ep"]["id"], "e_ci")
 
     def test_all_six_unlock_title_and_helpers_join_boss(self):
         g, clk = mk("side2")
         hatch(g, clk)
         cleared_upto(g, clk, 7)
-        for _ in range(len(D.SIDE_EPISODES)):
-            g.story()["side_t"] = 0                       # 간격 건너뛰기
+        for _ in range(6):                                    # 시즌 1 조연 6명
+            g.story().update(side_t=0, side_at=-9)        # 간격 건너뛰기
             tick_for(g, clk, 2)
             finish_side(g, clk)
         self.assertIn("side_all", g.s["ach"])
