@@ -1,0 +1,80 @@
+daily_sales.py · 쿼리 6 · 테이블 6 · 조인 5 · 조건 9 · 병합 3 · 파일 입력 0 · 출력 2
+
+Q01  L18  df_orders = dq.query(…)  [fstring]
+    SELECT  o.order_id, o.cust_id, o.order_dt, o.amount, o.status
+    FROM    dw.orders o
+    WHERE   o.order_dt BETWEEN '2026-09-01' AND '2026-09-30'
+    AND     o.status IN ('PAID', 'SHIPPED')
+
+Q02  L34  df_vip = dq.query(…)
+    WITH    spend ← dw.orders
+    SELECT  c.cust_id, c.name, c.grade, s.total
+    FROM    dw.customers c
+    JOIN    spend s
+    ON      c.cust_id = s.cust_id
+    WHERE   c.grade IN ('GOLD', 'VIP')
+    AND     s.total > 1000000
+
+Q03  L45  df_items = dq.query(…)  [format]
+    SELECT  i.order_id, i.product_id, p.category, i.qty, i.price
+    FROM    dw.order_items i
+    LEFT    dw.products p
+    ON      i.product_id = p.product_id
+    WHERE   i.order_id IN ({order_ids})
+    AND     i.qty > 0
+    {order_ids} ← Q01 (df_orders) · ",".join(str(x) for x in df_orders["order_id"].unique())
+
+Q04  L49  df_returns = dq.query(…)  [file:sql/returns.sql]
+    SELECT  r.order_id, r.product_id, r.qty AS return_qty, r.reason
+    FROM    dw.returns r
+    WHERE   r.return_dt >= '2026-09-01'
+    AND     r.reason <> 'TEST'
+
+Q05  L57  dq.execute(…)  [fstring]
+    INSERT  tmp.vip_daily
+    SELECT  i.order_dt, p.category, SUM(i.qty * i.price) AS sales
+    FROM    dw.order_items i
+    JOIN    dw.products p
+    ON      i.product_id = p.product_id
+    GROUP   i.order_dt, p.category
+
+Q06  L64  df_trend = dq.query(…)
+    SELECT  dt, category, sales
+    FROM    tmp.vip_daily
+    WHERE   dt >= '2026-07-01'
+    ORDER   dt
+
+J01  L52  df = merge  inner on cust_id
+    L  df_orders ← Q01 (df_orders)
+    R  df_vip ← Q02 (df_vip)
+
+J02  L53  df = merge  left on order_id
+    L  df ← J01 (df)
+    R  df_items ← Q03 (df_items)
+
+J03  L68  concat
+    +  df_trend ← Q06 (df_trend)
+    +  df_returns ← Q04 (df_returns)
+
+O01  L67  to_csv  out/vip_daily.csv  ← J02 (df)
+
+O02  L68  to_excel  out/vip_trend.xlsx  ← J03
+
+테이블
+  dw.customers    읽기 Q02
+  dw.order_items  읽기 Q03 Q05
+  dw.orders       읽기 Q01 Q02
+  dw.products     읽기 Q03 Q05
+  dw.returns      읽기 Q04
+  tmp.vip_daily   쓰기 Q05 · 읽기 Q06
+
+흐름
+  Q01 (df_orders) → Q03 (df_items)  조건 {order_ids}
+  Q01 (df_orders) → J01 (df)  데이터 df_orders (L)
+  Q02 (df_vip) → J01 (df)  데이터 df_vip (R)
+  J01 (df) → J02 (df)  데이터 df (L)
+  Q03 (df_items) → J02 (df)  데이터 df_items (R)
+  J02 (df) → O01 (report)  데이터 report
+  Q06 (df_trend) → J03  데이터 df_trend
+  Q04 (df_returns) → J03  데이터 df_returns
+  J03 → O02  데이터

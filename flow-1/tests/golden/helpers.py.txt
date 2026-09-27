@@ -1,0 +1,49 @@
+helpers.py · 쿼리 7 · 테이블 5 · 조인 1 · 조건 5 · 병합 1 · 파일 입력 0 · 출력 0
+
+Q01  L16 · load_month() › run() L9  jan = dq.query(…)  [fstring]
+    SELECT  order_id, cust_id, amount
+    FROM    dw.orders
+    WHERE   ym = '2026-01'
+
+Q02  L17 · load_month() › run() L9  feb = dq.query(…)  [fstring]
+    SELECT  order_id, cust_id, amount
+    FROM    dw.orders
+    WHERE   ym = '2026-02'
+
+Q03  L22 · 반복  counts[t] = dq.query(…)  [fstring]
+    SELECT  COUNT(*) AS n
+    FROM    dw.customers
+
+Q04  L22 · 반복  counts[t] = dq.query(…)  [fstring]
+    SELECT  COUNT(*) AS n
+    FROM    dw.products
+
+Q05  L30 · 반복  frames[name] = dq.query(…)
+    SELECT  product_id, qty
+    FROM    dw.stock
+    WHERE   qty < 10
+
+Q06  L30 · 반복  frames[name] = dq.query(…)
+    SELECT  product_id, price
+    FROM    dw.price_history
+    WHERE   valid_to IS NULL
+
+Q07  L43 · customers() L39  gold = self.cli.fetch(…)  [concat]
+    SELECT  cust_id, name, grade
+    FROM    dw.customers
+    WHERE   grade = 'GOLD'
+
+J01  L44  merged = merge  inner on cust_id
+    L  jan ← Q01 (jan)
+    R  gold ← Q07 (gold)
+
+테이블
+  dw.customers      읽기 Q03 Q07
+  dw.orders         읽기 Q01 Q02
+  dw.price_history  읽기 Q06
+  dw.products       읽기 Q04
+  dw.stock          읽기 Q05
+
+흐름
+  Q01 (jan) → J01 (merged)  데이터 jan (L)
+  Q07 (gold) → J01 (merged)  데이터 gold (R)
