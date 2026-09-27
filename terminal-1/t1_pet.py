@@ -413,7 +413,8 @@ def new_story(now, fast=None):
     return {"start": day_key(now), "fast": fast, "rel": fast, "ch": 0, "phase": "play", "since": now,
             "base": {}, "mdone": [], "bonus": False, "bonus_n": 0, "seen": [], "cleared": [], "log": [],
             "fails": 0, "fail_lvl": 0, "pending": None, "heir": False, "sev": [],
-            "side": None, "side_done": [], "side_t": 0, "side_at": -9, "choices": {}, "debt": None}
+            "side": None, "side_done": [], "side_t": 0, "side_at": -9, "choices": {}, "debt": None,
+            "party": None}
 
 
 def season_of(i):
@@ -3566,6 +3567,9 @@ class PetGame:
         elif kind == "quiz":
             self.mg = dict(kind="quiz", qs=self.rng.sample(range(len(D.QUIZ)), 5), idx=0, score=0, phase="ask",
                            t=now, ans=None, hist=[])
+        elif kind == "review":
+            self.mg = dict(kind="review", qs=self.rng.sample(range(len(D.CODE_REVIEWS)), 5), idx=0, score=0, phase="ask",
+                           t=now, ans=None, hist=[])
         else:
             return False
         self.mg["last_key"] = now
@@ -3589,6 +3593,12 @@ class PetGame:
                 if ans is None:
                     return
                 self._quiz_answer(ans, now)
+            elif mg["phase"] == "show" and k in ("ENTER", " "):
+                self._quiz_next(now)
+            return
+        if mg["kind"] == "review":
+            if mg["phase"] == "ask" and k in ("1", "2", "3"):
+                self._review_answer(k, now)
             elif mg["phase"] == "show" and k in ("ENTER", " "):
                 self._quiz_next(now)
             return
@@ -3648,6 +3658,15 @@ class PetGame:
         mg["hist"].append(ok)
         mg["phase"], mg["t"] = "show", now
 
+    def _review_answer(self, k, now):
+        """코드 리뷰: 버그가 있는 줄 번호 (None = 시간 초과)"""
+        mg = self.mg
+        ok = k is not None and k == D.CODE_REVIEWS[mg["qs"][mg["idx"]]][1]
+        mg["ans"], mg["ok"] = k, ok
+        mg["score"] += ok
+        mg["hist"].append(ok)
+        mg["phase"], mg["t"] = "show", now
+
     def _quiz_next(self, now):
         mg = self.mg
         mg["idx"] += 1
@@ -3672,6 +3691,12 @@ class PetGame:
             if mg["phase"] == "ask" and now - mg["t"] >= D.QUIZ_TIME:
                 self._quiz_answer(None, now)          # 시간 초과 = 오답
             elif mg["phase"] == "show" and now - mg["t"] >= 3.2:
+                self._quiz_next(now)
+            return
+        if mg["kind"] == "review":
+            if mg["phase"] == "ask" and now - mg["t"] >= D.REVIEW_TIME:
+                self._review_answer(None, now)
+            elif mg["phase"] == "show" and now - mg["t"] >= 5.0:
                 self._quiz_next(now)
             return
         if mg["kind"] == "dir" and mg["phase"] == "show" and now - mg["t"] >= 1.3:
@@ -3720,6 +3745,13 @@ class PetGame:
             if sc >= 5 and p["bugs"]:
                 p["bugs"] = max(0, p["bugs"] - 1)
                 summary += " · 연습하다 방 버그도 1마리 잡았다!"
+        elif kind == "review":
+            sc = mg["score"]
+            win = sc >= 4
+            mood, exp, gold = 3 * sc + (6 if sc == 5 else 0), 6 * sc, 6 * sc
+            summary = f"diff 5개 중 {sc}개에서 버그를 찾았다!"
+            if sc == 5:
+                self.unlock("review_perfect")
         elif kind == "quiz":
             sc = mg["score"]
             win = sc >= 4
@@ -3758,7 +3790,7 @@ class PetGame:
         self.inc("games")
         self.quest("game")
         self.satisfy("play")
-        self.say(("quiz_win" if kind == "quiz" else "play_win") if win else "play_lose")
+        self.say(("quiz_win" if kind in ("quiz", "review") else "play_win") if win else "play_lose")
         mg["phase"], mg["until"] = "result", now + 4.5
         mg["summary"] = f"{summary}  → 기분+{mood} EXP+{exp} +{int(gold)}G"
         self.note(f"미니게임 결과: {mg['summary']}")
@@ -3876,6 +3908,8 @@ class PetGame:
         if not self.is_egg():
             self.say("ally", ally=name)
         self.note(f"동료 합류: {name} (서브에이전트 {agent})")
+        if len(self.allies) >= 3:
+            self.world_react("hive", chance=0.5, n=len(self.allies))
 
     def _on_gone(self, sid=""):
         """세션이 삭제됐거나 서버가 사라짐 → 보상 없이 정리 (자동 원정은 귀환)"""
@@ -4141,8 +4175,8 @@ class PetGame:
             if k == "pending":
                 if cur is not None and (isinstance(cur, bool) or not isinstance(cur, int)):
                     st[k] = None
-            elif k in ("side", "debt"):
-                st.setdefault(k, None)      # None 또는 dict — 아래에서 따로 검사
+            elif k in ("side", "debt", "party"):
+                st.setdefault(k, None)      # None 또는 dict · list — 아래에서 따로 검사
             elif k in kinds:
                 if not isinstance(cur, kinds[k]):
                     st[k] = v
@@ -4170,6 +4204,11 @@ class PetGame:
                                    and isinstance(sd.get("base", {}), dict)):
             st["side"] = None
         st["choices"] = {k: v for k, v in st["choices"].items() if k in D.CHOICES and v in ("now", "share")}
+        pt = st.get("party")
+        if pt is not None:          # 편성: None = 최근 셋(기본), 목록 = 고른 동료 (끝낸 사이드만, 최대 PARTY_MAX)
+            ok = {e["id"] for e in D.SIDE_EPISODES if e.get("help")} & set(st["side_done"])
+            pt = pt if isinstance(pt, list) else []
+            st["party"] = [x for i, x in enumerate(pt) if x in ok and x not in pt[:i]][:D.PARTY_MAX]
         db = st.get("debt")
         if db is not None and not (isinstance(db, dict) and isinstance(db.get("paid", 0), (int, float))
                                    and isinstance(db.get("weeks", 0), int)):
@@ -4408,7 +4447,7 @@ class PetGame:
         return self._resolve_lines(lines)
 
     def _resolve_lines(self, lines):
-        """(말하는 이[:표정], 문장) → (말하는 이, 문장, 표정): 펫 대사는 성격대로, {name} {ancestor} {gen} 채우기"""
+        """(말하는 이[:표정], 문장) → (말하는 이, 문장, 표정): 펫 대사는 성격대로, {name} {ancestor} {gen} {kills} 채우기"""
         p = self.p
         anc = ((self.s.get("family") or {}).get("hall") or [{}])[-1].get("name", "")
         gen = (self.s.get("family") or {}).get("gen", 1)
@@ -4418,6 +4457,7 @@ class PetGame:
             if base == "pet":
                 text = (D.PET_LINES.get(text) or {}).get(p.get("personality"), text)
             text = text.replace("{name}", p["name"]).replace("{ancestor}", anc).replace("{gen}", str(gen))
+            text = text.replace("{kills}", f"{int(self.stat('kills')):,}")
             out.append((base, fix_josa(text), face if face in D.FACES else None))
         return out
 
@@ -4520,12 +4560,64 @@ class PetGame:
         return True
 
     def story_helpers(self):
-        """사이드 에피소드를 끝낸 NPC 동료 (최근 셋)"""
+        """사이드 에피소드를 끝낸 NPC 동료: 편성(party)이 있으면 고른 동료, 없으면 최근 셋"""
         st = self.story()
         done = st.get("side_done", []) if st else []
-        eps = [e for e in D.SIDE_EPISODES if e["id"] in done and e.get("help")]
-        eps.sort(key=lambda e: done.index(e["id"]))
-        return [dict(e["help"], npc=e["npc"], color=D.NPCS[e["npc"]]["color"]) for e in eps[-3:]]
+        eps = {e["id"]: e for e in D.SIDE_EPISODES if e["id"] in done and e.get("help")}
+        party = st.get("party") if st else None
+        ids = [x for x in party if x in eps] if isinstance(party, list) else sorted(eps, key=done.index)[-D.PARTY_MAX:]
+        return [dict(eps[x]["help"], npc=eps[x]["npc"], eid=x, color=D.NPCS[eps[x]["npc"]]["color"]) for x in ids]
+
+    # ------------------------------------------------------------ 편성: 보스전에 데려갈 동료 (특기가 기믹과 맞으면 자동 대응 ↑)
+    def story_boss_tag(self, i=None):
+        """챕터 보스 기믹의 종류 (특기와 맞춰 보는 이름). 시즌 1 보스는 없음"""
+        st = self.story()
+        i = st["ch"] if (i is None and st) else i
+        if i is None or not (0 <= i < len(D.CHAPTERS)):
+            return None
+        gd = D.GIMMICKS.get(D.CHAPTERS[i]["boss"]["mid"]) or {}
+        return gd.get("tag") or gd.get("pool")
+
+    def party_options(self):
+        """편성 화면: 끝낸 사이드 에피소드의 조연 — on(지금 편성) · match(지금 챕터 보스에 특기)"""
+        st = self.story()
+        if not st:
+            return []
+        tag, cur = self.story_boss_tag(), [h["eid"] for h in self.story_helpers()]
+        out = []
+        for e in D.SIDE_EPISODES:
+            h = e.get("help")
+            if h and e["id"] in st.get("side_done", []):
+                out.append(dict(eid=e["id"], npc=e["npc"], name=h["name"], kind=h["kind"], counters=list(h.get("counters", [])),
+                                on=e["id"] in cur, match=bool(tag) and tag in h.get("counters", [])))
+        return out
+
+    def party_toggle(self, eid):
+        st = self.story()
+        if not st or eid not in {o["eid"] for o in self.party_options()}:
+            return False
+        cur = [h["eid"] for h in self.story_helpers()]
+        if eid in cur:
+            cur.remove(eid)
+        elif len(cur) >= D.PARTY_MAX:
+            return self._nope(f"동료는 {D.PARTY_MAX}명까지예요 · 한 명을 먼저 빼 주세요")
+        else:
+            cur.append(eid)
+        st["party"] = cur
+        self.mark()
+        return True
+
+    def party_suggest(self):
+        """추천 편성: 이번 보스에 특기가 맞는 동료 먼저, 나머지는 최근에 사귄 순"""
+        st = self.story()
+        opts = self.party_options()
+        if not st or not opts:
+            return False
+        done = st.get("side_done", [])
+        opts.sort(key=lambda o: (not o["match"], -done.index(o["eid"])))
+        st["party"] = [o["eid"] for o in opts[:D.PARTY_MAX]]
+        self.mark()
+        return True
 
     # ------------------------------------------------------------ 시즌 후: 주간 부채 상환
     def debt_done_s1(self):
@@ -4912,17 +5004,25 @@ class PetGame:
             k = self.rng.choice([i for i in range(len(pool)) if i not in recent] or list(range(len(pool))))
             recent[:] = (recent + [k])[-3:]
             fmt["q"], ans, why = pool[k]
-        text = gd["warn"].format(**fmt)
+        elif gd.get("mirror"):
+            sid = self.rng.choice(self.available_skills() or D.BASIC_SKILLS)     # 거울은 내 스킬(궁극기 포함)을 흉내 낸다
+            fmt["q"], ans = D.SKILLS[sid]["name"], D.MIRROR_ANS.get(sid, "d")
+            why = "공격 기술 — 막는다" if ans == "d" else "회복 · 준비 기술 — 그 틈에 친다"
+        text = fix_josa(gd["warn"].format(**fmt))
         watching = now - self.last_input < 60
         win = D.GIM_WINDOW["watch" if watching else "away"] + self.rnd_value("window")
         auto_p = min(0.95, gd["auto"] + D.GIM_RETRO["auto"] * gm["retro"] + self.rnd_value("auto") / 100)
+        tag = gd.get("tag") or gd.get("pool")
+        pro = next((h for h in b.get("helpers") or [] if tag and tag in h.get("counters", ())), None)
+        if pro:
+            auto_p = min(0.95, auto_p + D.PARTY_BONUS)       # 특기가 맞는 동료가 거든다
         b["tele"] = dict(text=text, hint=gd.get("hint", ""), opts=list(gd["opts"]), ans=ans, why=why, t0=now,
-                         until=now + win, auto_p=auto_p)
+                         until=now + win, auto_p=auto_p, pro=pro["name"] if pro else None)
         b["next"] = now + win + 0.6
         gm["n"] += 1
         self.fx["tele"] = now + 1.2
         self.flash(fix_josa(f"!! {m['name']}: {text} !!"), "#F2F2F3", win + 0.5)
-        self.note(f"예고! {m['name']}: {text}")
+        self.note(f"예고! {m['name']}: {text}" + (f" — {pro['name']}의 특기 (자동 대응 +{int(D.PARTY_BONUS * 100)}%)" if pro else ""))
 
     def gim_answer(self, key):
         """대응 창에서 고른 키 (a / d / 1 / 2 / 3). 창이 없거나 없는 선택지면 False"""

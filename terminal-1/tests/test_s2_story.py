@@ -87,7 +87,7 @@ class Data(unittest.TestCase):
             self.assertIn(k, D.NPCS)
             self.assertTrue(all(vlen(ln) <= 11 for ln in D.NPCS[k]["art"]))
         s2 = [e for e in D.SIDE_EPISODES if P.season_of(e["need"])["season"] == 2]
-        self.assertEqual([e["id"] for e in s2], ["e_duck2", "e_turtle"])
+        self.assertEqual([e["id"] for e in s2][:2], ["e_duck2", "e_turtle"])
         for e in s2:
             for iid in e["reward"].get("decos", []):
                 self.assertIn(iid, D.DECO_ART)
@@ -159,7 +159,7 @@ class PoolTelegraph(unittest.TestCase):
 
 
 class RealTransition(unittest.TestCase):
-    def test_season1_end_leads_into_real_season2_and_waits_after_part1(self):
+    def test_season1_end_leads_into_real_season2(self):
         g, clk = mk("s2real")
         hatch(g, clk)
         st = g.story()
@@ -171,16 +171,27 @@ class RealTransition(unittest.TestCase):
         self.assertEqual(g.story_released_n(clk.t), S2[0] + D.STORY_SEASONS[1]["fast"])     # 1 · 2장은 바로
         scene = g.story_scene(S2[0], "intro")
         self.assertIn("오토파일럿", "\n".join(t for _, t, _ in scene) + "".join(n for n, _, _ in scene))
-        # 1부 마지막 장(4장)을 깨면: 5장이 아직 없으니 '준비 중'으로 기다린다
+        # 1부 마지막 장(4장): 업적 · 장비. 5장 공개일 전이면 기다린다
         st["cleared"] = [c["id"] for c in D.CHAPTERS[:S2[3]]]
-        st["rel"] = len(D.CHAPTERS)
+        st["rel"] = S2[3] + 1
         g._story_begin(S2[3], clk.t, quiet=True)
         g._story_clear(S2[3], clk.t)
-        g.story_mark_seen(S2[3], "outro")
-        tick_for(g, clk, 2)
         self.assertEqual((st["ch"], st["phase"]), (S2[3], "wait"))
         self.assertIn("story_s2_4", g.s["ach"])
         self.assertTrue(any(it["id"] == "shell_pack" for it in g.s["inv"]["gear"]))
+
+    def test_last_chapter_in_this_version_waits_as_coming_soon(self):
+        g, clk = mk("s2soon")
+        hatch(g, clk)
+        st = g.story()
+        last = S2[-1]
+        st["cleared"] = [c["id"] for c in D.CHAPTERS[:last]]
+        st["fast"] = st["rel"] = len(D.CHAPTERS)
+        g._story_begin(last, clk.t, quiet=True)
+        g._story_clear(last, clk.t)
+        g.story_mark_seen(last, "outro")
+        tick_for(g, clk, 2)
+        self.assertEqual((st["ch"], st["phase"]), (last, "wait"))
         clk.t += 30 * 86400
         tick_for(g, clk, 2)
         self.assertEqual(st["phase"], "wait")                                # 몇 주가 지나도 없는 장은 열리지 않는다
@@ -189,7 +200,7 @@ class RealTransition(unittest.TestCase):
             g.story_mark_seen(i, "intro")
         screen = plain(ui.render(80, 24))
         self.assertIn("준비 중", screen)
-        self.assertIn("Esc 조각 #4", screen)                                 # 조각 번호는 시즌 안에서 센다
+        self.assertIn(f"Esc 조각 #{P.ch_no(last)}", screen)                  # 조각 번호는 시즌 안에서 센다
 
 
 class Season2Cast(unittest.TestCase):

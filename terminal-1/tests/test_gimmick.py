@@ -48,7 +48,10 @@ class Data(unittest.TestCase):
             self.assertEqual(len(keys), len(set(keys)))
             for k in keys:
                 self.assertIn(k, ("a", "d", "1", "2", "3"))
-            if gd.get("pool"):
+            if gd.get("mirror"):
+                self.assertLessEqual(set(D.MIRROR_ANS.values()), set(keys), c["id"])
+                self.assertLessEqual(set(D.SKILLS), set(D.MIRROR_ANS), c["id"])     # 어떤 스킬을 흉내 내도 정답이 있다
+            elif gd.get("pool"):
                 self.assertIn(gd["pool"], D.GIM_POOLS, c["id"])
                 self.assertTrue(all(a in keys for _, a, _ in D.GIM_POOLS[gd["pool"]]), c["id"])
             elif not (gd.get("quiz") or gd.get("clue")):
@@ -57,7 +60,7 @@ class Data(unittest.TestCase):
                 self.assertLessEqual(set(gd.get(part) or {}), EFFECT_KEYS, (c["id"], part))
             if isinstance(gd["ng"], dict):
                 self.assertLessEqual(set(gd["ng"]), set(keys) - {gd["ans"]}, c["id"])
-                if gd.get("pool"):                                   # 정답이 문제마다 → 모든 선택지에 오답 문구
+                if gd.get("pool") or gd.get("mirror"):               # 정답이 문제마다 → 모든 선택지에 오답 문구
                     self.assertEqual(set(gd["ng"]), set(keys), c["id"])
             gd["warn"].format(agenda="x", n=1, q="x", clue="x")        # 자리 이름 오타 없음
             mt = gd.get("meter")

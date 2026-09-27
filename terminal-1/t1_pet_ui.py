@@ -665,6 +665,11 @@ class PetUI:
             self._story_enter(i)
         elif k == "e":
             self._side_open()
+        elif k == "f":
+            if not g.party_options():
+                self._toast("편성할 동료가 없어요 · 사이드 에피소드를 끝내면 조연이 동료가 돼요", 4)
+                return
+            self.overlay = dict(kind="party")
         elif k == "p" and g.debt_info():
             g.debt_pay()
         elif k == "b" and st["phase"] != "boss" and g.debt_info():
@@ -795,6 +800,14 @@ class PetUI:
                 idx = num - 1 if num else min(c, len(items) - 1)
                 g.use_item(items[idx][0])
                 self.overlay = None
+            return
+        if kind == "party":
+            opts = g.party_options()
+            if 0 < num <= len(opts):
+                g.party_toggle(opts[num - 1]["eid"])
+            elif k == "r":
+                g.party_suggest()
+                self._toast("추천 편성: 이번 보스에 특기가 맞는 동료부터", 3)
             return
         if kind == "play":
             if 0 < num <= len(D.MINIGAMES):
@@ -983,7 +996,8 @@ class PetUI:
 
     HINTS_OVERLAY = {
         "feed": [("↑↓", "선택"), ("↵", "먹이기"), ("Esc", "닫기")], "med": [("↑↓", "선택"), ("↵", "사용"), ("Esc", "닫기")],
-        "play": [("1", "방향"), ("2", "버그"), ("3", "타자"), ("4", "퀴즈"), ("Esc", "닫기")],
+        "play": [("1", "방향"), ("2", "버그"), ("3", "타자"), ("4", "퀴즈"), ("5", "리뷰"), ("Esc", "닫기")],
+        "party": [("1-9", "넣기 · 빼기"), ("R", "추천 편성"), ("Esc", "닫기")],
         "skill": [("1-9", "스킬"), ("Esc", "닫기")], "bitem": [("1-9", "아이템"), ("Esc", "닫기")],
         "rename": [("↵", "확인"), ("Esc", "취소")], "retire": [("↵", "은퇴식"), ("Esc", "취소")],
     }
@@ -1009,7 +1023,8 @@ class PetUI:
             return {"dir": [("←", "왼쪽"), ("→", "오른쪽"), ("Esc", "그만")],
                     "whack": [("7-9", ""), ("4-6", ""), ("1-3", "버그 잡기"), ("Esc", "그만")],
                     "type": [("↵", "입력"), ("⌫", "지우기"), ("Esc", "그만")],
-                    "quiz": [("O", "맞다", P3["lime"]), ("X", "아니다", P3["gray"]), ("↵", "다음"), ("Esc", "그만")]}[g.mg["kind"]]
+                    "quiz": [("O", "맞다", P3["lime"]), ("X", "아니다", P3["gray"]), ("↵", "다음"), ("Esc", "그만")],
+                    "review": [("1-3", "버그 줄", P3["lime"]), ("↵", "다음"), ("Esc", "그만")]}[g.mg["kind"]]
         if self.overlay:
             return self.HINTS_OVERLAY[self.overlay["kind"]]
         if tab == "home":
@@ -1058,6 +1073,8 @@ class PetUI:
             si = g.side_info()
             if si:
                 pairs.append(("E", "사이드" + (" ●" if si["phase"] != "play" else ""), P3["navy4"]))
+            if g.party_options():
+                pairs.append(("F", "편성"))
             return pairs
         if self.sub["dex"] == DEX_PROFILE:
             return [("←→", "분류"), ("R", "은퇴식")]
@@ -2206,7 +2223,20 @@ class PetUI:
                 si["phase"], f"{G4}{si['text']} {si['prog']}/{si['target']}{RST}")
             out.append(f"{NV4}◇ SIDE{RST} {G4}{B}{si['ep']['title']}{RST} {G1}· {si['npc']} ·{RST} {state}")
         main = self._main_next_lines(st, W)
-        return main[:1] + out + main[1:]
+        pty = self._party_line(st)
+        return (pty + main[:1] + out + main[1:]) if pty else (main[:1] + out + main[1:])
+
+    def _party_line(self, st):
+        g = self.g
+        if st.get("phase") != "boss" or self._story_idx() != st["ch"]:
+            return []
+        hs = g.story_helpers()
+        tag = g.story_boss_tag()
+        if not hs and not g.party_options():
+            return []
+        names = " · ".join(f"{h['name']}{f' {LIME}★{RST}{G4}' if tag and tag in h.get('counters', ()) else ''}" for h in hs)
+        tip = f"  {G1}(이번 보스: {D.GIM_TAGS[tag]}){RST}" if tag in D.GIM_TAGS else ""
+        return [f"{NV4}◆ PARTY{RST} {G4}{names or '없음'}{RST}{tip} {G1}[F] 편성{RST}"]
 
     def _main_next_lines(self, st, W):
         g = self.g
@@ -2295,7 +2325,7 @@ class PetUI:
         blink = int(time.time() * 3) % 2
         title = chip("!! 예고", "black", "white") if blink else chip("!! 예고", "white", "navy2")
         self._modbox(cv, x0, y, W, h, "02", "TELEGRAPH", right=f"{WH}{B}{gi['name']}{RST}",
-                     foot_l=f"안 누르면 자동 대응 {int(tl['auto_p'] * 100)}%", foot_r=f"{left:.1f}s", color=WH)
+                     foot_l=f"안 누르면 자동 대응 {int(tl['auto_p'] * 100)}%" + (f" · {tl['pro']} ★" if tl.get("pro") else ""), foot_r=f"{left:.1f}s", color=WH)
         inner, iw = h - 2, W - 4
         body = wrap(tl["text"], iw - vlen(title) - 2)[:2]
         one = "   ".join(f"{keycap(k.upper())} {G4}{label}{RST}" for k, label in tl["opts"])
@@ -3046,6 +3076,18 @@ class PetUI:
         elif kind == "play":
             rows = [f"{keycap(str(i + 1))} {G4}{B}{name}{RST} {G1}{desc}{RST}" for i, (_, name, desc) in enumerate(D.MINIGAMES)]
             self._menu_box(cv, W, H, "PLAY  뭐 하고 놀까?", rows, None)
+        elif kind == "party":
+            rows = []
+            kinds = {"attack": "공격", "heal": "회복", "guard": "보스 공격력 ↓"}
+            for i, o in enumerate(g.party_options()[:9]):
+                pro = " · ".join(D.GIM_TAGS.get(t, t) for t in o["counters"])
+                rows.append(f"{keycap(str(i + 1), on=o['on'])} {LIME if o['on'] else G2}{'●' if o['on'] else '○'}{RST} "
+                            f"{G4 if o['on'] else G}{B}{o['name']}{RST} {G1}{kinds.get(o['kind'], o['kind'])}"
+                            + (f" · 특기 {pro}" if pro else "") + f"{RST}" + (f" {LIME}★ 이번 보스{RST}" if o["match"] else ""))
+            tag = g.story_boss_tag()
+            if tag in D.GIM_TAGS:
+                rows.append(f"{G1}이번 챕터 보스: {D.GIM_TAGS[tag]} — ★ 동료가 있으면 자동 대응 +{int(D.PARTY_BONUS * 100)}%{RST}")
+            self._menu_box(cv, W, H, f"PARTY  동료 편성 (최대 {D.PARTY_MAX})", rows, None)
         elif kind == "skill":
             rows = []
             p = g.p
@@ -3397,6 +3439,50 @@ class PetUI:
             art, color = face_sprite(g, gnow, face="joy" if ok else "sad")
             ay = y0 + H - 4
             if ay > yy - 1 and W >= 30:
+                for i, ln in enumerate(art):
+                    cv.text(x0 + W - 13, ay + i, ln, rgb(color))
+
+    def _mg_review(self, cv, x0, y0, W, H, gnow, mg):
+        """코드 리뷰: diff 세 줄 (+ 줄 번호) → 버그가 있는 줄 1 · 2 · 3"""
+        g = self.g
+        idx = min(mg["idx"], len(mg["qs"]) - 1)
+        lines, ans, expl = D.CODE_REVIEWS[mg["qs"][idx]]
+        marks = "".join((f"{LIME}○{RST}" if ok else f"{WH}×{RST}") for ok in mg["hist"])
+        marks += f"{NV2}{'·' * (len(mg['qs']) - len(mg['hist']))}{RST}"
+        right = f"{G1}PR{RST} {G4}{idx + 1}/{len(mg['qs'])}{RST} {marks} {G1}SCORE{RST} {LIME}{B}{mg['score']}{RST}"
+        cv.ansi(x0 + W - vlen(right), y0, right)
+        cv.panel(x0, y0 + 1, W, len(lines) + 2, "navy")
+        cv.ansi(x0 + 1, y0 + 1, f"{G1}DIFF  버그가 있는 줄은?{RST}", BG_NAVY)
+        show = mg["phase"] != "ask"
+        for i, ln in enumerate(lines):
+            k = str(i + 1)
+            hit = show and k == ans
+            mine = show and k == mg.get("ans") and not mg.get("ok")
+            if not show:
+                num = f"{G4}{B} {k} {RST}"
+            elif hit:
+                num = f"{BG_LIME}{BLACK}{B} {k} {RST}"         # 버그가 있던 줄
+            elif mine:
+                num = f"{BG_WHITE}{BLACK}{B} {k} {RST}"        # 내가 고른 (틀린) 줄
+            else:
+                num = f"{G1} {k} {RST}"
+            cv.ansi_clip(x0 + 1, y0 + 2 + i, f"{num} {LIME3}+{RST} {LIME if hit else WH}{ln}{RST}", W - 2, BG_NAVY)
+        yy = y0 + len(lines) + 4
+        if mg["phase"] == "ask":
+            left = max(0.0, D.REVIEW_TIME - (gnow - mg["t"]))
+            cv.ansi_clip(x0, yy - 1, f"{G1}TIME{RST} {meter(left, D.REVIEW_TIME, max(8, min(30, W - 12)))} {G4}{int(left) + 1:>2}s{RST}", W)
+            if yy + 1 < y0 + H:
+                cv.ansi_clip(x0, yy + 1, "  ".join(keycap(str(i + 1)) for i in range(len(lines))) + f"  {G4}버그가 있는 줄 번호{RST}", W)
+        else:
+            ok = mg.get("ok")
+            timeout = mg.get("ans") is None
+            res = chip("찾았다 ○", "black", "lime") if ok else chip("시간 초과" if timeout else "놓쳤다 ×", "black", "white")
+            cv.ansi_clip(x0, yy - 1, f"{res} {G1}버그는{RST} {LIME}{B}{ans}번 줄{RST}", W)
+            for i, ln in enumerate(wrap(f"{NV5}{expl}{RST}", W - 14 if W >= 30 else W)[: max(0, y0 + H - yy)]):
+                cv.ansi(x0, yy + i, ln)
+            art, color = face_sprite(g, gnow, face="joy" if ok else "sad")
+            ay = y0 + H - 4
+            if ay > yy and W >= 30:
                 for i, ln in enumerate(art):
                     cv.text(x0 + W - 13, ay + i, ln, rgb(color))
 

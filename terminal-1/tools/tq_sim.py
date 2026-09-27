@@ -284,6 +284,8 @@ class Player:
             return
         self.last_boss_try, self.last_boss_lvl = now, g.p["lvl"]
         i = st["ch"]
+        if self.prof.get("party", True) and g.story_boss_tag():
+            g.party_suggest()                       # 보스전 전에 [F] → [R] 추천 편성 (특기가 맞는 동료)
         if g.start_story_boss():
             self.attempts.append(dict(ch=i + 1, lvl=g.p["lvl"], day=None, result=None))
 
