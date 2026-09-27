@@ -4466,7 +4466,7 @@ class PetGame:
             gap = D.SIDE_GAP_WAIT if st["phase"] == "wait" else D.SIDE_GAP
             if 0 <= now - st.get("side_t", 0) < gap or len(st["cleared"]) < st.get("side_at", -9) + D.SIDE_EVERY:
                 return          # 챕터 두 개에 한 편 — 시즌 끝까지 조연 이야기가 남게
-            nxt = next((e for e in D.SIDE_EPISODES if e["id"] not in st["side_done"]
+            nxt = next((e for e in D.SIDE_EPISODES if e["id"] not in st["side_done"] and e["need"] < len(D.CHAPTERS)
                         and D.CHAPTERS[e["need"]]["id"] in st["cleared"]), None)
             if nxt:
                 st["side"] = dict(id=nxt["id"], phase="new", base={})
@@ -4514,8 +4514,8 @@ class PetGame:
                        "#6ABA23", 7)
             self.note(f"사이드 에피소드 완료: 「{ep['title']}」 (+{gold}G" + (f", {', '.join(item_name(x) for x in r.get('decos') or [])}" if r.get("decos") else "") + ")")
             self._story_log(f"사이드 · 「{ep['title']}」 완료")
-            if len(st["side_done"]) >= len(D.SIDE_EPISODES):
-                self.unlock("side_all")
+            if all(e["id"] in st["side_done"] for e in D.SIDE_EPISODES if season_of(e["need"])["season"] == 1):
+                self.unlock("side_all")         # 시즌 1 조연 6명
         self.mark()
         return True
 
@@ -4906,6 +4906,12 @@ class PetGame:
             fmt["q"], ans = q, "1" if a else "2"
         elif gd.get("clue"):
             fmt["clue"], ans = self.rng.choice(D.ZERO_DAY_CLUES)
+        elif gd.get("pool"):
+            pool = D.GIM_POOLS[gd["pool"]]
+            recent = gm.setdefault("recent", [])        # 최근 3문제는 다시 안 낸다
+            k = self.rng.choice([i for i in range(len(pool)) if i not in recent] or list(range(len(pool))))
+            recent[:] = (recent + [k])[-3:]
+            fmt["q"], ans, why = pool[k]
         text = gd["warn"].format(**fmt)
         watching = now - self.last_input < 60
         win = D.GIM_WINDOW["watch" if watching else "away"] + self.rnd_value("window")

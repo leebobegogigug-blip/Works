@@ -192,7 +192,7 @@ GUIDE = {
     "record": ("RECORD", "지금까지의 기록"),
     "sys": ("SYS", "저장 파일 · 마지막 저장 · 화면 fps · 토큰 경험치 효율 — 숨기지 않는 엔지니어링"),
     "chapter": ("CHAPTER", "지금 챕터와 줄거리. ←→ 로 지난 챕터 보기 · ↵ 대화 보기 (NEW = 아직 안 본 대화)"),
-    "shards": ("SHARDS", "커밋 조각 12개 = 시즌 진행도. 챕터 보스를 쓰러뜨릴 때마다 하나씩 켜져요"),
+    "shards": ("SHARDS", "조각 12개(시즌 1 커밋 · 시즌 2 Esc) = 시즌 진행도. 챕터 보스를 쓰러뜨릴 때마다 하나씩 켜져요"),
     "missions": ("MISSIONS", "챕터 미션. √ 필수를 다 채우면 ◆ 챕터 보스에 도전 [B] · ☼ 보너스는 추가 보상"),
     "next": ("NEXT", "다음 챕터가 열리는 날. 챕터(=새 지역)는 일주일에 하나씩 열려요"),
     "slog": ("LOG", "스토리 기록: 챕터 시작 · 미션 완료 · 보스전 결과"),
@@ -1817,7 +1817,7 @@ class PetUI:
                 rows.append(row)
                 continue
             if wide:
-                row += f"{G1}LV{RST}{G4}{z['lvl']:<3}{RST}{steps} {G1}B{best}F{RST}" if best else f"{G1}LV{RST}{G4}{z['lvl']:<3}{RST}{steps}"
+                row += f"{G1}LV{RST}{G4}{z['lvl']:<4}{RST}{steps} {G1}B{best}F{RST}" if best else f"{G1}LV{RST}{G4}{z['lvl']:<4}{RST}{steps}"
                 if info["cleared"]:
                     row += f" {LIME}CLEAR{RST}"
             else:
@@ -2060,7 +2060,7 @@ class PetUI:
             if cleared:
                 want = st.get("pending") == i or not g.story_seen(i, "outro")
                 cta = (f"{keycap('↵', on=want and int(now * 2) % 2)} {LIME if want else G}{'에필로그 보기' if want else '다시 보기'}{RST}"
-                       f"  {G1}조각 #{i + 1}{RST} {G4}{c['hash']}{RST}")
+                       f"  {G1}{P.season_of(i)['shard']} #{P.ch_no(i)}{RST} {G4}{c['hash']}{RST}")
             elif not g.story_seen(i, "intro"):
                 cta = f"{keycap('↵', on=int(now * 2) % 2)} {LIME}{B}프롤로그 보기{RST}"
             else:
@@ -2231,8 +2231,7 @@ class PetUI:
         if P.season_final(st["ch"]):
             return [f"{G}마지막 챕터예요. 보스를 쓰러뜨리면 시즌 {se['season']} 완결!{RST}"] + debt
         if not g.story_ready(j):
-            return [f"{NV4}{P.ch_tag(j)}{RST} {G4}{B}다음 장은 준비 중이에요{RST} {G1}· 업데이트로 이어집니다 "
-                    f"(공개일이 지나 있으면 받자마자 시작){RST}"] + debt
+            return [f"{NV4}{P.ch_tag(j)}{RST} {G4}{B}다음 장은 준비 중이에요{RST} {G1}· 업데이트로 이어집니다{RST}"] + debt
         nxt = D.CHAPTERS[j]
         rt = self._release_text(j)
         if st["phase"] == "wait":

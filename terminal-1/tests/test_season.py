@@ -35,13 +35,15 @@ def fake_zone(k):
 
 
 class FakeSeason2:
-    """D.CHAPTERS · D.ZONES 에 시즌 2 챕터를 n 개 끼워 넣었다가 되돌린다"""
+    """시즌 1 만 남기고 시험용 시즌 2 챕터를 n 개 끼워 넣었다가 되돌린다 (n=0: 시즌 2 가 아직 없는 버전)"""
 
     def __init__(self, n):
         self.n = n
 
     def __enter__(self):
         self.ch, self.zn = list(D.CHAPTERS), list(D.ZONES)
+        n1 = D.STORY_SEASONS[0]["n"]
+        D.CHAPTERS[:], D.ZONES[:] = self.ch[:n1], self.zn[:n1]
         D.CHAPTERS.extend(fake_chapter(k) for k in range(1, self.n + 1))
         D.ZONES.extend(fake_zone(k) for k in range(1, self.n + 1))
         return self
@@ -90,6 +92,10 @@ class Helpers(unittest.TestCase):
 
 class WithoutSeason2Content(unittest.TestCase):
     def test_season1_end_waits_with_teaser_and_debt(self):
+        with FakeSeason2(0):
+            self._season1_end_waits()
+
+    def _season1_end_waits(self):
         g, clk = mk("s2none")
         hatch(g, clk)
         st = finish_season1(g, clk)

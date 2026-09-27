@@ -217,7 +217,7 @@ Adult Lv.25 + 3 days (or any legend) → **retire** (Dex → Profile → `R`) �
 Kept: gold, bag, decorations, achievements, dexes, streak. **Family bonus**: +5% EXP / +3% gold per ancestor (max 10).
 
 ### 07.5 adventure · raid · minigames
-- 12 zones × 10 floors, mini-boss B5F, boss B10F, 78 monsters + 12 chapter bosses, choice events, level skills,
+- 16 zones × 10 floors, mini-boss B5F, boss B10F, 102 monsters + 16 chapter bosses, choice events, level skills,
   gear +10 enhancing, room decorations. Zone *n* opens together with story chapter *n* (07.6).
 - auto-expeditions only try a boss near its level (waits two levels after a loss).
 - **weekly raid**: all pets of all channels hit one boss (HP 6,000 + 350 × level each), 3 sorties/day, 12 rounds, rewards + MVP.
@@ -228,7 +228,7 @@ Kept: gold, bag, decorations, achievements, dexes, streak. **Family bonus**: +5%
 One Monday morning every build in the world turns red. The last green build has shattered into twelve commit shards;
 the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for heavy users: it is paced in weeks, not hours.
 
-- **12 chapters = 12 zones.** A chapter is: prologue talk → 3 required missions (+1 bonus ☼) → chapter boss (talk + fight)
+- **12 chapters = zones 1–12** (season 2 continues from zone 13). A chapter is: prologue talk → 3 required missions (+1 bonus ☼) → chapter boss (talk + fight)
   → epilogue, commit shard `#n` with its hash, gold, gear and EXP (half a level; a full level for the last chapter).
 - **missions** fill up from normal work: clear the zone boss · defeat N monsters in that zone · finish opencode todos ·
   answer permissions within a minute · minigames · crafting / enhancing … Progress counts from the chapter's start.
@@ -259,10 +259,15 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 - **season 2 「Esc를 찾아서」 (THE LAST ESCAPE KEY)** starts after season 1's epilogue (2 chapters at once, then weekly).
   Chapters ship in batches of four; a chapter that is not in your version yet waits as *준비 중* and starts on the update
   if its release date has passed. The weekly debt fight keeps running (`B` = chapter boss when signalled, else debt).
+  In this version: chapters 1–4 (auto-approve factory, cron jungle, retry falls, prompt-injection bazaar, Lv 102+),
+  new cast (Autopilot — the polite villain who approves everything for you —, a junior agent, a README turtle), five new
+  gear pieces and two side episodes. Season 2 bosses draw a fresh question each telegraph: approve or reject a command
+  (`--yes` is always wrong), read a cron line (does it fire in a minute?), retry-or-stop for an error, and spot a hidden
+  instruction in the telegraph itself (if it tells you what to pick, check the source).
 - balance is measured with `tools/tq_sim.py` (three token profiles on the real engine; `--duel` replays boss fights).
 - **news LED**: a new chapter, a ready boss or a waiting epilogue lights the LED next to `7스토리`, shows a `STORY` chip at home,
   and the ranch cards show each pet's chapter and mission count.
-- **achievements**: CH3, CH6, CH9, the season finale and 6 bonus missions (four of them also give a title).
+- **achievements**: CH3, CH6, CH9, the season finale, season 2 CH4 and 6 bonus missions (five of them also give a title).
 - **playtime**: about 9–10 weeks to the finale at 10 h per weekday. Simulated with 0.25M–25M tokens per day:
   day 60–71, around Lv.100 at the end.
 - **token EXP taper**: per day, the first 2M tokens give full EXP, up to 10M give 25%, beyond that 5% — heavy days no longer
@@ -320,7 +325,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 182 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 192 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `terminal-1.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `terminal-1.ps1` with Windows PowerShell 5.1
 - works rules check (repo root): `python tools/works_check.py` — see [RULES.md](../../RULES.md)

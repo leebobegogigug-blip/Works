@@ -568,16 +568,17 @@ def _chapters(daily, ch_done, attempts):
 
 def table(res):
     lines = [f"■ {res['profile']} (seed {res['seed']}) · {res['last_day']}일째까지 · {res['secs']}초",
-             " CH  보스Lv  시작  보스준비  클리어  클리어Lv  첫도전Lv  도전/패배  대기일"]
+             "      챕터  보스Lv  시작  보스준비  클리어  클리어Lv  첫도전Lv  도전/패배  대기일"]
     for c in res["chapters"]:
         def f(v, w=5):
             return f"{'—' if v is None else v:>{w}}"
-        lines.append(f" {c['ch']:02d}  {c['boss_lvl']:>5}  {f(c['began'])}  {f(c['ready'], 8)}  {f(c['cleared'], 6)}"
+        lines.append(f" {P.ch_tag(c['ch'] - 1):>9}  {c['boss_lvl']:>5}  {f(c['began'])}  {f(c['ready'], 8)}  {f(c['cleared'], 6)}"
                      f"  {f(c['clear_lvl'], 8)}  {f(c['first_lvl'], 8)}  {c['tries']:>4}/{c['losses']:<4}  {f(c.get('wait'), 6)}")
     fin = res["final"]
-    side_days = [next((x["day"] for x in res.get("daily", []) if x.get("side", 0) >= k), None) for k in range(1, 7)]
-    lines.append(f" 마지막: Lv{fin.get('lvl')} · {fin.get('form')} · {fin.get('gold')}G · 조각 {fin.get('cleared')}/12"
-                 f" · 사이드 {fin.get('side', 0)}/6 (끝낸 날 {', '.join(str(x) for x in side_days if x)})")
+    n_side = len(D.SIDE_EPISODES)
+    side_days = [next((x["day"] for x in res.get("daily", []) if x.get("side", 0) >= k), None) for k in range(1, n_side + 1)]
+    lines.append(f" 마지막: Lv{fin.get('lvl')} · {fin.get('form')} · {fin.get('gold')}G · 조각 {fin.get('cleared')}/{len(D.CHAPTERS)}"
+                 f" · 사이드 {fin.get('side', 0)}/{n_side} (끝낸 날 {', '.join(str(x) for x in side_days if x)})")
     return "\n".join(lines)
 
 

@@ -139,7 +139,7 @@ class SideEpisodes(unittest.TestCase):
         g, clk = mk("side2")
         hatch(g, clk)
         cleared_upto(g, clk, 7)
-        for _ in range(len(D.SIDE_EPISODES)):
+        for _ in range(6):                                    # 시즌 1 조연 6명
             g.story().update(side_t=0, side_at=-9)        # 간격 건너뛰기
             tick_for(g, clk, 2)
             finish_side(g, clk)
