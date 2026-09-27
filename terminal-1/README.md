@@ -212,7 +212,7 @@ Terminal–1 은 works 시스템의 한 부품입니다.<br>
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="../docs/page/system-dark.jpg">
-    <img src="../docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST, Report–1, Flow–1 을 나란히">
+    <img src="../docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1(안에 TOKEN QUEST), Report–1, Flow–1 을 나란히">
   </picture>
 </p>
 
@@ -238,7 +238,7 @@ TOKEN QUEST 7장 「야근의 탑」의 챕터 보스는 크런치 타임 거인
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="../docs/page/parts-dark.jpg">
-    <img src="../docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫 · Report–1 근거 달린 보고서 · Flow–1 쿼리 흐름도">
+    <img src="../docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서와 토큰 펫 TQ–1 · Report–1 근거 달린 보고서 · Flow–1 쿼리 흐름도">
   </picture>
 </p>
 
