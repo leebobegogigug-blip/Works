@@ -194,7 +194,7 @@ and comes home with loot when the response arrives. One pet per channel.
 | 4 상점 | pages · GOLD · 01 BUY / SELL | `←→` `↑↓` `Enter` |
 | 5 공방 | pages · MATS · 01 GEAR / RECIPES · 02 ENHANCE (`+7 › +8`) | `Enter` · `P` rubber-duck protection |
 | 6 도감 | profile (01 SPEC · 02 RECORD) · quests · diary · monsters · forms · hall of fame · achievements · settings (01 SETTINGS · 02 SYS) | `←→` `↑↓` `Enter` · `R` retire |
-| 7 스토리 | season header · 01 CHAPTER · 02 SHARDS · 03 MISSIONS · 04 NEXT (+ SIDE · PARTY) · 05 LOG — talk: place caption · stage · dialogue box — boss: `CHxx BOSS` · FIELD · HP · LOG / 02 TELEGRAPH | `←→` chapter · `Enter` talk · `B` chapter boss · `E` side episode · `F` party · talk: `Enter` next, `Esc` skip, `1` `2` choice · after the season `P` pay `B` debt fight |
+| 7 스토리 | season header · 01 CHAPTER · 02 SHARDS · 03 MISSIONS · 04 NEXT (+ SIDE · PARTY) · 05 LOG — talk: place caption · stage · dialogue box — boss: `CHxx BOSS` · FIELD · HP · LOG / 02 TELEGRAPH | `←→` chapter · `Enter` talk · `B` chapter boss · `E` side episode · `F` party (`↑↓` `Enter` · `1`-`9` · `R`) · talk: `Enter` next, `Esc` skip, `1` `2` choice · after the season `P` pay `B` debt fight |
 
 `?` guide everywhere. Pages show as dots `●●○○` next to the page switch.
 Korean keyboard mode works (ㄹ = F, ㅁ = A …, syllables like 러 = F); a one-time hint suggests 한/영.
@@ -274,7 +274,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
   name the cause of a log line, read which of *your own* skills the mirror is about to copy, and decide whether to
   delegate, widen / watch / kill a feature flag from its metrics, decide whether a command can be undone (run, back up
   first, dry-run), and prescribe for the one gauge you can see (scale out, cache, memory). **Party** (`F` on the story tab): take up to three finished side-episode NPCs into boss fights (default: the
-  latest three); each has specialties, and a specialist against a season-2 gimmick (★) adds +15% auto-answer (`R` = suggest).
+  latest three); each has specialties, and a specialist against a season-2 gimmick (★) adds +15% auto-answer (`↑↓` + `Enter` or `1`-`9` to toggle, `R` = suggest; for the finale it spreads specialties).
 - balance is measured with `tools/tq_sim.py` (three token profiles on the real engine; `--duel` replays boss fights).
 - **news LED**: a new chapter, a ready boss or a waiting epilogue lights the LED next to `7스토리`, shows a `STORY` chip at home,
   and the ranch cards show each pet's chapter and mission count.
@@ -337,7 +337,7 @@ the pet, a senior owl, a rubber duck and a CI bot go and collect them. Made for 
 
 ## 10 development
 
-- tests (standard library `unittest`, 219 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
+- tests (standard library `unittest`, 223 tests — game engine, opencode signal bridge, save/raid edge cases, main story, token taper,
   monitor polling/password/compose privacy, and `terminal-1.ps1` run end-to-end with a fake `wt` when `pwsh` is available on Linux/macOS):
   `py -3 -m unittest discover -s tests` · CI runs Windows + Ubuntu × Python 3.8/3.13 and parses `terminal-1.ps1` with Windows PowerShell 5.1
 - works rules check (repo root): `python tools/works_check.py` — see [RULES.md](../../RULES.md)

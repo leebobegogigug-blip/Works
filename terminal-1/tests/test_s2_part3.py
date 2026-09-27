@@ -207,6 +207,91 @@ class Ending(unittest.TestCase):
         self.assertIn("letter_2019", g.s["inv"]["decos"])
 
 
+class Review(unittest.TestCase):
+    """완결본 검수에서 찾은 것: 편성 창 10번째부터 · 완결 뒤 사이드 · 피날레 추천 편성 · 전투 화면 동료 수"""
+
+    def test_party_screen_reaches_every_friend(self):
+        g, clk = mk("rv1")
+        hatch(g, clk)
+        st = g.story()
+        st["side_done"] = [e["id"] for e in D.SIDE_EPISODES[:11]]           # 조연 11명 (9명 넘게)
+        at_chapter(g, clk, CH["c22"])
+        for i in range(len(D.CHAPTERS)):
+            g.story_mark_seen(i, "intro")
+        st["party"] = []
+        ui = UI.PetUI(g)
+        ui.boot_until = 0
+        ui.tab = 6
+        settle(g)
+        ui.key("f")
+        opts = g.party_options()
+        self.assertEqual(len(opts), 11)
+        for _ in range(10):
+            ui.key("DOWN")
+        ui.key("ENTER")                                                      # 11번째: 기술 부채 대마왕
+        self.assertEqual(st["party"], [opts[10]["eid"]])
+        ui.key("9")                                                          # 1-9 는 바로
+        self.assertEqual(st["party"], [opts[10]["eid"], opts[8]["eid"]])
+        screen = plain(ui.render(80, 24))
+        self.assertIn(opts[10]["name"], screen)
+        for W, H in ((60, 20), (80, 24)):
+            for ln in ui.render(W, H):
+                self.assertLessEqual(vlen(ln), W)
+
+    def test_side_episodes_keep_coming_after_the_season(self):
+        g, clk = mk("rv2")
+        hatch(g, clk)
+        st = g.story()
+        s2 = [e["id"] for e in D.SIDE_EPISODES if P.season_of(e["need"])["season"] == 2]
+        st.update(side_done=S1_SIDES + s2[:1], cleared=[c["id"] for c in D.CHAPTERS], ch=FIN, phase="end",
+                  pending=None, side=None, side_t=0, side_at=CH["c14"])                  # 사이드를 미루고 완결까지 온 사람
+        got = []
+        for _ in range(40):
+            tick_for(g, clk, 86400, step=3600)
+            si = g.side_info()
+            if si and si["ep"]["id"] not in got:
+                got.append(si["ep"]["id"])
+                finish_side(g, clk)
+        self.assertEqual(got, s2[1:])                                        # 완결 뒤에도 남은 조연 이야기가 다 온다
+        self.assertIn("side_all2", g.s["ach"])
+
+    def test_finale_suggest_covers_the_mix(self):
+        g, clk = mk("rv3")
+        hatch(g, clk)
+        st = g.story()
+        st["side_done"] = [e["id"] for e in D.SIDE_EPISODES if e["id"] != "e_letter"]
+        at_chapter(g, clk, FIN)
+        mix = set(g.story_boss_mix())
+        self.assertEqual(len(mix), len(D.GIMMICKS["sb24"]["remix"]))
+        self.assertEqual(g.story_boss_mix(CH["c23"]), [])
+        recent = set().union(*[h["counters"] for h in g.story_helpers()])  # 기본: 최근 셋
+        g.party_suggest()
+        best = set().union(*[h["counters"] for h in g.story_helpers()])
+        self.assertEqual(len(g.story_helpers()), g.party_max())
+        self.assertGreater(len(best & mix), len(recent & mix))
+        self.assertGreaterEqual(len(best & mix), 7)                          # 셋으로 11종 중 7종
+
+    def test_battle_shows_the_whole_finale_party(self):
+        g, clk = mk("rv4")
+        hatch(g, clk)
+        st = g.story()
+        g.s["family"]["hall"] = [retire_record("초대"), retire_record("두번째")]
+        st["side_done"] = S1_SIDES + ["e_duck2", "e_turtle"]
+        st["choices"] = {c: "share" for c in ("c02", "c04", "c06")}
+        at_chapter(g, clk, FIN)
+        self.assertTrue(boss(g, FIN))
+        self.assertEqual(len(g.battle["helpers"]), 6)                        # 선대 2 + 편성 4
+        ui = UI.PetUI(g)
+        ui.boot_until = 0
+        ui.tab = 6
+        settle(g)
+        wide = plain(ui.render(100, 30))
+        for h in g.battle["helpers"]:
+            self.assertIn((h.get("label") or h["name"].split()[-1])[:3], wide)
+        narrow = plain(ui.render(60, 20))
+        self.assertRegex(narrow, r"\+[1-9]")                                 # 자리가 모자라면 남은 수
+
+
 class RnD(unittest.TestCase):
     def test_boss_analysis_and_party_training(self):
         g, clk = mk("rnd3")

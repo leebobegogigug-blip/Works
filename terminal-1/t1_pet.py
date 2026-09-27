@@ -4507,8 +4507,10 @@ class PetGame:
         ep, sd = self.side_ep()
         if not ep:
             # 한 편씩 간격을 두고: 기다리는 주(다음 챕터 공개 대기)엔 SIDE_GAP_WAIT, 아니면 SIDE_GAP — 뒤쪽 대기 주까지 남게
-            gap = D.SIDE_GAP_WAIT if st["phase"] == "wait" else D.SIDE_GAP
-            if 0 <= now - st.get("side_t", 0) < gap or len(st["cleared"]) < st.get("side_at", -9) + D.SIDE_EVERY:
+            # 완결(end) 뒤엔 깰 챕터가 없으니 챕터 간격은 세지 않는다 — 밀린 조연 이야기가 날짜 간격으로 마저 온다
+            end = st["phase"] == "end"
+            gap = D.SIDE_GAP_WAIT if st["phase"] in ("wait", "end") else D.SIDE_GAP
+            if 0 <= now - st.get("side_t", 0) < gap or (not end and len(st["cleared"]) < st.get("side_at", -9) + D.SIDE_EVERY):
                 return          # 챕터 두 개에 한 편 — 시즌 끝까지 조연 이야기가 남게
             nxt = next((e for e in D.SIDE_EPISODES if e["id"] not in st["side_done"] and e["need"] < len(D.CHAPTERS)
                         and D.CHAPTERS[e["need"]]["id"] in st["cleared"]), None)
@@ -4585,6 +4587,15 @@ class PetGame:
         gd = D.GIMMICKS.get(D.CHAPTERS[i]["boss"]["mid"]) or {}
         return gd.get("tag") or gd.get("pool")
 
+    def story_boss_mix(self, i=None):
+        """피날레처럼 지난 기믹을 섞어 쓰는 보스면 그 기믹 종류들 (아니면 [])"""
+        st = self.story()
+        i = st["ch"] if (i is None and st) else i
+        if i is None or not (0 <= i < len(D.CHAPTERS)):
+            return []
+        gd = D.GIMMICKS.get(D.CHAPTERS[i]["boss"]["mid"]) or {}
+        return [D.GIMMICKS[x].get("tag") or D.GIMMICKS[x].get("pool") for x in gd.get("remix") or []]
+
     def party_options(self):
         """편성 화면: 끝낸 사이드 에피소드의 조연 — on(지금 편성) · match(지금 챕터 보스에 특기)"""
         st = self.story()
@@ -4631,8 +4642,18 @@ class PetGame:
         if not st or not opts:
             return False
         done = st.get("side_done", [])
-        opts.sort(key=lambda o: (not o["match"], -done.index(o["eid"])))
-        st["party"] = [o["eid"] for o in opts[:self.party_max()]]
+        need = set(self.story_boss_mix())
+        if need:            # 피날레: 아직 못 막는 기믹을 가장 많이 막는 동료부터 (같으면 최근에 사귄 쪽)
+            pick = []
+            while opts and len(pick) < self.party_max():
+                o = max(opts, key=lambda o: (len(need & set(o["counters"])), done.index(o["eid"])))
+                pick.append(o)
+                opts.remove(o)
+                need -= set(o["counters"])
+            st["party"] = [o["eid"] for o in pick]
+        else:
+            opts.sort(key=lambda o: (not o["match"], -done.index(o["eid"])))
+            st["party"] = [o["eid"] for o in opts[:self.party_max()]]
         self.mark()
         return True
 

@@ -2500,7 +2500,7 @@ GIMMICKS = {
                  meter=dict(label="시야", start=0, unit="%", win=25, lose=-15, goal=100, full=dict(def_down=3, stun=2, pct=0.1),
                             full_text="안개가 걷혔다! 무언가의 정체가 드러났다")),
     # 피날레: remix = 지난 시즌 2 기믹 중 하나를 골라 그 문제 · 선택지 · 문구로 (특기 동료도 그 기믹 기준)
-    "sb24": dict(tune=(1.1, 1.3), name="모든 확인", every=3, every2=2, auto=0.4,
+    "sb24": dict(tune=(1.2, 1.4), name="모든 확인", every=3, every2=2, auto=0.4,
                  remix=["sb13", "sb14", "sb15", "sb16", "sb17", "sb18", "sb19", "sb20", "sb21", "sb22", "sb23"],
                  good=dict(dmg=1.4, stun=1), bad=dict(hit=1.5),
                  meter=dict(label="Esc 조립", start=0, unit="/5", win=1, goal=5, full=dict(pct=0.2, stun=2, def_down=3),
