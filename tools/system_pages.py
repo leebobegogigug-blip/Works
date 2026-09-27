@@ -24,8 +24,10 @@ PARTS = [
      "terminal-1/docs/images/page/pet-{theme}.png", (62, 12, 800, 492)),
     ("Report–1", "REPORT–1", "붙여 넣으면 근거 달린 보고서",
      "report-1/docs/page/hero-{theme}.jpg", (0, 0, 1180, 820)),
+    ("Flow–1", "FLOW–1", "파이썬 데이터 쿼리를 흐름도 한 장으로",
+     "flow-1/docs/page/hero-{theme}.jpg", (0, 0, 1480, 900)),
 ]
-W = 1760
+W = 2200                    # 부품 카드 하나가 약 400px 이 되게 (앱 수 × 440)
 SANS = '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", "Liberation Sans", ' \
        '"WenQuanYi Zen Hei", sans-serif'
 THEME = {
@@ -77,7 +79,8 @@ def fit(box, max_w, max_h):
 
 def system_html(theme):
     t = THEME[theme]
-    heights = {"Secretary–1": 420, "Terminal–1": 290, "TQ–1 token quest": 180, "Report–1": 290}   # 앱을 더하면 줄인다
+    heights = {"Secretary–1": 420, "Terminal–1": 280, "TQ–1 token quest": 175, "Report–1": 280,   # 앱을 더하면 줄이거나
+               "Flow–1": 280}                                                                        # W 를 넓힌다
     figs = []
     for name, label, _, src, box in PARTS:
         h = heights.get(name, 330)
