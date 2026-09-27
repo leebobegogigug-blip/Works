@@ -1,0 +1,35 @@
+{
+  "watch": [],
+  "query": {
+    "modules": [],
+    "calls": [
+      "query",
+      "execute",
+      "read_sql",
+      "sql",
+      "run",
+      "fetch"
+    ],
+    "sinks": [
+      "to_csv",
+      "to_excel",
+      "to_parquet",
+      "to_pickle",
+      "to_json",
+      "to_feather",
+      "to_sql"
+    ]
+  },
+  "scan": {
+    "max_files": 400,
+    "poll_sec": 2
+  },
+  "run": {
+    "keep": 20
+  },
+  "theme": "dark",
+  "company": "",
+  "port": 8785,
+  "open_window": true,
+  "idle_exit_min": 30
+}

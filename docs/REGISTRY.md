@@ -10,9 +10,10 @@
 | `secretary-1` | Secretary–1 | 말하면 잡아 주는 일정 비서 | 웹형 | 운영 | 프로그램 폴더 (예외 W-06) | 8765–8774 | Ctrl+Alt+J | `SECRETARY_*` | 네모 화면 얼굴 | jaba · 이전 코드 지움 (0.7.0) |
 | `terminal-1` | Terminal–1 | opencode 여러 개를 한 창에서 | 터미널형 | 운영 | `%LOCALAPPDATA%\terminal-1` | 4096–4195 | — | `OPENCODE_SERVER_PASSWORD` (opencode 것) | TQ–1 펫 | ocmux · 이전 코드 지움 (1.1.0) |
 | `report-1` | Report–1 | 붙여 넣은 자료로 근거 달린 보고서 | 웹형 | 운영 | `%LOCALAPPDATA%\report-1` | 8775–8784 | — | `REPORT_*` | 결재판 | — |
+| `flow-1` | Flow–1 | 파이썬 데이터 쿼리를 흐름도 한 장으로 | 웹형 | 운영 | `%LOCALAPPDATA%\flow-1` | 8785–8794 | — | `FLOW_*` | 유량계 바늘 | — |
 
 - **상태**: `예정`(등록만, 폴더 없음) · `운영` · `은퇴`
-- **포트**: 앱이 쓰는 대역 전체. 겹치면 검사기가 경고한다. 다음 빈 대역은 `8785–8794` 부터 10개씩.
+- **포트**: 앱이 쓰는 대역 전체. 겹치면 검사기가 경고한다. 다음 빈 대역은 `8795–8804` 부터 10개씩.
 - **전역 단축키**: 없으면 `—`. 같은 키를 두 앱이 가질 수 없다.
 - **환경 변수**: 앱 이름 접두어를 대문자로 (`SECRETARY_*`). 다른 프로그램의 변수를 읽기만 하면 그 이름을 적는다.
 
@@ -34,6 +35,7 @@
 | `secretary-1` | 프로그램 폴더 안의 `config.json` · `secretary-1.db` · 학습 규칙 · 위키 · `secretary-1.bat` · 시작 프로그램 `secretary-1.lnk` (`--autostart on` 일 때) | `--stop` · `--autostart off` · 설정 · 데이터 파일 지우기 ([INSTALL.md › 제거](../secretary-1/INSTALL.md#제거)) |
 | `terminal-1` | 사용자 PATH · Windows Terminal 색 테마 `Terminal-1 Black` (조각 파일) · (선택) 글꼴 Unifont 와 HKCU 글꼴 등록 · Windows Terminal `settings.json` 글꼴 설정 · 펫 저장 · 채널 목록 · 회사 이름(`settings.json`) `%LOCALAPPDATA%\terminal-1` · headless opencode 서버 | [INSTALL.md › 제거](../terminal-1/INSTALL.md#제거) — 채널 `rm` · PATH · 색 테마 · 글꼴 · 데이터 순서 |
 | `report-1` | `%LOCALAPPDATA%\report-1` 의 `config.json` · `topics\`(보관한 토픽 — 붙여 넣은 원문) · `reports\`(확정한 글) · (선택) 시작 메뉴 바로가기 `Report-1.lnk` | `--stop` · `--shortcut off` · 데이터 폴더 지우기 ([INSTALL.md › 제거](../report-1/INSTALL.md#제거)) |
+| `flow-1` | `%LOCALAPPDATA%\flow-1` 의 `config.json`(감시 목록 · 사내 쿼리 패키지 이름) · `runs\`(실행 기록 — 시각 · 걸린 시간 · 행 수 · 오류 이름. SQL 원문 · 결과 데이터는 없음) · (선택) 시작 메뉴 바로가기 `Flow-1.lnk` | `--stop` · `--shortcut off` · 데이터 폴더 지우기 ([INSTALL.md › 제거](../flow-1/INSTALL.md#제거)) |
 
 ## 예외 대장
 

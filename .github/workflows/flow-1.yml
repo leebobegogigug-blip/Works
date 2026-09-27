@@ -1,0 +1,61 @@
+name: flow-1
+
+on:
+  push:
+    paths: ["flow-1/**", ".github/workflows/flow-1.yml"]
+  pull_request:
+    paths: ["flow-1/**", ".github/workflows/flow-1.yml"]
+
+defaults:
+  run:
+    working-directory: flow-1
+
+jobs:
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        # README 약속: Python 3.8+ · Windows 가 본 무대 (3.8 은 ubuntu-24.04 에 없어서 22.04)
+        os: [windows-latest, ubuntu-22.04]
+        python: ["3.8", "3.13"]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: UI 반영 확인
+        run: python build.py --check
+      - name: 단위 · 통합 테스트 (가짜 사내 쿼리 패키지 · 골든 요약)
+        run: python -m unittest discover -s tests -v
+      - name: 내장 예시로 점검
+        run: python flow-1.py --check --config shots/config.json
+
+  e2e:
+    # 브라우저 E2E (Flow–1 실제 프로세스 + Chromium). Playwright 는 테스트에만 쓰고 실행에는 필요 없다
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      SHOT_DIR: shots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Playwright 설치
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: 브라우저 E2E
+        run: python tests/e2e_ui.py
+      - name: 스크린샷 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: flow-1/shots/
+          if-no-files-found: ignore

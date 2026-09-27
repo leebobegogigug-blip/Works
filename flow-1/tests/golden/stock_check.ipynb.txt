@@ -1,0 +1,34 @@
+stock_check.ipynb · 쿼리 3 · 테이블 2 · 조인 1 · 조건 2 · 병합 1 · 파일 입력 0 · 출력 1
+! 셀 5: 문법 오류 (invalid syntax, 1번째 줄) — 이 셀은 건너뜀
+
+Q01  L5 셀2:1  low = %%sql  [cell]
+    SELECT  s.product_id, s.qty
+    FROM    dw.stock s
+    WHERE   s.qty < 5
+
+Q02  L10 셀3:2  recent = dq.query(…)  [fstring]
+    SELECT  i.product_id, SUM(i.qty) AS sold
+    FROM    dw.order_items i
+    WHERE   i.product_id IN ('{ids}')
+    GROUP   i.product_id
+    {ids} ← Q01 (low) · "','".join(low.product_id)
+
+Q03  L21 셀6:1  check = dq.query(…)
+    SELECT  COUNT(*)
+    FROM    dw.stock
+
+J01  L17 셀4:2  plan = merge  left on product_id
+    L  recent ← Q02 (recent)
+    R  low ← Q01 (low)
+
+O01  L18 셀4:3  to_parquet  out/plan.parquet  ← J01 (plan)
+
+테이블
+  dw.order_items  읽기 Q02
+  dw.stock        읽기 Q01 Q03
+
+흐름
+  Q01 (low) → Q02 (recent)  조건 {ids}
+  Q02 (recent) → J01 (plan)  데이터 recent (L)
+  Q01 (low) → J01 (plan)  데이터 low (R)
+  J01 (plan) → O01 (plan)  데이터 plan
