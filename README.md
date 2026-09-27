@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/system-dark.jpg">
-    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1, TOKEN QUEST, Report–1, Flow–1 을 나란히">
+    <img src="docs/page/system-light.jpg" width="880" alt="works 시스템: Secretary–1, Terminal–1(안에 TOKEN QUEST), Report–1, Flow–1 을 나란히">
   </picture>
 </p>
 
@@ -21,8 +21,7 @@ works 는 매일 쓰는 사내 도구 모음입니다. 같은 팔레트, 같은 
 
 <p align="center"><sub>
 SECRETARY–1 · 말하면 잡아 주는 일정 비서<br>
-TERMINAL–1 · opencode 여러 개를 한 창에서<br>
-TQ–1 · 토큰을 먹고 자라는 펫 · TERMINAL–1 안<br>
+TERMINAL–1 · opencode 여러 개를 한 창에서 · 토큰을 먹고 자라는 펫 TQ–1 과 함께<br>
 REPORT–1 · 붙여 넣으면 근거 달린 보고서<br>
 FLOW–1 · 파이썬 데이터 쿼리를 흐름도 한 장으로<br>
 저장소 하나 · D:\OPENCODE · 폴더 이름 = 명령 이름<br>
@@ -34,14 +33,13 @@ FLOW–1 · 파이썬 데이터 쿼리를 흐름도 한 장으로<br>
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/page/parts-dark.jpg">
-    <img src="docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서 · TQ–1 token quest 토큰 펫 · Report–1 근거 달린 보고서 · Flow–1 쿼리 흐름도">
+    <img src="docs/page/parts-light.jpg" width="880" alt="works 시스템 부품: Secretary–1 일정 비서 · Terminal–1 opencode 멀티플렉서와 토큰 펫 TQ–1 · Report–1 근거 달린 보고서 · Flow–1 쿼리 흐름도">
   </picture>
 </p>
 
 <p align="center">
 <a href="secretary-1/README.md">Secretary–1 ›</a> &nbsp;·&nbsp;
 <a href="terminal-1/README.md">Terminal–1 ›</a> &nbsp;·&nbsp;
-<a href="terminal-1/docs/MANUAL.md#06-token-quest">TQ–1 token quest ›</a> &nbsp;·&nbsp;
 <a href="report-1/README.md">Report–1 ›</a> &nbsp;·&nbsp;
 <a href="flow-1/README.md">Flow–1 ›</a>
 </p>

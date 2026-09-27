@@ -18,16 +18,14 @@ OUT = os.path.join(ROOT, "docs", "page")
 PARTS = [
     ("Secretary–1", "SECRETARY–1", "말하면 잡아 주는 일정 비서",
      "secretary-1/docs/page/hero-{theme}.jpg", (540, 120, 680, 1200)),
-    ("Terminal–1", "TERMINAL–1", "opencode 여러 개를 한 창에서",
+    ("Terminal–1", "TERMINAL–1", "opencode 멀티플렉서 · 토큰 펫 TQ–1",     # TQ–1 은 Terminal–1 안의 부품
      "terminal-1/docs/images/page/hero-{theme}.jpg", (80, 140, 1600, 840)),
-    ("TQ–1 token quest", "TQ–1 · TOKEN QUEST", "토큰을 먹고 자라는 펫 · Terminal–1 안",
-     "terminal-1/docs/images/page/pet-{theme}.png", (62, 12, 800, 492)),
     ("Report–1", "REPORT–1", "붙여 넣으면 근거 달린 보고서",
      "report-1/docs/page/hero-{theme}.jpg", (0, 0, 1180, 820)),
     ("Flow–1", "FLOW–1", "파이썬 데이터 쿼리를 흐름도 한 장으로",
      "flow-1/docs/page/hero-{theme}.jpg", (0, 0, 1480, 900)),
 ]
-W = 2200                    # 부품 카드 하나가 약 400px 이 되게 (앱 수 × 440)
+W = 440 * len(PARTS)        # 부품 카드 하나가 약 400px 이 되게
 SANS = '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", "Liberation Sans", ' \
        '"WenQuanYi Zen Hei", sans-serif'
 THEME = {
@@ -79,8 +77,7 @@ def fit(box, max_w, max_h):
 
 def system_html(theme):
     t = THEME[theme]
-    heights = {"Secretary–1": 420, "Terminal–1": 280, "TQ–1 token quest": 175, "Report–1": 280,   # 앱을 더하면 줄이거나
-               "Flow–1": 280}                                                                        # W 를 넓힌다
+    heights = {"Secretary–1": 400, "Terminal–1": 260, "Report–1": 260, "Flow–1": 260}   # 앱을 더하면 줄인다
     figs = []
     for name, label, _, src, box in PARTS:
         h = heights.get(name, 330)
@@ -134,6 +131,10 @@ def main():
                     f.write(f"<!doctype html><meta charset=utf-8><body style='background:{bg[theme]}'>" + make(theme))
                 page.goto("file://" + html)
                 page.wait_for_timeout(300)
+                cut = page.evaluate("[...document.querySelectorAll('.n, .sub, figcaption')]"
+                                    ".filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent)")
+                if cut:
+                    raise SystemExit(f"{kind}-{theme}: 글이 칸을 넘칩니다 (…로 잘림) → 설명을 줄이세요: {cut}")
                 out = os.path.join(OUT, f"{kind}-{theme}.{ext}")
                 page.locator("#cap").screenshot(path=out, type="jpeg", quality=85)
                 print(f"{out} · {os.path.getsize(out) // 1024} KB")
