@@ -6,6 +6,7 @@ works 저장소의 모든 앱이 따르는 규칙의 **정본**이다. 규칙은
 - 디자인 규격 → [docs/DESIGN.md](docs/DESIGN.md)
 - 앱 대장 · 공개 명령 · 예외 대장 → [docs/REGISTRY.md](docs/REGISTRY.md)
 - LLM 설정 규격 → [docs/SPEC-llm.md](docs/SPEC-llm.md)
+- 에이전트가 일하는 법 (개발 헌법 D) → [docs/DEVELOP.md](docs/DEVELOP.md)
 - 문서 뼈대 → [docs/templates/](docs/templates/)
 - 에이전트용 요약 → [AGENTS.md](AGENTS.md) (opencode) · [CLAUDE.md](CLAUDE.md) (Claude Code)
 
