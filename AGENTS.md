@@ -5,9 +5,9 @@
 
 ## 시작하기 전에
 
-1. [RULES.md](RULES.md) 를 끝까지 읽는다. 화면 · 문서 · 이미지를 만지면 [docs/DESIGN.md](docs/DESIGN.md) 도 읽는다.
+1. [RULES.md](RULES.md)(무엇을 지키나) → [docs/DEVELOP.md](docs/DEVELOP.md)(어떻게 일하나) 순서로 끝까지 읽는다. 화면 · 문서 · 이미지를 만지면 [docs/DESIGN.md](docs/DESIGN.md) 도 읽는다.
 2. 새 앱이면 코드보다 먼저 [docs/REGISTRY.md](docs/REGISTRY.md) 에 등록한다 (RULES.md › 새 앱 만드는 순서).
-3. 규칙과 부딪히는 요청을 받으면, 하기 전에 어느 조항과 부딪히는지 사용자에게 말한다.
+3. 규칙과 부딪히는 요청을 받으면, 하기 전에 어느 조항과 부딪히는지 사용자에게 말하고 답을 기다린다 ([DEVELOP.md › D-02](docs/DEVELOP.md#d-02-부딪히면-멈추고-말한다)).
 4. 고칠 앱 폴더에 `AGENTS.md` 가 있으면(예: `flow-1/AGENTS.md`) 그 앱의 파일을 고치기 전에 끝까지 읽는다 — 그 앱에만 있는 금지 · 같이 바꿀 곳 · 합격 기준이 있다.
 
 ## 헌법 요약 — 정본은 RULES.md
@@ -32,3 +32,4 @@
 - 커밋: 한국어 `<name>-<n>: 무엇 · 무엇` (저장소 전체는 `works: …`). 한 커밋에 앱 하나.
 - 사내 LLM 을 쓰는 앱은 docs/SPEC-llm.md 의 설정 키 · 명령을 따른다 (S-09).
 - 키 · 토큰은 출력하지 않는다.
+- 보고는 [DEVELOP.md › D-11](docs/DEVELOP.md#d-11-보고는-한-모양으로) 틀로 한다. 돌리지 못한 검사는 못 돌렸다고 쓴다.
