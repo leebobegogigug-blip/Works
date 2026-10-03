@@ -9,6 +9,7 @@ works_check.py - works 규칙 검사기 (정본은 RULES.md · 표준 라이브�
 
 [검사하는 것] 검사기가 못 보는 조항(W-05 · W-06 · W-07 · W-09)은 리뷰에서 본다
   W-01 필수 파일 · 앱 워크플로 · 대장의 공개 명령 없이 다른 앱을 가리키는 코드 · 공개 명령이 코드와 MANUAL 에 있는지
+       (앱 = 루트의 <name>-<n> 폴더. git 이 무시하는 폴더 — works 안에 받은 바깥 저장소 — 는 앱으로 세지 않는다)
   W-02 실행 코드가 불러오자마자 import 하는 표준 라이브러리 밖 모듈 (Python 3.10+ 에서만)
   W-03 0.0.0.0 바인딩 · 웹 UI 의 외부 리소스(CDN · 웹 폰트)
   W-04 키 · 토큰처럼 보이는 문자열 · 비밀 값을 받는 명령줄 옵션(--password · [string]$Token 등)
@@ -79,7 +80,7 @@ class Repo:
         self.root = root
         self.files = self._list_files()
         self.apps = sorted(d for d in os.listdir(root)
-                           if APP_RE.match(d) and os.path.isdir(os.path.join(root, d)))
+                           if APP_RE.match(d) and os.path.isdir(os.path.join(root, d)) and not self._ignored(d))
         self.notes: List[str] = []           # 결과에는 안 세는 안내 (건너뛴 검사 등)
         self._text: Dict[str, str] = {}
 
@@ -96,6 +97,14 @@ class Repo:
                 for n in names:
                     files.add(os.path.relpath(os.path.join(d, n), self.root).replace(os.sep, "/"))
         return sorted(f for f in files if os.path.isfile(self.abs(f)))
+
+    def _ignored(self, folder: str) -> bool:
+        """git 이 무시하는 폴더 — works 안에 받은 바깥 저장소 (.gitignore 에 적음) 는 앱이 아니다. git 이 없으면 False"""
+        try:
+            return subprocess.run(["git", "-C", self.root, "check-ignore", "-q", "--", folder + "/"],
+                                  capture_output=True).returncode == 0
+        except OSError:
+            return False
 
     def abs(self, rel: str) -> str:
         return os.path.join(self.root, *rel.split("/"))

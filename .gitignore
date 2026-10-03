@@ -2,6 +2,9 @@
 /jaba/
 /ocmux/
 
+# works 밖 별도 저장소를 D:\OPENCODE 안에 받은 폴더 (Analysis–1 — 그 저장소가 따로 관리한다 · 검사기는 무시된 폴더를 앱으로 세지 않는다)
+/analysis-1/
+
 # 저장소 도구(tools/)의 파이썬 캐시 — 앱 폴더는 각자의 .gitignore 가 막는다
 __pycache__/
 *.py[cod]
