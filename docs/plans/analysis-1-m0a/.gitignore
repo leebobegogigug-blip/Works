@@ -1,0 +1,35 @@
+# ── 설정 · 데이터 · 기록은 %LOCALAPPDATA%\analysis-1\ 에 둔다 (RULES.md › AN-05 · AN-06). 혹시 옆에 생겨도 올라가지 않게
+config.json
+*.duckdb
+*.duckdb.wal
+*.talk.jsonl
+*.analysis.json
+*.broken
+*.tmp
+runs/
+tmp/
+
+# ── 실데이터 CSV · TSV 는 커밋하지 않는다 (RULES.md › AN-11). tests/ 아래의 합성 골든만 예외
+*.csv
+*.tsv
+!tests/**/*.csv
+
+# ── 정찰 키트 (M0 · 저장소 밖 · 버리는 코드 — docs/PLAN.md › 15 › E). 실수로 옆에 두어도 올라가지 않게
+m0_*
+analysis_demo.*
+
+# ── Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── 테스트 산출물
+shots/
+
+# ── OS · 편집기
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

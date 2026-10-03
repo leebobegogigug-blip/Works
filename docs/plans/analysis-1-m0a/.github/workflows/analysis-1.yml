@@ -1,0 +1,31 @@
+# Analysis–1 CI — 빈 판 (M0-a · RULES.md › AN-10)
+#
+# 지금은 앱 코드가 없다. on: workflow_dispatch 만 두어 손으로 누를 때만 돈다 —
+# 자동으로 돌지 않아 Actions 시간을 쓰지 않는다.
+# M1-a 에서 아래 job 을 채우고 push · pull_request 를 연다 (docs/PLAN.md › 13).
+#
+#   unit-core    windows-latest · ubuntu-22.04 × Python 3.8 · 3.13 — 엔진 없이.
+#                build.py --check › unittest (tests/test_rules.py 포함 · 엔진 시험은 건너뜀)
+#                › --check (가짜 LLM) 가 종료 1 · 결과: 점검 실패 를 내는지
+#   unit-engine  windows-latest · ubuntu × (고정 엔진의 최소 Python · 3.13) — 고정 버전 duckdb 를 pip 로 받고
+#                ANALYSIS_REQUIRE_ENGINE=1 로 돈다 (엔진 시험 건너뛰기를 실패로) · --check 가 결과: OK
+#   e2e          ubuntu · Python 3.12 · Playwright — 브라우저 E2E · 화면 사진은 artifact 로만
+#   upstream     월 1회 예약 (schedule) — docs/UPSTREAM.md 의 works 파일이 옮긴 커밋 뒤로 바뀌었으면 이슈를 연다
+#
+# 비공개 저장소라 Actions 무료 시간에 한도가 있다 — 무거운 job (unit-engine · e2e) 은 PR 과 main 에서만 돌린다 [제안].
+
+name: analysis-1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skeleton:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 뼈대 확인
+        run: echo "M0 — 앱 코드 없음 · job 은 M1-a 에서 채운다"
