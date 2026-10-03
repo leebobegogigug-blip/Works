@@ -3,6 +3,7 @@
 import io
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -193,6 +194,27 @@ class CleanRepo(Base):
             code = wc.main(["--root", self.root, "--strict", "--no-tests"])
         self.assertEqual(code, 0)
         self.assertEqual(buf.getvalue().strip().splitlines()[-1], "결과: OK")
+
+
+class ForeignRepoFolder(Base):
+    """works 안에 받은 바깥 저장소 (works .gitignore 에 적은 폴더) 는 앱 이름 꼴이어도 앱이 아니다"""
+
+    def git_init(self):
+        subprocess.run(["git", "-C", self.root, "init", "-q"], check=True, capture_output=True)
+
+    def test_ignored_folder_is_not_an_app(self):
+        make_repo(self.root, **{".gitignore": "/outer-1/\n", "outer-1/README.md": "바깥 저장소\n"})
+        self.git_init()
+        repo = wc.Repo(self.root)
+        self.assertEqual(repo.apps, ["demo-1"])
+        findings, _ = wc.run_checks(repo, run_tests=True)
+        self.assertEqual(findings, [], "\n".join(f"{f.rule} {f.path}:{f.line} {f.msg}" for f in findings))
+
+    def test_folder_not_ignored_is_still_an_app(self):
+        make_repo(self.root, **{"outer-1/README.md": "바깥 저장소\n"})
+        self.git_init()
+        repo = wc.Repo(self.root)
+        self.assertEqual(repo.apps, ["demo-1", "outer-1"])
 
 
 class Violations(Base):
