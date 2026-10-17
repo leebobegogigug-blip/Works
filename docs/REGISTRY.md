@@ -11,7 +11,7 @@
 | `terminal-1` | Terminal–1 | opencode 여러 개를 한 창에서 | 터미널형 | 운영 | `%LOCALAPPDATA%\terminal-1` | 4096–4195 | — | `OPENCODE_SERVER_PASSWORD` (opencode 것) | TQ–1 펫 | ocmux · 이전 코드 지움 (1.1.0) |
 | `report-1` | Report–1 | 붙여 넣은 자료로 근거 달린 보고서 | 웹형 | 운영 | `%LOCALAPPDATA%\report-1` | 8775–8784 | — | `REPORT_*` | 결재판 | — |
 | `flow-1` | Flow–1 | 파이썬 데이터 쿼리를 흐름도 한 장으로 | 웹형 | 운영 | `%LOCALAPPDATA%\flow-1` | 8785–8794 | — | `FLOW_*` | 유량계 바늘 | — |
-| `ascii-1` | Ascii–1 | PNG 를 끌어다 놓으면 ASCII 아트로 | 명령형 | 예정 | 없음 | — | — | `ASCII_*` | 점 찍는 활자 | — |
+| `ascii-1` | Ascii–1 | PNG 를 끌어다 놓으면 ASCII 아트로 | 명령형 | 운영 | 없음 | — | — | `ASCII_*` | 점 찍는 활자 | — |
 
 - **상태**: `예정`(등록만, 폴더 없음) · `운영` · `은퇴`
 - **포트**: 앱이 쓰는 대역 전체. 겹치면 검사기가 경고한다. 다음 빈 대역은 `8795–8804` 부터 10개씩.
