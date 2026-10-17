@@ -2,6 +2,7 @@ name: ascii-1-release
 
 # ascii-1/** 를 건드린 PR 마다 Windows 에서 exe 를 만들어 스모크 시험까지 돌린다 (릴리스는 하지 않는다).
 # 태그 ascii-1-vX.Y.Z 를 푸시하면 같은 exe 를 GitHub Release 에 올린다 — 태그는 사람이 푸시한다.
+# 릴리스를 웹 · 모바일에서 먼저 발행해 태그가 생긴 경우에는 그 릴리스에 파일만 붙인다.
 on:
   push:
     tags: ["ascii-1-v*"]
@@ -65,4 +66,9 @@ jobs:
           - 서명하지 않은 파일이라 Windows SmartScreen 이나 사내 백신이 막을 수 있습니다. 받은 뒤 `ascii-1.exe.sha256` 과 같은지 확인하세요: `certutil -hashfile ascii-1.exe SHA256`
           - 한 파일로 묶은 방식이라 실행할 때마다 임시 폴더에 풀어서 돕니다. 백신이 검사하는 PC 에서는 시작이 늦을 수 있습니다.
           NOTES
-          gh release create "$TAG" ascii-1.exe ascii-1.exe.sha256 --repo "$GITHUB_REPOSITORY" --verify-tag --title "Ascii–1 ${TAG#ascii-1-v}" --notes-file notes.md
+          # 웹이나 모바일에서 릴리스를 먼저 발행해 태그가 만들어진 경우에는 파일만 올린다 (본문 · 제목은 건드리지 않는다).
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" ascii-1.exe ascii-1.exe.sha256 --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" ascii-1.exe ascii-1.exe.sha256 --repo "$GITHUB_REPOSITORY" --verify-tag --title "Ascii–1 ${TAG#ascii-1-v}" --notes-file notes.md
+          fi
