@@ -63,6 +63,6 @@ jobs:
           PNG 를 `ascii-1.exe` 위로 끌어다 놓으면 입력 옆에 글자 아트 `.txt` 가 생깁니다. 사용법은 저장소의 `ascii-1/docs/MANUAL.md` 에 있습니다.
 
           - 서명하지 않은 파일이라 Windows SmartScreen 이나 사내 백신이 막을 수 있습니다. 받은 뒤 `ascii-1.exe.sha256` 과 같은지 확인하세요: `certutil -hashfile ascii-1.exe SHA256`
-          - 한 파일로 묶은 방식이라 처음 실행할 때 1–2 초 걸립니다.
+          - 한 파일로 묶은 방식이라 실행할 때마다 임시 폴더에 풀어서 돕니다. 백신이 검사하는 PC 에서는 시작이 늦을 수 있습니다.
           NOTES
           gh release create "$TAG" ascii-1.exe ascii-1.exe.sha256 --repo "$GITHUB_REPOSITORY" --verify-tag --title "Ascii–1 ${TAG#ascii-1-v}" --notes-file notes.md
