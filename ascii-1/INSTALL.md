@@ -2,7 +2,7 @@
 
 > **사람용 한 줄:** OpenCode 에 아래 프롬프트를 붙여넣으면 이 문서대로 설치합니다.
 > Ascii–1 은 works 저장소(`https://github.com/leebobegogigug-blip/Works`)의 `ascii-1` 폴더입니다.
-> 지금은 개발 중이라 설치해도 `version` · `help` 만 됩니다.
+> `.exe` 로 묶은 배포본은 아직 없고, 소스(`ascii-1.py`)로 돌립니다.
 >
 > ```text
 > Ascii–1 을 설치해줘. works 저장소를 D:\OPENCODE 에 받고, 프로그램 폴더는 D:\OPENCODE\ascii-1 이야.
@@ -18,7 +18,7 @@
 
 ## 0. 목표와 규칙
 
-**목표**: `D:\OPENCODE\ascii-1` 에서 Ascii–1 이 실행되는지 확인한다. 설치할 것은 없다 — 받은 파일이 곧 프로그램이다.
+**목표**: `D:\OPENCODE\ascii-1` 에서 Ascii–1 이 실행되고 자가 점검을 통과하는지 확인한다. 설치할 것은 없다 — 받은 파일이 곧 프로그램이다.
 
 **규칙 — 반드시 지킬 것**
 
@@ -46,14 +46,14 @@ python -c "import os; print(os.path.isfile(r'D:\OPENCODE\ascii-1\ascii-1.py'))"
 - **확인**: `True` 면 3단계로.
 - **실패하면**: `D:\OPENCODE` 가 비어 있으면 `git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"`. 이미 works 가 있으면 `git -C "D:\OPENCODE" pull --ff-only`. 다른 파일이 있는 폴더면 **[질문]** 목록을 보여 주고 묻는다. 아무것도 지우거나 옮기지 않는다.
 
-## 3. 실행 확인
+## 3. 자가 점검
 
 ```text
-python "D:\OPENCODE\ascii-1\ascii-1.py" version
+python "D:\OPENCODE\ascii-1\ascii-1.py" check
 ```
 
-- **확인**: `ascii-1 ` 다음에 버전 숫자가 한 줄 나온다.
-- **실패하면**: [문제 해결](#문제-해결).
+- **확인**: 마지막 줄이 `결과: OK`.
+- **실패하면**: `결과: 점검 실패` 위의 `×` 줄을 그대로 보여 주고 [문제 해결](#문제-해결).
 
 ## 9. 완료 보고
 
@@ -63,9 +63,9 @@ python "D:\OPENCODE\ascii-1\ascii-1.py" version
 Ascii–1 설치 완료
 - 위치     : D:\OPENCODE\ascii-1
 - 파이썬   : (1단계 결과)
-- 실행     : (3단계 결과)
+- 점검     : (3단계 결과 — 마지막 줄)
 - 멈춘 곳  : 없음 | n단계 — 이유와 사용자에게 필요한 조치
-- 쓰는 법  : 아직 변환 기능이 없다 (개발 중). 지금은 version · help 만 된다
+- 쓰는 법  : python "D:\OPENCODE\ascii-1\ascii-1.py" "<그림.png>" — 그림 옆에 .txt 가 생긴다 (--width 40–300)
 ```
 
 ---
@@ -76,6 +76,9 @@ Ascii–1 설치 완료
 |---|---|
 | `git pull` 이 `untracked working tree files would be overwritten` 와 함께 `AGENTS.md` · `CLAUDE.md` 를 보여 줌 | `D:\OPENCODE` 에 사용자가 만든 같은 이름 파일이 있다 (opencode `/init` 등). **[질문]** "`D:\OPENCODE\AGENTS.md` 를 `AGENTS.local.md` 로 이름을 바꿔도 될까요?" → 바꾼 뒤 pull 을 다시 한다. 그 내용을 계속 쓰려면 opencode 설정의 `instructions` 에 `AGENTS.local.md` 를 넣도록 사용자에게 안내한다 (설정 파일은 에이전트가 고치지 않는다) |
 | `python` 을 찾을 수 없음 | 1단계의 `py -3` 안내를 따른다 |
+| `결과: 확인 필요` — `사진이나 채워진 그림` · `그릴 것을 찾지 못했습니다` | 바탕 · 선 · 점이 또렷한 그림이 아니다. 사용자에게 알리고 다른 그림을 부탁한다 |
+| `실패 … PNG 가 아닙니다 (JPEG 로 보입니다)` | 확장자만 `.png` 인 JPEG 다. PNG 로 다시 저장해 달라고 사용자에게 부탁한다 |
+| `실패 … 결과 파일을 만들 수 없습니다` | 그림이 있는 폴더에 쓸 수 없다. `--stdout` 으로 화면에 찍거나 쓸 수 있는 폴더로 그림을 옮겨 달라고 부탁한다 |
 
 ## 업데이트
 
@@ -96,5 +99,6 @@ works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워
 
 | 명령 | 하는 일 |
 |---|---|
-| `version` | 버전 |
-| `help` | 도움말 |
+| `<그림.png> …` | 그림 옆에 `.txt` 를 만든다 |
+| `check` | 자가 점검 (마지막 줄 `결과: …`) |
+| `version` · `help` | 버전 · 도움말 |

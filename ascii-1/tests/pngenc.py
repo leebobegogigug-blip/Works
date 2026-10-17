@@ -35,6 +35,8 @@ def paeth(a: int, b: int, c: int) -> int:
 
 
 def filter_row(ftype: int, cur: bytes, prev: bytes, bpp: int) -> bytes:
+    if ftype == 0:
+        return bytes(cur)
     out = bytearray()
     for i, x in enumerate(cur):
         left = cur[i - bpp] if i >= bpp else 0
