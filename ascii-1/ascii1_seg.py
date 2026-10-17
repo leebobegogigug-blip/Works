@@ -40,7 +40,8 @@ HALO_REACH = (2, 0.6)     # 가까이 = max(2, 0.6 × √낱점 면적) 칸 — 
 LINE_BLUR_MAX = 40        # 다른 색 선 위의 이 면적 이하 조각은 색 번짐
 ALIGN_TOL = (2.5, 0.25)   # 같은 줄로 보는 중심 차이 = max(2.5px, 글자 크기의 25%)
 MAX_FG_RATIO = 0.5        # 배경이 아닌 칸이 이 비율을 넘으면 사진 · 채워진 그림으로 보고 분석하지 않는다
-TICK_RATIO = 3.0          # 선 두께가 있을 때, 두께의 1.5 배 이하로 가늘고 이 배수 이상 긴 조각은 눈금 · 선 조각
+TICK_RATIO = 2.0          # 선 두께가 있을 때, 두께의 1.5 배 이하로 가늘고 이 배수 이상 긴 작은 조각은 눈금 막대
+FRAME_SLACK = 1           # 틀(가장 바깥 세로선 둘) 밖으로 이만큼 넘어간 선 끝은 선이 아니라 라벨
 
 HUE_NAMES = ((15, "빨강"), (40, "주황"), (70, "노랑"), (165, "초록"), (190, "청록"), (260, "파랑"), (290, "보라"),
              (340, "자홍"), (361, "빨강"))
@@ -467,6 +468,27 @@ def split_markers(pix: List[int], w: int, rc: float):
     return marks, [i for i in pix if i not in body]
 
 
+def clamp_to_frame(hl: List[Element], vl: List[Element], per: Dict[int, List[int]], w: int):
+    """세로선이 둘 이상이면 가장 바깥 둘이 틀이다. 가로선이 틀 밖으로 나간 끝(선 끝 옆에 놓인 라벨의 칸)은
+    선에서 떼어 군집의 일반 칸으로 돌려 글자가 되게 한다"""
+    if len(vl) < 2 or not hl:
+        return hl, vl
+    xs = sorted(e.cx for e in vl)
+    lo, hi = xs[0] - FRAME_SLACK, xs[-1] + FRAME_SLACK
+    out = []
+    for e in hl:
+        inside = [i for i in e.pixels if lo <= i % w <= hi]
+        if len(inside) == len(e.pixels) or not inside:
+            out.append(e)
+            continue
+        gone = [i for i in e.pixels if not lo <= i % w <= hi]
+        per[e.cluster] = per.get(e.cluster, []) + gone
+        box = bbox_of(inside, w)
+        out.append(Element("hline", e.cluster, box, len(inside), inside, sum(i % w for i in inside) / len(inside),
+                           sum(i // w for i in inside) / len(inside), 1, len(inside) / max(1, box[2] - box[0] + 1)))
+    return out, vl
+
+
 def aligned_rows(cands, vertical: bool) -> Set[int]:
     """눈금 글자처럼 간격은 넓어도 같은 줄(중심 높이가 같은)에 놓인 비슷한 크기의 덩어리 ≥ 3 — 둥글지 않은 것이 하나라도 있어야"""
     key = (lambda b: (b[0] + b[2]) / 2) if vertical else (lambda b: (b[1] + b[3]) / 2)
@@ -508,6 +530,7 @@ def segment(img) -> Segmentation:
     # ── 선: 가로 · 세로
     hl, per = find_lines(per, w, h, True)
     vl, per = find_lines(per, w, h, False)
+    hl, vl = clamp_to_frame(hl, vl, per, w)
     seg.elements += hl + vl
     if hl + vl:
         seg.line_thickness = median([e.thickness for e in hl + vl])
@@ -619,7 +642,7 @@ def segment(img) -> Segmentation:
             seg.elements.append(Element("curve", k, box, len(pix), pix, cx, cy))
             continue
         if seg.line_thickness and min(bw, bh) <= 1.5 * seg.line_thickness and max(bw, bh) >= TICK_RATIO * min(bw, bh) \
-                and not is_round(bw, bh, len(pix)):
+                and len(pix) <= 12 * seg.line_thickness ** 2:
             seg.elements.append(Element("curve", k, box, len(pix), pix, cx, cy))     # 눈금 · 선 조각
             continue
         u = u or DEFAULT_UNIT

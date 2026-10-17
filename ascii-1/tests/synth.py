@@ -91,13 +91,16 @@ def soften(img: Image, a: float = 0.7, noise: int = 4, seed: int = 1) -> Image:
     return Image(w, h, bytes(out))
 
 
-def control_chart(markers: int = 12) -> Tuple[Image, int]:
+def control_chart(markers: int = 12, frame: bool = False) -> Tuple[Image, int]:
     """관리도: 한계선(빨강 2 · 노랑 2) · 중심선(검정) · 왼쪽 축 · 아래 축 · 파랑 꺾은선과 마커 · 글자. (그림, 마커 수)"""
     c = Canvas(420, 300)
     c.vline(45, 8, 270, 2, BLACK)
     c.hline(270, 45, 400, 2, BLACK)
+    if frame:                                    # 오른쪽 · 위 틀까지 닫고, 한계선은 틀 끝에서 멈추고 라벨은 틀 밖에 둔다
+        c.vline(400, 8, 270, 2, BLACK)
+        c.hline(8, 45, 400, 2, BLACK)
     for y, t, col in ((70, 3, RED), (230, 3, RED), (100, 2, YELLOW), (200, 2, YELLOW), (150, 3, BLACK)):
-        c.hline(y, 46, 400, t, col)
+        c.hline(y, 46, 401 if frame else 400, t, col)
     c.text("UCL", 404, 67, RED)                  # 선 끝 옆에 놓인 글자 (선 띠 안쪽 행에 걸친다)
     for label, y in (("110", 66), ("105", 106), ("100", 146)):
         c.text(label, 12, y, BLACK)
