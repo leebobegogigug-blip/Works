@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from ascii1_seg import Element, Segmentation
 
-DEFAULT_WIDTH = 100
+DEFAULT_WIDTH = 120
 MIN_WIDTH, MAX_WIDTH = 40, 300
 CELL_ASPECT = 2.0                  # 셀 세로 ÷ 셀 가로 (터미널 글자 종횡비 1:2)
 PATH_MIN_PIXELS = {"curve": 2, "ring": 1}   # 셀 안에 이만큼은 있어야 그린다 (1칸 외곽선은 셀당 1–2 칸뿐)
@@ -29,16 +29,29 @@ BOX = {"-": "─", "|": "│", "+": "┼"}
 Cell = Tuple[int, int]             # (행, 열)
 
 
+def content_box(seg: Segmentation) -> Tuple[int, int, int, int]:
+    """그려질 요소(글자 제외)가 차지하는 영역 x0 y0 x1 y1. 아무것도 없으면 그림 전체"""
+    boxes = [e.bbox for e in seg.elements if e.kind != "text"]
+    if not boxes:
+        return 0, 0, seg.width - 1, seg.height - 1
+    return min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)
+
+
 class Geometry:
+    """열 수는 그림 전체가 아니라 그려질 내용의 폭에 걸린다 — 여백에 열을 쓰지 않는다"""
+
     def __init__(self, seg: Segmentation, width: int):
-        self.cols = max(1, min(width, seg.width))
-        self.cw = seg.width / self.cols
+        self.x0, self.y0, x1, y1 = content_box(seg)
+        content_w, content_h = x1 - self.x0 + 1, y1 - self.y0 + 1
+        self.cols = max(1, min(width, content_w))             # 셀이 한 칸(1 px)보다 좁아지지는 않게
+        self.cw = content_w / self.cols
         self.ch = self.cw * CELL_ASPECT
-        self.rows = max(1, int(ceil(seg.height / self.ch)))
+        self.rows = max(1, int(ceil(content_h / self.ch)))
         self.w = seg.width
 
     def cell_xy(self, x: float, y: float) -> Cell:
-        return min(self.rows - 1, max(0, int(y / self.ch))), min(self.cols - 1, max(0, int(x / self.cw)))
+        return (min(self.rows - 1, max(0, int((y - self.y0) / self.ch))),
+                min(self.cols - 1, max(0, int((x - self.x0) / self.cw))))
 
     def cell(self, i: int) -> Cell:
         return self.cell_xy(i % self.w + 0.5, i // self.w + 0.5)

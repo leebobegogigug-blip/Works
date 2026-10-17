@@ -126,7 +126,7 @@ class WaferMap(unittest.TestCase):
         self.assertFalse(flood_reaches_center(self.lines), "글자로 그린 외곽에 틈이 있다")
 
     def test_ring_is_closed_at_other_widths(self):
-        for width in (40, 60, 160):
+        for width in (40, 60, 160, 300):
             with self.subTest(width=width):
                 lines = art(rd.render(self.seg, width))
                 self.assertFalse(flood_reaches_center(lines))
@@ -150,7 +150,8 @@ class WaferMap(unittest.TestCase):
             self.assertEqual(sum(per.get(c.index, 0) for per in cells.values()), self.seg.dots(c.index), c.name)
 
     def test_dense_cells_use_the_heavy_glyph(self):
-        text = rd.render(self.seg, 40)           # 셀이 커서 덩어리 한 셀에 여러 점이 들어간다
+        img, _ = synth.wafer_map(tile=6, plus=3)                 # 점 36 개를 18×18 px 에 빈틈없이
+        text = rd.render(sg.segment(img), 40)                      # 셀이 커서 덩어리 한 셀에 여러 점이 들어간다
         self.assertIn("@", "".join(art(text)))
         self.assertNotIn("@", "".join(self.lines[:3]), "맨 위는 낱점뿐")
 
@@ -165,6 +166,33 @@ class WaferMap(unittest.TestCase):
     def test_art_only_uses_declared_glyphs(self):
         allowed = set(" .vo O@xX%*#&".replace(" ", "")) | {" "}
         self.assertTrue(set("".join(self.lines)) <= allowed | set("OX"), set("".join(self.lines)) - allowed)
+
+
+class ContentWidth(unittest.TestCase):
+    """열 수는 그림 폭이 아니라 그려질 내용의 폭에 걸린다 — 여백에 열을 쓰면 같은 열 수로도 해상도가 반토막 난다"""
+
+    def test_wafer_and_chart_fill_the_requested_columns(self):
+        for img in (synth.wafer_map()[0], synth.control_chart(frame=True)[0]):
+            seg = sg.segment(img)
+            for width in (60, 100, 200):
+                got = max(len(x) for x in art(rd.render(seg, width)))
+                self.assertGreaterEqual(got, 0.9 * width, "폭 %d 요청에 %d 열" % (width, got))
+                self.assertLessEqual(got, width)
+
+    def test_text_does_not_widen_the_content(self):
+        seg = hand_built_with([line("hline", (50, 49, 149, 50), 100, 49.5)])
+        self.assertEqual(rd.content_box(seg), (50, 49, 149, 50))
+        seg.elements.append(sg.Element("text", 1, (0, 0, 199, 99), 5, [], 100, 50))
+        self.assertEqual(rd.content_box(seg), (50, 49, 149, 50), "글자는 그리지 않으니 내용의 폭에 넣지 않는다")
+
+    def test_empty_falls_back_to_the_whole_picture(self):
+        self.assertEqual(rd.content_box(hand_built(200, 100)), (0, 0, 199, 99))
+
+    def test_a_finer_width_means_a_finer_picture(self):
+        seg = sg.segment(synth.wafer_map()[0])
+        coarse = sum(len(x.replace(" ", "")) for x in art(rd.render(seg, 60)))
+        fine = sum(len(x.replace(" ", "")) for x in art(rd.render(seg, 200)))
+        self.assertGreater(fine, 2 * coarse)
 
 
 class Helpers(unittest.TestCase):
@@ -209,6 +237,12 @@ def hand_built(width=200, height=100):
     return seg
 
 
+def hand_built_with(elements):
+    seg = hand_built()
+    seg.elements = list(elements)
+    return seg
+
+
 def line(kind, box, cx, cy):
     return sg.Element(kind, 1, box, 10, [], cx, cy, 1, 2.0)
 
@@ -229,10 +263,12 @@ class Rules(unittest.TestCase):
 
     def test_tick_sized_curve_pieces_are_not_drawn(self):
         seg = hand_built()
-        seg.elements = [curve((10, 10, 12, 11), 200)]
-        self.assertEqual(art(rd.render(seg, 100)), [], "셀 가로의 2 배도 안 되는 조각")
-        seg.elements = [curve((10, 10, 40, 11), 200)]
-        self.assertNotEqual(art(rd.render(seg, 100)), [])
+        base = [line("hline", (0, 49, 199, 50), 100, 49.5)]            # 내용의 폭을 정하는 긴 선
+        seg.elements = base + [curve((10, 10, 12, 11), 200)]
+        plain = art(rd.render(hand_built_with(base), 100))
+        self.assertEqual(art(rd.render(seg, 100)), plain, "셀 가로의 2 배도 안 되는 조각은 그려지지 않는다")
+        seg.elements = base + [curve((10, 10, 40, 11), 200)]
+        self.assertNotEqual(art(rd.render(seg, 100)), plain)
 
     def test_a_marker_on_a_line_wins_the_cell(self):
         c = synth.Canvas(300, 100)

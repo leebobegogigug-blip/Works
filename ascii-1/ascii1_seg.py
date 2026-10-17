@@ -392,7 +392,9 @@ def find_ring(wide, per: Dict[int, List[int]], cls: bytearray, w: int, h: int):
             x = sum(cos(a * pi / 180) for a in near)
             y = sum(sin(a * pi / 180) for a in near)
             notch = (atan2(y, x) * 180 / pi) % 360
-    pixels = stroke + [i for b in dent for i in dent[b]]
+    pixels = list(stroke)
+    if notch is not None:        # 안쪽 칸은 노치 둘레(±15°)만 외곽의 일부다 — 나머지는 JPEG 가 남긴 잔상
+        pixels += [i for b in dent for i in dent[b] if abs((polar(i)[1] - notch + 180) % 360 - 180) <= 15]
     return Ring(cx, cy, r, len(bins) / 72, notch), k, pixels, group_set | set(extra)
 
 
