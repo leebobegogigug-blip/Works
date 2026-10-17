@@ -25,6 +25,20 @@ def load(name, path):
 
 be = load("build_exe", os.path.join(ROOT, "tools", "build_exe.py"))
 app = load("ascii_1_for_build", os.path.join(ROOT, "ascii-1.py"))
+gui = load("ascii1_gui_for_build", os.path.join(ROOT, "ascii1_gui.py"))
+
+
+def gui_problem():
+    """창을 열 수 없는 까닭(tkinter 나 화면이 없다) 또는 None — 창 점검은 그런 곳에서는 건너뛴다"""
+    if not gui.available():
+        return "tkinter 가 없다"
+    try:
+        gui.tk.Tk().destroy()
+    except gui.tk.TclError as e:
+        return "화면이 없다 (%s)" % e
+    return None
+
+
 WORKFLOW = os.path.join(os.path.dirname(ROOT), ".github", "workflows", "ascii-1-release.yml")
 
 
@@ -105,6 +119,34 @@ class Smoke(unittest.TestCase):
             problems = be.smoke([sys.executable, script])
         self.assertTrue(any("이름 충돌" in p for p in problems), problems)
 
+    def test_window_step_passes_for_the_real_program(self):
+        if gui_problem():
+            self.skipTest(gui_problem())
+        self.assertEqual(be.smoke([sys.executable, os.path.join(ROOT, "ascii-1.py")], window=True), [])
+
+    def test_window_step_catches_a_program_whose_window_does_not_open(self):
+        real = os.path.join(ROOT, "ascii-1.py")
+        broken = ("import runpy, sys\n"
+                  "if sys.argv[1:3] == ['gui', '--selftest']:\n"
+                  "    print('  × 창이 안 열린다'); print('결과: 점검 실패'); sys.exit(1)\n"
+                  "sys.argv = [%r] + sys.argv[1:]\n"
+                  "runpy.run_path(%r, run_name='__main__')\n" % (real, real))
+        with tempfile.TemporaryDirectory() as d:
+            script = os.path.join(d, "no_window.py")
+            with open(script, "w", encoding="utf-8") as f:
+                f.write(broken)
+            self.assertEqual(be.smoke([sys.executable, script]), [])                       # 창 점검을 켜지 않으면 보지 않는다
+            problems = be.smoke([sys.executable, script], window=True)
+        self.assertEqual([p.split(":")[0] for p in problems], ["창"], problems)
+
+    def test_main_window_flag(self):
+        if gui_problem():
+            self.skipTest(gui_problem())
+        code, out, _ = run("--smoke", "--window", sys.executable, os.path.join(ROOT, "ascii-1.py"))
+        self.assertEqual((code, out.splitlines()[-1]), (0, "결과: OK"))
+        code, _, err = run("--smoke", "--window")
+        self.assertEqual(code, 2)
+
     def test_main_smoke_exit_codes(self):
         code, out, _ = run("--smoke", sys.executable, os.path.join(ROOT, "ascii-1.py"))
         self.assertEqual((code, out.splitlines()[-1]), (0, "결과: OK"))
@@ -145,6 +187,7 @@ class Workflow(unittest.TestCase):
         with open(os.path.join(ROOT, "tools", "build_exe.py"), encoding="utf-8") as f:
             self.assertIn("pyinstaller==" + pin.group(1), f.read(), "도구 설명의 버전과 워크플로의 고정 버전이 같아야 한다")
         self.assertLess(self.text.index("build_exe.py --smoke"), self.text.index("upload-artifact"))
+        self.assertIn("build_exe.py --smoke --window", self.text, "한 파일 exe 의 창 부품(tcl/tk)은 열어 봐야 안다")
         self.assertLess(self.text.index("--tag"), self.text.index("pip install pyinstaller"), "태그 검사가 먼저")
 
     def test_no_expressions_inside_run_scripts(self):
@@ -161,6 +204,15 @@ class Workflow(unittest.TestCase):
                     break
                 block.append(nxt)
             self.assertNotIn("${{", "\n".join(block), "줄 %d 의 run" % (n + 1))
+
+    def test_release_made_first_by_hand_only_gets_the_files(self):
+        """웹 · 모바일에서 릴리스를 먼저 발행하면(태그가 그때 생긴다) create 가 아니라 upload 로 붙인다 — 이미 있는 릴리스의 본문은 건드리지 않는다"""
+        release = self.text.split("  release:", 1)[1]
+        self.assertIn("gh release view", release)
+        self.assertIn("gh release upload", release)
+        self.assertIn("--clobber", release)
+        self.assertLess(release.index("gh release view"), release.index("gh release upload"))
+        self.assertLess(release.index("gh release upload"), release.index("gh release create"))
 
     def test_pull_requests_build_but_do_not_release(self):
         self.assertIn("pull_request:", self.text)
