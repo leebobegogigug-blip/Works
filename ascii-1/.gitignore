@@ -1,0 +1,22 @@
+# ── 이 앱은 저장하는 것이 없다. 시험 중에 옆에 생긴 결과 파일이 올라가지 않게
+tests/out/
+*.broken
+*.tmp
+
+# ── exe 빌드 산출물 (tools/build_exe.py) — 올리지 않고 Release 에만
+dist/
+build/
+*.spec
+
+# ── Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── OS · 편집기
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

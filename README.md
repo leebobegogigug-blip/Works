@@ -41,7 +41,8 @@ FLOW–1 · 파이썬 데이터 쿼리를 흐름도 한 장으로<br>
 <a href="secretary-1/README.md">Secretary–1 ›</a> &nbsp;·&nbsp;
 <a href="terminal-1/README.md">Terminal–1 ›</a> &nbsp;·&nbsp;
 <a href="report-1/README.md">Report–1 ›</a> &nbsp;·&nbsp;
-<a href="flow-1/README.md">Flow–1 ›</a>
+<a href="flow-1/README.md">Flow–1 ›</a> &nbsp;·&nbsp;
+<a href="ascii-1/README.md">Ascii–1 ›</a>
 </p>
 
 <br>
@@ -53,6 +54,7 @@ FLOW–1 · 파이썬 데이터 쿼리를 흐름도 한 장으로<br>
 <tr><td><a href="terminal-1/README.md"><code>terminal-1/</code></a></td><td>opencode 멀티플렉서 + TOKEN QUEST · <code>terminal-1</code> 명령 · Windows Terminal</td></tr>
 <tr><td><a href="report-1/README.md"><code>report-1/</code></a></td><td>근거 달린 보고서 · <code>report-1.py</code> 한 파일 · 메일 · 메신저 · 메모 · 표를 붙여 넣기 · Python 3.8+</td></tr>
 <tr><td><a href="flow-1/README.md"><code>flow-1/</code></a></td><td>쿼리 흐름도 · <code>flow-1.py</code> + 분석 모듈 넷 · 파이썬 · 노트북 · 사내 쿼리 패키지 · 사내 LLM 가공 가이드 · Python 3.8+</td></tr>
+<tr><td><a href="ascii-1/README.md"><code>ascii-1/</code></a></td><td>PNG 를 ASCII 아트로 · 선 차트 · 웨이퍼 파티클 맵 · <code>ascii-1.py</code> + 모듈 셋 또는 <code>ascii-1.exe</code> · 끌어다 놓기 · Python 3.8+</td></tr>
 </table>
 
 <p align="center"><sub>폴더는 모양이 모두 같습니다: <code>README.md</code> 소개 · <code>INSTALL.md</code> 에이전트용 설치 절차 · <code>docs/MANUAL.md</code> 매뉴얼 · <code>tests/</code><br>
@@ -68,7 +70,7 @@ FLOW–1 · 파이썬 데이터 쿼리를 흐름도 한 장으로<br>
 ```text
 works 저장소를 D:\OPENCODE 에 받아줘: git clone https://github.com/leebobegogigug-blip/Works.git "D:\OPENCODE"
 (이미 받아져 있으면 git -C "D:\OPENCODE" pull --ff-only)
-그다음 D:\OPENCODE\secretary-1\INSTALL.md · D:\OPENCODE\terminal-1\INSTALL.md · D:\OPENCODE\report-1\INSTALL.md · D:\OPENCODE\flow-1\INSTALL.md 를 차례로 끝까지 읽고 그 순서대로만 진행해 (안 쓸 도구는 빼고).
+그다음 D:\OPENCODE\secretary-1\INSTALL.md · D:\OPENCODE\terminal-1\INSTALL.md · D:\OPENCODE\report-1\INSTALL.md · D:\OPENCODE\flow-1\INSTALL.md · D:\OPENCODE\ascii-1\INSTALL.md 를 차례로 끝까지 읽고 그 순서대로만 진행해 (안 쓸 도구는 빼고).
 API 키·토큰은 절대 출력하지 말고, [질문] 표시가 있는 곳에서는 나한테 물어봐.
 ```
 
