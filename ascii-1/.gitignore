@@ -3,6 +3,11 @@ tests/out/
 *.broken
 *.tmp
 
+# ── exe 빌드 산출물 (tools/build_exe.py) — 올리지 않고 Release 에만
+dist/
+build/
+*.spec
+
 # ── Python
 __pycache__/
 *.py[cod]

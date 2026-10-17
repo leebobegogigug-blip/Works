@@ -2,7 +2,7 @@
 
 > **사람용 한 줄:** OpenCode 에 아래 프롬프트를 붙여넣으면 이 문서대로 설치합니다.
 > Ascii–1 은 works 저장소(`https://github.com/leebobegogigug-blip/Works`)의 `ascii-1` 폴더입니다.
-> `.exe` 로 묶은 배포본은 아직 없고, 소스(`ascii-1.py`)로 돌립니다.
+> 소스(`ascii-1.py`)로 돌립니다. 파이썬 없이 쓰고 싶으면 4단계(선택)의 `ascii-1.exe` 를 씁니다.
 >
 > ```text
 > Ascii–1 을 설치해줘. works 저장소를 D:\OPENCODE 에 받고, 프로그램 폴더는 D:\OPENCODE\ascii-1 이야.
@@ -55,6 +55,16 @@ python "D:\OPENCODE\ascii-1\ascii-1.py" check
 - **확인**: 마지막 줄이 `결과: OK`.
 - **실패하면**: `결과: 점검 실패` 위의 `×` 줄을 그대로 보여 주고 [문제 해결](#문제-해결).
 
+## 4. (선택) `ascii-1.exe` 로 쓰기
+
+파이썬 없이 PNG 를 끌어다 놓으려는 사용자에게만. **[질문]** "`ascii-1.exe` (저장소 Releases 에서 받는, 서명하지 않은 한 파일)를 쓰시겠습니까?" → 아니오면 9단계로.
+
+1. 사용자가 `https://github.com/leebobegogigug-blip/Works/releases` 에서 `ascii-1-v…` 릴리스의 `ascii-1.exe` 와 `ascii-1.exe.sha256` 을 받아 아무 폴더에 둔다 (에이전트가 몰래 받거나 다른 곳에서 받지 않는다. 릴리스가 아직 없으면 "릴리스가 아직 없습니다" 라고 보고하고 3단계까지만).
+2. 해시를 확인한다: `certutil -hashfile "<폴더>\ascii-1.exe" SHA256` 의 해시가 `ascii-1.exe.sha256` 에 적힌 것과 같아야 한다. **다르면 멈추고** 사용자에게 알린다.
+3. 점검한다: `"<폴더>\ascii-1.exe" check`
+   - **확인**: 마지막 줄이 `결과: OK`.
+   - **실패하면**: SmartScreen 이 `PC 보호` 창을 띄우면 사용자가 직접 `추가 정보` › `실행` 을 눌러야 한다 (에이전트는 우회하지 않는다). 사내 백신이 막으면 **[질문]** 보안 담당에게 허용을 요청할지 묻고 멈춘다.
+
 ## 9. 완료 보고
 
 아래 형식으로 사용자에게 보고한다.
@@ -64,6 +74,7 @@ Ascii–1 설치 완료
 - 위치     : D:\OPENCODE\ascii-1
 - 파이썬   : (1단계 결과)
 - 점검     : (3단계 결과 — 마지막 줄)
+- exe      : 쓰지 않음 | (4단계 결과 — 해시 확인 · check 마지막 줄)
 - 멈춘 곳  : 없음 | n단계 — 이유와 사용자에게 필요한 조치
 - 쓰는 법  : python "D:\OPENCODE\ascii-1\ascii-1.py" "<그림.png>" — 그림 옆에 .txt 가 생긴다 (--width 40–300)
 ```
@@ -92,7 +103,7 @@ python "D:\OPENCODE\ascii-1\ascii-1.py" version
 Ascii–1 은 PC 에 남기는 것이 없다 (사용자 PATH · 바로가기 · 레지스트리 · 데이터 폴더 모두 없음). 되돌릴 것이 없다.
 
 프로그램 폴더 `D:\OPENCODE\ascii-1` 은 works 저장소의 일부라서 **지우지 않는다** — 지우면 git 이 '바뀐 파일' 로 보고 다른 앱의 업데이트(`git pull`)가 멈춘다.
-이 앱으로 만든 결과 `.txt` 파일은 입력 PNG 옆에 있으니 사용자가 직접 지운다.
+이 앱으로 만든 결과 `.txt` 파일은 입력 PNG 옆에 있으니 사용자가 직접 지운다. 4단계로 받은 `ascii-1.exe` · `.sha256` 은 둔 폴더에서 그 파일들만 지운다.
 works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워집니다. `D:\OPENCODE` 를 지울까요?" → 확인 후 지운다.
 
 ## 참고: 명령 모음

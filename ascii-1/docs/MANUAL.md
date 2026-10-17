@@ -25,6 +25,19 @@ PNG 를 ASCII 아트로 바꾸는 명령형 도구입니다. 소개는 [README](
 
 그림 경로로 시작하는 명령(끌어다 놓은 것과 같은 모양)이고 콘솔이 대화형이면, 결과를 읽을 수 있게 끝난 뒤 `Enter 를 누르면 닫힙니다` 하고 기다립니다. 터미널에서 옵션부터 치거나 `--stdout` · `--no-wait` 를 주면 기다리지 않습니다.
 
+## exe 로 쓰기
+
+저장소 Releases 에서 `ascii-1-v…` 릴리스의 **`ascii-1.exe` 와 `ascii-1.exe.sha256`** 을 받아 아무 폴더에 둡니다. 설치할 것은 없고, 파이썬도 필요 없습니다. PNG 를 `ascii-1.exe` 위로 끌어다 놓으면 소스(`python ascii-1.py`)와 똑같이 동작합니다 — 옵션 · 종료 코드 · 결과 파일도 같습니다.
+
+| 확인할 것 | 방법 |
+|---|---|
+| 받은 파일이 올린 파일과 같은가 | `certutil -hashfile ascii-1.exe SHA256` 의 해시가 `ascii-1.exe.sha256` 에 적힌 것과 같은지 |
+| 잘 돌아가는가 | `ascii-1.exe check` → 마지막 줄 `결과: OK` |
+
+- **서명하지 않은 파일입니다.** 처음 열 때 Windows SmartScreen 이 `PC 보호` 창을 띄우거나 사내 백신이 막거나 오탐할 수 있습니다. 해시가 같은지 확인한 뒤 `추가 정보` › `실행` 으로 열거나, 보안 담당에게 허용을 요청하세요. 이 도구는 우회하지 않습니다
+- 한 파일로 묶은 방식이라 **처음 실행할 때 1–2 초** 걸립니다 (임시 폴더에 풀어 실행)
+- exe 는 GitHub 의 Windows 에서 만든 것입니다. 태그(`ascii-1-vX.Y.Z`)를 푸시해야 릴리스가 생기고, 그 태그는 `ascii-1.py` 의 `VERSION` 과 같아야 합니다
+
 ## 결과와 종료 코드
 
 출력의 마지막 줄은 늘 `결과: …` 입니다. 그림마다 한 줄(`OK  그림.png → 그림.txt (118열 50행 · 점 추정 20개)`)이 위에 찍힙니다.
@@ -86,9 +99,12 @@ PNG 를 ASCII 아트로 바꾸는 명령형 도구입니다. 소개는 [README](
 | 할 일 | 명령 |
 |---|---|
 | 테스트 | `python -m unittest discover -s tests` (표준 라이브러리만 — 시험용 PNG 인코더는 `tests/pngenc.py` 에만 있습니다) |
+| exe 만들기 (개발 도구) | `pip install pyinstaller==6.10.0` 다음 `python tools/build_exe.py` → `dist/ascii-1.exe` · `.sha256` |
+| 만든 exe 시험 | `python tools/build_exe.py --smoke dist/ascii-1.exe` — version · check · 변환 · 이름 충돌 · 확인 필요 · 사용법 오류 |
+| 소스로 같은 시험 | `python tools/build_exe.py --smoke python ascii-1.py` |
 | works 규칙 검사 | 저장소 루트에서 `python tools/works_check.py` |
 
-CI(`.github/workflows/ascii-1.yml`)는 Windows · Ubuntu × Python 3.8 · 최신에서 테스트를 돌립니다. 테스트 그림은 전부 코드로 만든 것입니다.
+CI(`.github/workflows/ascii-1.yml`)는 Windows · Ubuntu × Python 3.8 · 최신에서 테스트를 돌립니다. `.github/workflows/ascii-1-release.yml` 은 `ascii-1/**` 를 건드린 PR 마다 Windows 에서 exe 를 만들어 스모크 시험까지 돌리고(릴리스는 하지 않음), 태그를 푸시했을 때만 Release 에 올립니다. 테스트 그림은 전부 코드로 만든 것입니다.
 
 ## 데이터
 
@@ -96,7 +112,7 @@ CI(`.github/workflows/ascii-1.yml`)는 Windows · Ubuntu × Python 3.8 · 최신
 
 ## 알려진 한계
 
-- `.exe` 로 묶은 배포본은 아직 없습니다. 지금은 `python ascii-1.py` 로 돌립니다 (파이썬 3.8 이상). 사양 · 출력 모양은 `docs/plans/ascii-1-design.md` 를 보세요
+- exe 는 서명하지 않았고 (SmartScreen · 백신이 막을 수 있음) 처음 실행이 1–2 초 걸립니다. 소스는 `python ascii-1.py` (파이썬 3.8 이상) 입니다. 사양 · 출력 모양은 `docs/plans/ascii-1-design.md` 를 보세요
 - 그림 속 글자(`UCL` · 눈금 숫자 · 축 이름)는 읽지 않고 비웁니다. 점은 뭉친 곳을 면적으로 센 추정 개수입니다
 - JPEG 는 읽지 않습니다 (확장자가 `.png` 여도 안이 JPEG 면 `JPEG 로 보입니다` 하고 거부)
 - 요소 찾기는 마커가 선 두께의 2 배 + 2 px 보다 작으면 선과 마커를 못 가르고, 둥근 낱글자(`0`)는 점과 구분이 안 됩니다. 점선은 점으로 셉니다
