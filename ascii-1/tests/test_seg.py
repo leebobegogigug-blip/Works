@@ -6,6 +6,7 @@ import random
 import sys
 import unittest
 from collections import Counter
+from math import cos, pi, sin
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -65,6 +66,18 @@ class ControlChart(unittest.TestCase):
         red_text = [e for e in seg.of("text") if names(seg)[e.cluster] == "빨강"]
         self.assertEqual(len(red_text), 3)
         self.assertTrue(all(e.bbox[0] >= 400 for e in red_text))
+
+    def test_line_running_past_the_frame_into_a_label_is_cut_at_the_frame(self):
+        # 가로선이 틀(바깥 세로선 둘) 밖으로 나가 라벨에 붙어 있으면 선은 틀에서 끝난다
+        c = synth.Canvas(260, 140)
+        c.vline(20, 10, 120, 2, synth.BLACK)
+        c.vline(200, 10, 120, 2, synth.BLACK)
+        c.hline(60, 20, 205, 3, synth.RED)
+        c.text("UCL", 206, 57, synth.RED)
+        seg = sg.segment(c.image())
+        red = [e for e in seg.of("hline") if names(seg)[e.cluster] == "빨강"]
+        self.assertEqual(len(red), 1)
+        self.assertLessEqual(red[0].bbox[2], 201, "틀(x 200)에서 한 칸 넘게 나가면 라벨까지 선이 된 것")
 
 
 class LineChartOnly(unittest.TestCase):
@@ -189,6 +202,19 @@ class WaferMap(unittest.TestCase):
             c.rect(x, y, x + 2, y + 2, synth.BLUE)
         seg = sg.segment(c.image())
         self.assertIsNone(seg.ring)
+
+    def test_halo_of_dots_just_inside_the_ring_is_not_the_notch(self):
+        """링 바로 안쪽 점의 회색 번짐은 링 덩어리에 붙지만 노치가 아니다 (점에 닿은 칸은 노치 후보에서 뺀다)"""
+        img, _ = synth.wafer_map()
+        c = synth.Canvas(240, 240)
+        c.px = [tuple(img.rgb[3 * i:3 * i + 3]) for i in range(240 * 240)]
+        for ang in range(-20, 21, 5):                       # 3 시 쪽 (노치는 아래쪽 90°)
+            x, y = int(120 + 85 * cos(ang * pi / 180)), int(120 + 85 * sin(ang * pi / 180))
+            c.rect(x - 2, y - 2, x + 2, y + 2, synth.GRAY)
+            c.rect(x - 1, y - 1, x + 1, y + 1, synth.BLUE)
+        seg = sg.segment(c.image())
+        self.assertIsNotNone(seg.ring)
+        self.assertLess(abs(seg.ring.notch - 90), 5)
 
     def test_wafer_without_notch(self):
         img, info = synth.wafer_map(notch=False)
