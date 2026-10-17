@@ -41,6 +41,9 @@ LINE_BLUR_MAX = 40        # 다른 색 선 위의 이 면적 이하 조각은 �
 ALIGN_TOL = (2.5, 0.25)   # 같은 줄로 보는 중심 차이 = max(2.5px, 글자 크기의 25%)
 MAX_FG_RATIO = 0.5        # 배경이 아닌 칸이 이 비율을 넘으면 사진 · 채워진 그림으로 보고 분석하지 않는다
 TICK_RATIO = 2.0          # 선 두께가 있을 때, 두께의 1.5 배 이하로 가늘고 이 배수 이상 긴 작은 조각은 눈금 막대
+PATH_SPAN = 0.4            # 선이 없을 때 곡선으로 보려면 그림의 긴 변의 이만큼은 가로질러야 (웨이퍼의 점 기둥은 0.2 안팎)
+PATH_CONTINUOUS = 0.9     # …그리고 긴 축의 칸(열)들 중 이 비율 이상에 칸이 있어야 (끊긴 점 무리가 아니라 이어진 선)
+PATH_QUANTILE = 0.2       # 선이 없을 때 곡선 두께 = 길쭉한 덩어리 칸들의 min(가로런, 세로런) 하위 20%
 FRAME_SLACK = 1           # 틀(가장 바깥 세로선 둘) 밖으로 이만큼 넘어간 선 끝은 선이 아니라 라벨
 
 HUE_NAMES = ((15, "빨강"), (40, "주황"), (70, "노랑"), (165, "초록"), (190, "청록"), (260, "파랑"), (290, "보라"),
@@ -491,6 +494,49 @@ def clamp_to_frame(hl: List[Element], vl: List[Element], per: Dict[int, List[int
     return out, vl
 
 
+def is_path(pix: Sequence[int], box: Tuple[int, int, int, int], w: int, h: int) -> bool:
+    """그림을 가로지르는 이어진 선(곡선)처럼 보이는 덩어리인가 — 점이 사슬처럼 이어진 무리와 가른다"""
+    bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
+    long_side = max(bw, bh)
+    if long_side < PATH_SPAN * max(w, h) or len(pix) / (bw * bh) > 0.45:
+        return False
+    along = (lambda i: i % w) if bw >= bh else (lambda i: i // w)
+    lo = box[0] if bw >= bh else box[1]
+    return len({along(i) - lo for i in pix}) >= PATH_CONTINUOUS * long_side
+
+
+def path_thickness(pix: Sequence[int], w: int) -> float:
+    """곡선 덩어리의 두께 — 칸마다 min(가로로 이어진 길이, 세로로 이어진 길이) 를 재서 하위 20% 값.
+    곡선 칸이 마커 칸(둘레가 굵다)보다 적어도 5분의 1은 되어야 맞는다"""
+    cells = set(pix)
+    hrun: Dict[int, int] = {}
+    vrun: Dict[int, int] = {}
+    for i in pix:
+        if i in hrun:
+            continue
+        a = i
+        while a - 1 in cells and (a - 1) % w != w - 1:
+            a -= 1
+        b = i
+        while b + 1 in cells and (b + 1) % w != 0:
+            b += 1
+        for j in range(a, b + 1):
+            hrun[j] = b - a + 1
+    for i in pix:
+        if i in vrun:
+            continue
+        a = i
+        while a - w in cells:
+            a -= w
+        b = i
+        while b + w in cells:
+            b += w
+        for j in range(a, b + 1, w):
+            vrun[j] = (b - a) // w + 1
+    vals = sorted(min(hrun[i], vrun[i]) for i in pix)
+    return float(vals[int(PATH_QUANTILE * (len(vals) - 1))])
+
+
 def aligned_rows(cands, vertical: bool) -> Set[int]:
     """눈금 글자처럼 간격은 넓어도 같은 줄(중심 높이가 같은)에 놓인 비슷한 크기의 덩어리 ≥ 3 — 둥글지 않은 것이 하나라도 있어야"""
     key = (lambda b: (b[0] + b[2]) / 2) if vertical else (lambda b: (b[1] + b[3]) / 2)
@@ -615,6 +661,10 @@ def segment(img) -> Segmentation:
     for k in {c[0] for c in keep if not clusters[c[0] - 1].neutral}:
         estimate(k, keep)            # 중립은 번짐 조각에 속지 않게 뒤에서
     rc = seg.line_thickness + 1.0 if seg.line_thickness else None
+    if rc is None and ring is None:      # 가로 · 세로선도 웨이퍼 링도 없는 차트: 곡선 자체의 두께로 문턱을 정한다
+        paths = [pix for _, pix, box in keep if is_path(pix, box, w, h)]
+        if paths:
+            rc = path_thickness(max(paths, key=len), w) + 1.0
     small = []
     for k, pix, box in keep:
         bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1

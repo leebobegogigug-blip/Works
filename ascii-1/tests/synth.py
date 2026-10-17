@@ -115,15 +115,26 @@ def control_chart(markers: int = 12, frame: bool = False) -> Tuple[Image, int]:
     return c.image(), markers
 
 
+def line_chart(markers: int = 12) -> Tuple[Image, int]:
+    """마커와 곡선뿐인 차트 — 가로 · 세로선도 글자도 없다 (선 두께를 곡선 자체에서 재야 마커를 가른다)"""
+    c = Canvas(420, 300)
+    pts = [(70 + k * (310 // (markers - 1)), 150 + (35 if k % 3 == 0 else -30 if k % 3 == 1 else 8)) for k in range(markers)]
+    for a, b in zip(pts, pts[1:]):
+        c.line(a[0], a[1], b[0], b[1], 1.2, BLUE)
+    for x, y in pts:
+        c.disc(x, y, 5.2, BLUE)
+    return c.image(), markers
+
+
 def wafer_map(blue: int = 50, orange: int = 12, gray: int = 8, tile: int = 4, seed: int = 3, notch: bool = True,
-              faint: bool = False, plus: int = 0, squash: float = 0.0, halo: int = 0):
+              faint: bool = False, plus: int = 0, squash: float = 0.0, halo: int = 0, stripe: int = 0, ring: bool = True):
     """웨이퍼 맵: 회색 1칸 외곽(아래쪽에 노치) · 흩어진 3×3 점 · 빈틈없이 깐 점 덩어리. → (그림, 정보 dict)"""
     rng = random.Random(seed)
     c = Canvas(240, 240)
     cx = cy = 120
     R = 90
     cover = {}                                      # faint: 칸에 걸친 정도로 옅게 (1칸 선이 격자 중간에 걸린 모습)
-    for k in range(0, 3600):
+    for k in range(0 if ring else 3600, 3600):
         a = k / 10
         r = R
         if notch and abs(a - 90) <= 4:
@@ -151,6 +162,7 @@ def wafer_map(blue: int = 50, orange: int = 12, gray: int = 8, tile: int = 4, se
                 taken.append((x, y))
                 return x, y
 
+    taken += [(41 + 3 * n, 41 + 3 * n) for n in range(stripe)]       # 사슬 자리는 다른 점이 겹치지 않게 비워 둔다
     colored = []
     for n, col in ((blue, BLUE), (orange, ORANGE), (gray, GRAY)):
         for _ in range(n):
@@ -168,7 +180,9 @@ def wafer_map(blue: int = 50, orange: int = 12, gray: int = 8, tile: int = 4, se
         taken.append((px, py))
         for dx, dy in ((0, 0), (3, 0), (-3, 0), (0, 3), (0, -3)):
             c.rect(px + dx - 1, py + dy - 1, px + dx + 1, py + dy + 1, BLUE)
+    for n in range(stripe):                        # 3×3 점이 대각선으로 닿아 사슬처럼 이어진 덩어리 — 길쭉하고 속이 비어 곡선처럼 보인다
+        c.rect(40 + 3 * n, 40 + 3 * n, 42 + 3 * n, 42 + 3 * n, BLUE)
     for i in range(tile):
         for j in range(tile):
             c.rect(blob[0] + 3 * i, blob[1] + 3 * j, blob[0] + 3 * i + 2, blob[1] + 3 * j + 2, BLUE)
-    return c.image(), {"blue": blue, "orange": orange, "gray": gray, "tile": tile * tile, "plus": plus * 5, "R": R, "center": (cx, cy)}
+    return c.image(), {"blue": blue, "orange": orange, "gray": gray, "tile": tile * tile, "plus": plus * 5, "stripe": stripe, "R": R, "center": (cx, cy)}

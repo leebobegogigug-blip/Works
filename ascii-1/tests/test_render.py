@@ -253,6 +253,69 @@ def curve(box, w):
     return sg.Element("curve", 1, box, len(pix), pix, (x0 + x1) / 2, (y0 + y1) / 2)
 
 
+def components(lines):
+    """공백이 아닌 글자들이 8방향으로 이어진 덩어리 수"""
+    cells = {(r, c) for r, row in enumerate(lines) for c, ch in enumerate(row) if ch != " "}
+    seen, n = set(), 0
+    for start in cells:
+        if start in seen:
+            continue
+        n += 1
+        seen.add(start)
+        stack = [start]
+        while stack:
+            r, c = stack.pop()
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    t = (r + dr, c + dc)
+                    if t in cells and t not in seen:
+                        seen.add(t)
+                        stack.append(t)
+    return n
+
+
+class CurveContinuity(unittest.TestCase):
+    """마커와 곡선뿐인 차트를 글자로 그리면 어느 열 수에서든 끊기지 않고 한 줄로 이어진다"""
+
+    def test_one_path_at_every_width(self):
+        seg = sg.segment(synth.line_chart()[0])
+        for width in (40, 60, 80, 120, 200, 300):
+            with self.subTest(width=width):
+                lines = art(rd.render(seg, width))
+                self.assertEqual(components(lines), 1, "곡선이 끊겼다\n" + "\n".join(lines))
+                self.assertEqual(sum(x.count(g) for x in lines for g in "oO@"), 12)
+
+    def test_connectors_shorter_than_two_cells_still_join_the_markers(self):
+        # 마커 둘이 3 셀 떨어져 있고 연결선(약 6 px)이 셀 가로(약 7 px)보다 짧다 — 눈금 막대로 오인해 버리면 두 마커가 따로 논다
+        c = synth.Canvas(300, 80)
+        c.hline(70, 10, 290, 2, synth.BLACK)                 # 선 두께를 알려 주는 아래 선
+        c.line(20, 30, 36, 40, 1.2, synth.BLUE)
+        c.disc(20, 30, 5.2, synth.BLUE)
+        c.disc(36, 40, 5.2, synth.BLUE)
+        c.disc(280, 30, 5.2, synth.BLUE)                     # 그림 폭을 넓혀 셀을 키운다
+        lines = art(rd.render(sg.segment(c.image()), 40))
+        body = [x for x in lines if x.count("-") < 20]       # 아래 선이 아닌 줄
+        self.assertEqual(sum(x.count(g) for x in body for g in "oO@"), 3)
+        self.assertGreaterEqual(sum(x.count(g) for x in body for g in "\\/|-_"), 1, "연결선이 없다\n" + "\n".join(lines))
+
+    def test_blurred(self):
+        seg = sg.segment(synth.soften(synth.line_chart()[0]))
+        for width in (60, 120):
+            with self.subTest(width=width):
+                self.assertEqual(components(art(rd.render(seg, width))), 1)
+
+    def test_short_connector_between_close_markers_is_kept(self):
+        # 마커 사이가 셀보다 짧아 눈금 막대처럼 보여도 점에 닿아 있으면 이은 선이다
+        c = synth.Canvas(140, 80)
+        c.line(15, 15, 85, 60, 1.2, synth.BLUE)                  # 마커 둘을 잇는 선이 그림 폭의 절반 넘게 가로지른다
+        c.disc(15, 15, 5.2, synth.BLUE)
+        c.disc(85, 60, 5.2, synth.BLUE)
+        c.disc(125, 30, 5.2, synth.BLUE)
+        lines = art(rd.render(sg.segment(c.image()), 40))
+        self.assertEqual(sum(x.count(g) for x in lines for g in "oO@"), 3)
+        self.assertGreaterEqual(sum(x.count(g) for x in lines for g in "\\/|-_"), 1)
+
+
 class Rules(unittest.TestCase):
     def test_horizontal_line_is_cut_at_the_frame(self):
         seg = hand_built()

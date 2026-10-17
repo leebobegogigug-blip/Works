@@ -5,10 +5,10 @@
 우선순위: 점 > 가로 · 세로 선 > 곡선 > 원 외곽. 같은 입력은 같은 글자를 낸다.
 글자(텍스트)는 읽지 않고 비운다. 범례는 맨 아래에 군집마다 어떤 글자를 줬는지 적는다.
 """
-from math import atan2, ceil, cos, pi, sin
+from math import atan2, ceil, cos, hypot, pi, sin
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from ascii1_seg import Element, Segmentation
+from ascii1_seg import Element, Segmentation, components_of
 
 DEFAULT_WIDTH = 120
 MIN_WIDTH, MAX_WIDTH = 40, 300
@@ -17,6 +17,8 @@ PATH_MIN_PIXELS = {"curve": 2, "ring": 1}   # 셀 안에 이만큼은 있어야 
 HORIZONTAL_SLOPE = 1.4             # 픽셀 기울기 |dy/dx| 가 이보다 작으면 가로(글자가 세로로 2 배라 셀 기울기는 0.7), VERTICAL 보다 크면 세로
 VERTICAL_SLOPE = 6.0
 RING_BRIDGE_MAX = 8                # 링 셀 사이가 이 칸 수 이하로 벌어졌으면 직선으로 잇는다
+DOT_REACH = 4.0                    # 곡선 조각의 끝이 점 몸통에서 이만큼(px) 안이면 그 점의 중심까지 잇는다
+CURVE_SPREAD = (3.0, 8.0)           # 한 구간(빈) 안에서 곡선이 max(3 셀, 8 px) 보다 넓게 퍼지면 한 줄이 아니라 모양이 복잡한 것
 MIN_CURVE_CELLS = 2.0              # 곡선 조각의 긴 변이 셀 가로의 이만큼 안 되면(눈금 막대) 그리지 않는다
 
 POINT_SETS = (("o", "O", "@"), ("x", "X", "%"), ("*", "#", "&"), ("s", "S", "$"), ("a", "A", "8"), ("z", "Z", "0"))
@@ -185,6 +187,110 @@ def close_ring(cells: Sequence[Cell], geo: Geometry, ring) -> List[Cell]:
     return extra
 
 
+def centerline(piece: Sequence[int], geo: Geometry) -> Optional[List[Tuple[float, float]]]:
+    """곡선 조각의 중심선 — 긴 쪽 축을 따라 셀 크기 구간으로 나눠 구간마다 중심을 잡는다. 한 줄로 안 풀리는 모양(퍼짐이
+    CURVE_SPREAD 초과)이면 None"""
+    xs = [i % geo.w for i in piece]
+    ys = [i // geo.w for i in piece]
+    along_x = (max(xs) - min(xs)) >= (max(ys) - min(ys))
+    key, other = (xs, ys) if along_x else (ys, xs)
+    binw = geo.cw if along_x else geo.ch
+    spread_max = max(CURVE_SPREAD[0] * (geo.ch if along_x else geo.cw), CURVE_SPREAD[1])     # 세밀한 격자에서도 선 두께는 남는다
+    bins: Dict[int, List[float]] = {}
+    lo = min(key)
+    for k, o, x, y in zip(key, other, xs, ys):
+        b = bins.setdefault(int((k - lo) / binw), [0.0, 0.0, 0, o, o])
+        b[0] += x + 0.5
+        b[1] += y + 0.5
+        b[2] += 1
+        b[3], b[4] = min(b[3], o), max(b[4], o)
+    if any(b[4] - b[3] + 1 > spread_max for b in bins.values()):
+        return None
+    line = [(b[0] / b[2], b[1] / b[2]) for _, b in sorted(bins.items())]
+    # 양 끝은 구간 중심이 아니라 조각의 실제 끝 — 가파른 조각은 구간이 커서 중심이 끝에서 한참 안쪽이다
+    for pick, at in ((min, 0), (max, -1)):
+        edge = pick(key)
+        pts = [(x + 0.5, y + 0.5) for k, x, y in zip(key, xs, ys) if k == edge]
+        end = (sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts))
+        if at == 0:
+            line.insert(0, end)
+        else:
+            line.append(end)
+    return line
+
+
+def segment_cells(a: Tuple[float, float], b: Tuple[float, float], geo: Geometry) -> List[Tuple[Cell, str]]:
+    """두 점 사이를 셀로 잇고 셀마다 기울기 글자를 붙인다 (기울기는 두 점이 정한다)"""
+    (r0, c0), (r1, c1) = geo.cell_xy(a[0], a[1]), geo.cell_xy(b[0], b[1])
+    dx, dy = abs(b[0] - a[0]), abs(b[1] - a[1])
+    slope = float("inf") if dx < 1e-9 else dy / dx
+    if slope < HORIZONTAL_SLOPE:
+        ch = None                                               # 가로: `-` 나 `_` 는 셀마다
+    elif slope > VERTICAL_SLOPE:
+        ch = "|"
+    else:
+        ch = "\\" if (b[0] - a[0]) * (b[1] - a[1]) > 0 else "/"
+    n = max(abs(r1 - r0), abs(c1 - c0))
+    out = []
+    for k in range(n + 1):
+        t = k / n if n else 0.0
+        r, c = int(round(r0 + (r1 - r0) * t)), int(round(c0 + (c1 - c0) * t))
+        if ch is None:
+            y = a[1] + (b[1] - a[1]) * t
+            out.append(((r, c), "_" if (y - geo.y0) / geo.ch - r > 0.62 else "-"))
+        else:
+            out.append(((r, c), ch))
+    return out
+
+
+def curve_cells(e: Element, seg: Segmentation, geo: Geometry) -> Optional[Dict[Cell, str]]:
+    """곡선 요소 → {셀: 글자}. 조각마다 중심선을 긋고, 조각 끝이 점 몸통 곁이면 그 점의 중심까지 잇는다.
+    한 조각이라도 중심선으로 못 풀면 None (호출한 쪽이 솎기 방식으로 돌아간다)"""
+    dots = [(d.cx + 0.5, d.cy + 0.5, (d.area / pi) ** 0.5) for d in seg.of("dot")]
+    out: Dict[Cell, str] = {}
+    for piece in components_of(e.pixels, geo.w):
+        if len(piece) < 3:
+            continue
+        box = (min(i % geo.w for i in piece), min(i // geo.w for i in piece),
+               max(i % geo.w for i in piece), max(i // geo.w for i in piece))
+        short = max(box[2] - box[0] + 1, box[3] - box[1] + 1) < MIN_CURVE_CELLS * geo.cw
+        line = centerline(piece, geo)
+        if line is None:
+            return None
+        joined = attach_to_dots(line, dots)
+        if short and not joined:
+            continue                                  # 점에 닿지 않는 짧은 조각 = 눈금 막대
+        if len(line) == 1:
+            line = line * 2
+        for a, b in zip(line, line[1:]):
+            for cell, ch in segment_cells(a, b, geo):
+                out[cell] = ch
+    return out
+
+
+def attach_to_dots(line: List[Tuple[float, float]], dots: Sequence[Tuple[float, float, float]]) -> int:
+    """조각의 양 끝이 점 몸통 곁(DOT_REACH 안)이면 그 점의 중심을 끝에 덧붙인다. 붙인 끝의 수.
+    한 점으로 짧은 조각의 두 끝이 다 붙지 않게, 두 끝은 서로 다른 점을 고른다"""
+    def near(pt):
+        return sorted((hypot(pt[0] - dx, pt[1] - dy) - r, dx, dy) for dx, dy, r in dots
+                      if hypot(pt[0] - dx, pt[1] - dy) <= r + DOT_REACH)
+
+    first, last = near(line[0]), near(line[-1])
+    ends = []
+    if first:
+        ends.append((0, first[0]))
+    if last:
+        pick = next((c for c in last if not ends or c[1:] != ends[0][1][1:]), None)
+        if pick is not None:
+            ends.append((-1, pick))
+    for where, (_, dx, dy) in sorted(ends, key=lambda t: t[0] != -1):      # 뒤쪽부터 붙여 인덱스가 밀리지 않게
+        if where == 0:
+            line.insert(0, (dx, dy))
+        else:
+            line.append((dx, dy))
+    return len(ends)
+
+
 def curve_glyph(kind: str, m: Moments, geo: Geometry, cell: Cell) -> str:
     if kind == "h":
         # 셀 안에서 칸의 평균 높이가 윗반이면 `-`, 아랫반이면 `_` — 낮게 깔린 선이 떠 보이지 않게
@@ -268,8 +374,14 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> 
     # 외곽 · 곡선 (가장 낮음)
     for kind, prio in (("ring", 1), ("curve", 2)):
         for e in seg.of(kind):
-            if kind == "curve" and max(e.bbox[2] - e.bbox[0] + 1, e.bbox[3] - e.bbox[1] + 1) < MIN_CURVE_CELLS * geo.cw:
-                continue
+            if kind == "curve":
+                drawn = curve_cells(e, seg, geo)
+                if drawn is not None:
+                    for cell, ch in drawn.items():
+                        put(cell, prio, ch)
+                    continue
+                if max(e.bbox[2] - e.bbox[0] + 1, e.bbox[3] - e.bbox[1] + 1) < MIN_CURVE_CELLS * geo.cw:
+                    continue
             mom = path_cells(e.pixels, geo)
             kept = thin(mom, PATH_MIN_PIXELS[kind])
             for cell, d in kept.items():

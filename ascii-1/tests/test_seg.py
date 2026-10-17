@@ -67,6 +67,68 @@ class ControlChart(unittest.TestCase):
         self.assertTrue(all(e.bbox[0] >= 400 for e in red_text))
 
 
+class LineChartOnly(unittest.TestCase):
+    """가로 · 세로선이 없는 차트: 선 두께를 곡선 자체에서 재서 마커를 가른다"""
+
+    def test_markers_without_any_straight_line(self):
+        for img_fn in (lambda: synth.line_chart()[0], lambda: synth.soften(synth.line_chart()[0]),
+                       lambda: synth.zoom(synth.line_chart()[0], 2)):
+            seg = sg.segment(img_fn())
+            self.assertEqual(seg.of("hline") + seg.of("vline"), [])
+            self.assertEqual(seg.dots(), 12)
+            self.assertGreaterEqual(len(seg.of("curve")), 1)
+
+    def test_other_marker_counts(self):
+        for k in (4, 9, 20):
+            with self.subTest(markers=k):
+                img, n = synth.line_chart(k)
+                self.assertEqual(sg.segment(img).dots(), n)
+
+    def test_wafer_dense_cluster_is_not_mistaken_for_a_curve(self):
+        # 선이 없는 웨이퍼의 뭉친 점 덩어리가 곡선 두께 추정을 건드려 점으로 안 세어지면 안 된다
+        img, info = synth.wafer_map()
+        seg = sg.segment(img)
+        self.assertEqual(seg.of("curve"), [])
+        self.assertEqual(seg.dots(), info["blue"] + info["tile"] + info["orange"] + info["gray"])
+
+
+class DotChains(unittest.TestCase):
+    """점이 사슬처럼 닿아 이어진 길쭉한 덩어리는 곡선이 아니라 점 무리다 (실제 웨이퍼의 점 기둥이 곡선으로 오인되어 파랑 점이 165 → 13 개로 줄었던 회귀)"""
+
+    def check(self, ring):
+        img, info = synth.wafer_map(stripe=40, ring=ring)
+        seg = sg.segment(img)
+        self.assertEqual(seg.of("curve"), [], "점 사슬이 곡선이 되었다")
+        want = info["blue"] + info["tile"] + info["orange"] + info["gray"] + info["stripe"]
+        self.assertEqual(seg.dots(), want)
+        return seg
+
+    def test_with_and_without_the_ring(self):
+        self.check(True)
+        self.check(False)
+
+    def test_blurred_and_zoomed(self):
+        img, info = synth.wafer_map(stripe=40, ring=False)
+        for variant in (synth.soften(img), synth.zoom(img, 2)):
+            seg = sg.segment(variant)
+            self.assertEqual(seg.of("curve"), [])
+            want = info["blue"] + info["tile"] + info["orange"] + info["gray"] + info["stripe"]
+            self.assertLessEqual(abs(seg.dots() - want), 0.1 * want)
+
+    def test_path_gate(self):
+        # 이어진 선처럼 그림을 가로지르면 곡선, 짧거나 끊기면 아니다
+        w = 200
+        straight = [y * w + x for y in range(98, 101) for x in range(10, 190)]
+        self.assertTrue(sg.is_path(straight, (10, 98, 189, 100), w, 200) is False, "속이 찬 띠는 곡선이 아니다(채움률)")
+        diag = [(10 + 2 * k + dy) * w + (10 + 2 * k) for k in range(80) for dy in range(3)]
+        box = sg.bbox_of(diag, w)
+        self.assertTrue(sg.is_path(diag, box, w, 200))
+        gap = [i for i in diag if not 60 <= i % w < 120]
+        self.assertFalse(sg.is_path(gap, sg.bbox_of(gap, w), w, 200), "가운데가 끊긴 무리는 한 줄이 아니다")
+        short = [i for i in diag if i % w < 60]
+        self.assertFalse(sg.is_path(short, sg.bbox_of(short, w), w, 200), "그림을 가로지르지 않는다")
+
+
 class WaferMap(unittest.TestCase):
     def check(self, img, info, exact=True):
         seg = sg.segment(img)
