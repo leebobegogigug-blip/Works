@@ -345,6 +345,16 @@ class Rules(unittest.TestCase):
 
 
 class Edges(unittest.TestCase):
+    def test_legend_size_is_the_drawn_grid(self):
+        """범례의 `→ N열 M행` 은 파일에 실제로 그려진 격자의 크기다 (명령의 OK 줄과 같은 숫자)"""
+        ticked = hand_built()                         # 그려지지 않는 눈금 조각이 내용 상자를 넓힌 그림 (실제 차트가 그렇다)
+        ticked.elements = [line("hline", (0, 49, 199, 50), 100, 49.5), curve((10, 10, 12, 11), 200)]
+        for seg in (sg.segment(synth.control_chart(frame=True)[0]), sg.segment(synth.wafer_map(plus=3)[0]), ticked):
+            for width in (40, 100, 300):
+                text = rd.render(seg, width)
+                lines = art(text)
+                self.assertIn("→ %d열 %d행" % (max(len(x) for x in lines), len(lines)), legend(text), width)
+
     def test_nothing_found(self):
         text = rd.render(sg.segment(synth.Canvas(60, 40).image()), 100)
         self.assertEqual(art(text), [])

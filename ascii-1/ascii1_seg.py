@@ -44,7 +44,9 @@ TICK_RATIO = 2.0          # 선 두께가 있을 때, 두께의 1.5 배 이하�
 PATH_SPAN = 0.4            # 선이 없을 때 곡선으로 보려면 그림의 긴 변의 이만큼은 가로질러야 (웨이퍼의 점 기둥은 0.2 안팎)
 PATH_CONTINUOUS = 0.9     # …그리고 긴 축의 칸(열)들 중 이 비율 이상에 칸이 있어야 (끊긴 점 무리가 아니라 이어진 선)
 PATH_QUANTILE = 0.2       # 선이 없을 때 곡선 두께 = 길쭉한 덩어리 칸들의 min(가로런, 세로런) 하위 20%
-FRAME_SLACK = 1           # 틀(가장 바깥 세로선 둘) 밖으로 이만큼 넘어간 선 끝은 선이 아니라 라벨
+DISC_INSIDE = 0.9         # 원판: 상자에 내접한 타원 안의 칸 중 이 비율 이상이 차 있고
+DISC_OUTSIDE = 0.3        # …타원 밖으로 나간 칸이 면적의 이 비율 이하
+FRAME_SLACK = 1          # 틀(가장 바깥 세로선 둘) 밖으로 이만큼 넘어간 선 끝은 선이 아니라 라벨
 
 HUE_NAMES = ((15, "빨강"), (40, "주황"), (70, "노랑"), (165, "초록"), (190, "청록"), (260, "파랑"), (290, "보라"),
              (340, "자홍"), (361, "빨강"))
@@ -123,9 +125,20 @@ def hue_gap(a: float, b: float) -> float:
 
 
 def find_bg(img) -> Tuple[int, int, int]:
+    """네 가장자리의 최빈색. 다만 그림 전체의 최빈색을 바탕으로 칠 때 전경(바탕과 먼 칸)이 더 적으면 그쪽 —
+    가장자리를 두른 테두리(내보낸 차트의 틀)가 바탕으로 뽑히면 그림 전체가 전경이 된다"""
     w, h, rgb = img.width, img.height, img.rgb
     cells = list(range(w)) + list(range((h - 1) * w, h * w)) + list(range(0, h * w, w)) + list(range(w - 1, h * w, w))
-    return Counter(tuple(rgb[3 * i:3 * i + 3]) for i in cells).most_common(1)[0][0]
+    edge = Counter(tuple(rgb[3 * i:3 * i + 3]) for i in cells).most_common(1)[0][0]
+    cols = Counter(zip(rgb[0::3], rgb[1::3], rgb[2::3]))
+    common = cols.most_common(1)[0][0]
+    if common == edge:
+        return edge
+
+    def far(bg) -> int:
+        return sum(n for c, n in cols.items()
+                   if (c[0] - bg[0]) ** 2 + (c[1] - bg[1]) ** 2 + (c[2] - bg[2]) ** 2 > FG_DIST * FG_DIST)
+    return common if far(common) < far(edge) else edge
 
 
 def classify(img, bg) -> Tuple[bytearray, List[Cluster]]:
@@ -178,7 +191,7 @@ def classify(img, bg) -> Tuple[bytearray, List[Cluster]]:
         if v >= 0:
             raw[i] = v + 1       # 중립 1 · 유채색 군집 2.. · 가장자리 100 + (닿을 군집 번호) · 옅은 중립 250
     # 가장자리(옅은 번짐)는 같은 군집의 진한 칸과 닿아 있으면 그 군집으로, 아니면 중립으로
-    fringe = [i for i, v in enumerate(raw) if v > 100]
+    fringe = [i for i, v in enumerate(raw) if 100 < v < 250]     # 250(옅은 중립)은 아래에서 따로
     for _ in range(2):
         left = []
         for i in fringe:
@@ -353,6 +366,24 @@ def is_round(bw: int, bh: int, area: int) -> bool:
     fill = area / (bw * bh)
     aspect = bw / bh
     return fill >= 0.70 and (0.7 <= aspect <= 1.43 or max(bw, bh) <= 4)
+
+
+def is_disc(pix: Sequence[int], box: Tuple[int, int, int, int], w: int) -> bool:
+    """칸으로 그린 원판(마커)인가 — 반지름이 정수인 원판은 채움률이 0.52–0.68 이라 is_round 의 0.70 에 못 미친다.
+    상자에 내접한 타원 안이 거의 다 차 있고 타원 밖으로 나간 칸이 적으면 원판이다 (속이 빈 글자 · 네모와 가른다)"""
+    bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
+    if min(bw, bh) < 3 or not 0.7 <= bw / bh <= 1.43:
+        return False
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    ax, ay = (bw - 1) / 2, (bh - 1) / 2
+    cells = set(pix)
+    inside = hit = 0
+    for y in range(box[1], box[3] + 1):
+        for x in range(box[0], box[2] + 1):
+            if ((x - cx) / ax) ** 2 + ((y - cy) / ay) ** 2 <= 1.0:
+                inside += 1
+                hit += y * w + x in cells
+    return hit >= DISC_INSIDE * inside and len(pix) - hit <= DISC_OUTSIDE * len(pix)
 
 
 def find_ring(wide, per: Dict[int, List[int]], cls: bytearray, w: int, h: int):
@@ -607,7 +638,7 @@ def segment(img) -> Segmentation:
     for n, (k, pix, box) in enumerate(comps):
         bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
         if GLYPH_MIN_H <= max(bw, bh) <= max_h * 6 and min(bw, bh) <= max_h and not in_ring(box):
-            cands.append((n, box, len(pix), is_round(bw, bh, len(pix))))
+            cands.append((n, box, len(pix), is_round(bw, bh, len(pix)) or is_disc(pix, box, w)))
     text: Set[int] = set()
     for vertical in (False, True):
         sub = list(cands)
@@ -652,7 +683,8 @@ def segment(img) -> Segmentation:
         areas = []
         for kk, pix, box in comps_:
             bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
-            if kk == k and len(pix) >= 4 and max(bw, bh) <= 0.1 * max(w, h) and is_round(bw, bh, len(pix)):
+            if kk == k and len(pix) >= 4 and max(bw, bh) <= 0.1 * max(w, h) \
+                    and (is_round(bw, bh, len(pix)) or is_disc(pix, box, w)):
                 areas.append(len(pix))
         if areas:
             m = median(areas)

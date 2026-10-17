@@ -315,6 +315,38 @@ class TextRuns(unittest.TestCase):
         self.assertEqual(sg.aligned_rows([(0, self.box(10, 100), 20, False), (1, self.box(70, 100), 20, False)], False), set())
 
 
+class Discs(unittest.TestCase):
+    """반지름이 정수인 원판(r 2–8, 채움률 0.52–0.68)도 둥근 점이다 — 글자 줄이 되거나 낱점 면적에서 빠지면 안 된다"""
+
+    def test_markers_in_a_row_are_not_text(self):
+        for r in (2, 3, 4, 6):          # r 8 이면 다섯 개가 한 행의 40% 를 덮어 가로선이 된다 (MANUAL › 알려진 한계)
+            c = synth.Canvas(60 + 30 * 5, 80)
+            for k in range(5):
+                c.disc(20 + 30 * k, 40, r, synth.RED)
+            seg = sg.segment(c.image())
+            self.assertEqual(seg.of("text"), [], r)
+            self.assertEqual(seg.dots(), 5, r)
+
+    def test_lone_markers_count_one_each(self):
+        c = synth.Canvas(160, 100)
+        for k, (x, y) in enumerate(((20, 20), (60, 70), (100, 30), (140, 80))):
+            c.disc(x, y, 3, synth.BLUE)
+        seg = sg.segment(c.image())
+        self.assertEqual(seg.dots(), 4)
+        self.assertEqual(seg.unit[seg.clusters[0].index], 29)
+
+    def test_glyphs_are_not_discs(self):
+        for ch, rows in synth.FONT.items():
+            pix = [y * 10 + x for y, row in enumerate(rows) for x, v in enumerate(row) if v == "#"]
+            self.assertFalse(sg.is_disc(pix, sg.bbox_of(pix, 10), 10), ch)
+
+    def test_hollow_ring_and_square_are_not_discs(self):
+        ring = [y * 20 + x for y in range(11) for x in range(11) if 3.5 <= ((x - 5) ** 2 + (y - 5) ** 2) ** 0.5 <= 5]
+        square = [y * 20 + x for y in range(9) for x in range(9)]
+        self.assertFalse(sg.is_disc(ring, sg.bbox_of(ring, 20), 20))
+        self.assertFalse(sg.is_disc(square, sg.bbox_of(square, 20), 20))
+
+
 class Colors(unittest.TestCase):
     def test_dark_background(self):
         c = synth.Canvas(120, 100, bg=(10, 10, 20))
@@ -332,6 +364,50 @@ class Colors(unittest.TestCase):
         seg = sg.segment(c.image())
         self.assertEqual(sorted(cl.name for cl in seg.clusters), ["주황", "파랑"])
         self.assertEqual([seg.dots(cl.index) for cl in seg.clusters], [3, 3])
+
+    def test_border_box_on_the_edge_is_not_the_background(self):
+        """그림 가장자리를 두른 테두리(내보낸 차트의 틀) 색이 가장자리의 최빈색이어도 바탕은 안쪽의 흰색이다"""
+        img, markers = synth.control_chart(frame=True)
+        c = synth.Canvas(img.width, img.height)
+        c.px = [tuple(img.rgb[3 * i:3 * i + 3]) for i in range(img.width * img.height)]
+        for t in (1, 3):
+            c.rect(0, 0, img.width - 1, t - 1, synth.BLACK)
+            c.rect(0, img.height - t, img.width - 1, img.height - 1, synth.BLACK)
+            c.rect(0, 0, t - 1, img.height - 1, synth.BLACK)
+            c.rect(img.width - t, 0, img.width - 1, img.height - 1, synth.BLACK)
+            seg = sg.segment(c.image())
+            self.assertEqual(seg.bg, (255, 255, 255), t)
+            self.assertEqual(seg.reason, "", t)
+            self.assertEqual(seg.dots(), markers, t)
+
+    def test_noisy_background_keeps_the_edge_color(self):
+        """바탕이 잡음으로 여러 색에 흩어져 어느 한 색보다 큰 단색 덩어리가 있어도 바탕은 가장자리 쪽이다"""
+        rng = random.Random(5)
+        c = synth.Canvas(100, 100)
+        c.px = [(255 - rng.randrange(6), 255 - rng.randrange(6), 255 - rng.randrange(6)) for _ in range(100 * 100)]
+        c.rect(30, 30, 69, 69, synth.BLUE)                    # 1600 칸 — 바탕의 어느 한 색(약 40 칸)보다 많다
+        seg = sg.segment(c.image())
+        self.assertGreater(min(seg.bg), 240)
+
+    def test_faint_gray_panel_is_background(self):
+        """바탕과 거리 30–60 의 옅은 회색 판(그래프 판 채우기)은 중립 전경에 닿지 않으면 바탕이다"""
+        c = synth.Canvas(200, 150)
+        c.rect(20, 10, 190, 130, (235, 235, 235))
+        for k in range(8):
+            c.disc(30 + 20 * k, 30 + 8 * k, 4, synth.BLUE)
+        seg = sg.segment(c.image())
+        self.assertEqual(seg.reason, "")
+        self.assertEqual([cl.name for cl in seg.clusters], ["파랑"])
+        self.assertEqual(seg.dots(), 8)
+
+    def test_faint_gray_still_joins_a_neutral_line(self):
+        """옅은 칸이 진한 중립 선에 닿아 있으면 그 선의 일부다 (1칸 옅은 외곽이 격자에 걸린 것)"""
+        c = synth.Canvas(200, 100)
+        c.rect(10, 50, 189, 50, (0, 0, 0))
+        c.rect(10, 51, 189, 51, (215, 215, 215))
+        seg = sg.segment(c.image())
+        self.assertEqual(len(seg.of("hline")), 1)
+        self.assertEqual(seg.of("hline")[0].bbox[1:4:2], (50, 51))
 
     def test_clusters_are_ordered_by_area(self):
         c = synth.Canvas(100, 100)

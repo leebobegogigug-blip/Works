@@ -432,12 +432,14 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> 
                            for c in range(c0, c1 + 1))
             rows.append(line.rstrip())
         art = "\n".join(rows) + "\n"
+        size = (max(len(x) for x in rows), len(rows))     # 범례에는 실제로 그린 격자의 크기 (잘라 낸 뒤)
     else:
         art = ""
-    return art + "\n" + "\n".join(legend(seg, geo, glyphs, names, nc is not None, box)) + "\n"
+        size = (geo.cols, geo.rows)
+    return art + "\n" + "\n".join(legend(seg, size, glyphs, names, nc is not None, box)) + "\n"
 
 
-def legend(seg: Segmentation, geo: Geometry, glyphs: Dict[int, dict], names: Dict[int, str], has_notch: bool,
+def legend(seg: Segmentation, size: Tuple[int, int], glyphs: Dict[int, dict], names: Dict[int, str], has_notch: bool,
            box: bool) -> List[str]:
     parts = []
     for c in seg.clusters:
@@ -463,6 +465,6 @@ def legend(seg: Segmentation, geo: Geometry, glyphs: Dict[int, dict], names: Dic
     texts = len(seg.of("text"))
     if texts:
         foot.append("글자 %d곳은 읽지 않고 비움" % texts)
-    foot.append("그림 %d×%d → %d열 %d행" % (seg.width, seg.height, geo.cols, geo.rows))
+    foot.append("그림 %d×%d → %d열 %d행" % (seg.width, seg.height, size[0], size[1]))
     lines.append(" · ".join(foot))
     return lines
