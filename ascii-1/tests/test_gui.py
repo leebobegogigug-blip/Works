@@ -102,7 +102,7 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(str(w.save_button.cget("state")), "disabled")
         self.assertEqual(str(w.copy_button.cget("state")), "disabled")
         self.assertIn("그림을 열어", w.status.cget("text"))
-        self.assertEqual([s.text() for s in w.stats.values()], ["---", "----", "----", "----"])
+        self.assertEqual([s.text() for s in w.stats.values()], ["----", "----", "----", "----"])
         self.assertEqual([k.value_label.cget("text") for k in w.knobs], ["120", "AUTO", "OFF  - |", "FIT"])
 
     # ---- 01 SOURCE · 02 STAT · 엔지니어링 값
@@ -122,7 +122,7 @@ class WindowTests(unittest.TestCase):
             self.assertEqual(w.info_kind.cget("text"), "KIND  chart")
             self.assertEqual(w.stats["dots"].text(), str(seg.dots()).rjust(4, "0"))
             self.assertEqual(w.stats["lines"].text(), str(len(seg.of("hline")) + len(seg.of("vline"))).rjust(4, "0"))
-            self.assertEqual(w.stats["cols"].text(), str(self.art_width()).rjust(3, "0"))
+            self.assertEqual(w.stats["cols"].text(), str(self.art_width()).rjust(4, "0"))
             self.assertEqual(w.stats["rows"].text(), str(len(art.split("\n"))).rjust(4, "0"))
             self.assertEqual(w.art_memo.cget("text"), "%d열 %d행" % (self.art_width(), len(art.split("\n"))))
             self.assertEqual(w.face.mood, "ok")
@@ -187,7 +187,7 @@ class WindowTests(unittest.TestCase):
             self.assertIn("웨이퍼", w.status.cget("text"))
             self.assertEqual((w.led.cget("text"), w.face.mood), ("‼", "confirm"))
             self.assertEqual(str(w.save_button.cget("state")), "disabled")
-            self.assertEqual(w.stats["cols"].text(), "---")
+            self.assertEqual(w.stats["cols"].text(), "----")
             self.assertTrue(w.nudge("kind", +1))                            # wafer → auto
             settle(w)
             self.assertIsNotNone(w.text)
@@ -254,7 +254,7 @@ class WindowTests(unittest.TestCase):
         self.press("Down")
         self.assertEqual(w.params["kind"].value, "auto")
         self.press("1")
-        self.press("plus", state=0x1)                                       # Shift = 한 칸씩
+        self.press("Right", state=0x1)                                      # Shift+방향키 = 한 칸씩
         self.assertEqual(w.params["cols"].value, 131)
 
     def test_selected_knob_is_marked_with_lime(self):
@@ -271,13 +271,14 @@ class WindowTests(unittest.TestCase):
 
     # ---- 00 전체 · 테마
     def test_overview_hides_and_restores_the_left_column(self):
+        self.assertIn("ART 크게", self.win.overview_button.cget("text"))
         w = self.win
         w.root.update()
         self.assertTrue(w.left.winfo_ismapped())
         self.assertTrue(w.toggle_overview())
         w.root.update()
         self.assertFalse(w.left.winfo_ismapped())
-        self.press("0")
+        self.press("f")
         w.root.update()
         self.assertTrue(w.left.winfo_ismapped())
 
@@ -299,11 +300,13 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(w.theme_name, "dark")
         self.assertFalse(w.set_theme("nope"))
 
-    def test_light_theme_keeps_the_knob_values_readable(self):
-        self.win.set_theme("light")
-        for knob in self.win.knobs:
-            self.assertEqual(knob.value_label.cget("fg"), gui.THEMES["light"]["knob_value"] or knob.color)
-            self.assertNotEqual(knob.value_label.cget("fg"), gui.THEMES["light"]["cell"])
+    def test_light_theme_keeps_the_encoder_colour_of_each_knob_value_except_the_white_one(self):
+        w = self.win
+        w.set_theme("light")
+        light = gui.THEMES["light"]
+        self.assertEqual([k.value_label.cget("fg") for k in w.knobs], ["#75A1C7", "#6ABA23", light["knob_value"], "#A5AAAE"])
+        w.set_theme("dark")
+        self.assertEqual([k.value_label.cget("fg") for k in w.knobs], ["#75A1C7", "#6ABA23", "#F2F2F3", "#A5AAAE"])
 
     def test_dark_is_the_default_and_system_without_windows_is_dark(self):
         self.assertEqual(self.win.theme_name, "dark")
@@ -478,6 +481,244 @@ class WindowTests(unittest.TestCase):
             self.assertTrue(self.win.copy())
             self.assertEqual(self.win.root.clipboard_get(), self.win.text)
 
+    # ---- 검토에서 나온 결함의 재발 방지
+    def test_theme_can_change_while_the_stamp_is_up(self):
+        with Folder() as f:
+            self.open(f.put("a.png", tc.sample("chart")))
+            w = self.win
+            w.save()
+            w.root.update()
+            self.assertTrue(w.cycle_theme())                                # TclError 로 중간에 멈추지 않는다
+            light = gui.THEMES["light"]
+            self.assertEqual(w.stamp.itemcget("stamp_ring", "outline"), light["accent_text"])
+            self.assertEqual(w.stamp.itemcget("stamp_text", "fill"), light["accent_text"])
+            self.assertEqual(w.stamp.itemcget("stamp_ring", "fill"), "", "동그라미를 라임으로 채워 글자를 묻지 않는다")
+            self.assertEqual(w.grid_canvas.cget("bg"), light["body"], "도장 뒤의 다시 칠하기도 끝까지 간다")
+
+    def test_theme_repaints_status_face_leds_and_the_path_line(self):
+        with Folder() as f:
+            self.open(f.put("a.png", tc.sample("chart")))
+            w = self.win
+            dark, light = gui.THEMES["dark"], gui.THEMES["light"]
+            self.assertEqual(w.path_label.cget("fg"), dark["text"])
+            w.set_theme("light")
+            self.assertEqual(w.path_label.cget("fg"), light["text"], "경로 줄이 흐린 색으로 돌아가면 안 된다")
+            self.assertEqual(w.status.cget("fg"), light["text"])
+            self.assertEqual(w.led.cget("fg"), light["accent_text"])
+            self.assertEqual(w.face.canvas.itemcget(w.face.eyes, "fill"), light["accent_text"])
+            self.assertEqual(w.face.canvas.cget("bg"), light["cell"])
+            self.assertEqual(w.led_img.cget("fg"), light["accent_text"])
+            self.assertEqual(w.status.cget("bg"), light["block"])
+            self.open(f.put("bad.png", b"nope"))
+            w.set_theme("dark")
+            self.assertEqual(w.status.cget("fg"), dark["err"])
+            self.assertEqual(w.chip.cget("text"), "ERR")
+
+    def test_a_second_save_keeps_its_own_stamp(self):
+        with Folder() as f:
+            self.open(f.put("a.png", tc.sample("chart")))
+            w = self.win
+            w.save()
+            first_job = w.stamp_job
+            w.save()
+            self.assertNotEqual(w.stamp_job, first_job)
+            self.assertNotIn(first_job, w.jobs, "앞 저장의 도장 시계는 취소된다")
+            w.root.update()
+            self.assertTrue(w.stamp.winfo_ismapped())
+
+    def test_undo_clock_and_stamp_end_when_a_new_picture_is_opened(self):
+        with Folder() as f:
+            self.open(f.put("a.png", tc.sample("chart")))
+            w = self.win
+            first = w.save()
+            self.open(f.put("bad.png", b"nope"))                           # ERR · 얼굴 error
+            self.assertEqual((w.face.mood, w.chip.cget("text")), ("error", "ERR"))
+            w.root.update()
+            self.assertFalse(w.undo_button.winfo_ismapped())
+            self.assertFalse(w.stamp.winfo_ismapped())
+            self.assertFalse(w.undo_save(), "새 그림을 연 뒤에는 앞 저장을 되돌리는 버튼이 없다")
+            self.assertTrue(os.path.exists(first))
+            self.assertEqual((w.face.mood, w.chip.cget("text")), ("error", "ERR"), "얼굴 · 상태줄을 덮어쓰지 않는다")
+
+    def test_undo_is_refused_while_working(self):
+        gate = threading.Event()
+        real = app.analyze
+
+        def slow(path):
+            gate.wait(10)
+            return real(path)
+
+        with Folder() as f:
+            self.open(f.put("a.png", tc.sample("chart")))
+            w = self.win
+            path = w.save()
+            with mock.patch.object(app, "analyze", slow):
+                w.options_changed()                                         # 같은 그림을 다시 그리는 중에는 analyze 를 안 부른다 — 새 그림은 열 수 없으니 busy 만 확인
+                w.busy = True
+                self.assertFalse(w.undo_save())
+                w.busy = False
+                gate.set()
+            self.assertTrue(os.path.exists(path))
+            settle(w)
+
+    def test_save_dialog_never_overwrites_an_existing_file(self):
+        with Folder() as f:
+            self.open(f.put("a.png", tc.sample("chart")))
+            mine = f.put("내 메모.txt", "사용자의 글".encode("utf-8"))
+            with mock.patch.object(app, "output_file", side_effect=PermissionError()), \
+                    mock.patch.object(gui.filedialog, "asksaveasfilename", return_value=mine) as ask:
+                self.assertIsNone(self.win.save())
+            self.assertEqual(ask.call_args.kwargs.get("confirmoverwrite"), False)
+            with open(mine, encoding="utf-8") as g:
+                self.assertEqual(g.read(), "사용자의 글")
+            self.assertEqual(self.win.chip.cget("text"), "ERR")
+            self.assertIn("덮어쓰지 않습니다", self.win.status.cget("text"))
+            self.assertFalse(self.win.undo_save(), "만들지 않은 파일은 되돌리기가 지울 수 없다")
+            self.assertTrue(os.path.exists(mine))
+
+    def test_keys_follow_a_real_keyboard(self):
+        w = self.win
+        self.press("1")
+        self.press("plus", state=0x1)                                       # 자판의 + 는 Shift+= — 한 칸이 아니라 10 열
+        self.assertEqual(w.params["cols"].value, 130)
+        self.press("underscore", state=0x1)                                 # Shift+− 도 −
+        self.assertEqual(w.params["cols"].value, 120)
+        self.press("equal")
+        self.assertEqual(w.params["cols"].value, 130)
+        self.press("minus")
+        self.assertEqual(w.params["cols"].value, 120)
+        self.press("Left", state=0x1)                                       # Shift+방향키만 한 칸
+        self.assertEqual(w.params["cols"].value, 119)
+
+    def test_ctrl_and_alt_do_not_turn_knobs_and_numlock_does_not_block_keys(self):
+        w = self.win
+        self.press("plus", state=0x4)
+        self.assertEqual(w.params["cols"].value, 120)
+        self.press("plus", state=gui.ALT_MASK)
+        self.assertEqual(w.params["cols"].value, 120)
+        numlock = 0x10 if os.name != "nt" else 0x8                          # NumLock 이 켜져 있어도 키가 먹는다
+        self.press("plus", state=numlock)
+        self.assertEqual(w.params["cols"].value, 130)
+        self.assertEqual(gui.ALT_MASK, 0x20000 if os.name == "nt" else 0x8)
+
+    def test_dragging_with_shift_turns_one_step_at_a_time(self):
+        w = self.win
+        w.root.update()
+        c = w.knobs[0].canvas
+        c.event_generate("<Button-1>", x=10, y=40, rootx=300, rooty=300)
+        c.event_generate("<B1-Motion>", x=10, y=24, rootx=300, rooty=284, state=0x101)      # Shift + 왼쪽 단추
+        c.event_generate("<ButtonRelease-1>")
+        self.assertEqual(w.params["cols"].value, 122)
+
+    def test_size_knob_stops_at_the_ends_and_fit_follows_the_columns(self):
+        w = self.win
+        size = w.params["size"]
+        self.assertEqual(size.values[0], "fit")
+        w.set_param("size", 32)
+        self.assertFalse(w.nudge("size", +1), "맨 끝에서 처음으로 돌지 않는다")
+        self.assertEqual(size.value, 32)
+        w.set_param("size", "fit")
+        self.assertFalse(w.nudge("size", -1), "FIT 앞은 없다")
+        self.assertEqual(size.value, "fit")
+        w.root.update()
+        w.set_param("cols", 40)
+        few = w.fit_size()
+        w.set_param("cols", 300)
+        many = w.fit_size()
+        self.assertGreater(few, many, "열이 많아지면 맞춤은 더 작은 글자를 고른다")
+
+    def test_busy_led_blinks(self):
+        w = self.win
+        w.busy = True
+        seen = set()
+        for tick in range(0, 24):
+            w.tick = tick
+            w._paint_leds()
+            seen.add(w.led_busy.cget("fg"))
+        w.busy = False
+        self.assertEqual(seen, {w.theme["accent_text"], w.theme["led_off"]})
+
+    def test_a_new_picture_clears_the_old_values_at_once(self):
+        gate = threading.Event()
+        real = app.analyze
+
+        def slow(path):
+            gate.wait(10)
+            return real(path)
+
+        with Folder() as f:
+            first = f.put("a.png", tc.sample("chart"))
+            second = f.put("b.png", tc.sample("wafer"))
+            self.open(first)
+            w = self.win
+            with mock.patch.object(app, "analyze", slow):
+                w.open_path(second)
+                w.root.update()
+                self.assertEqual(self.art(), "")
+                self.assertEqual([s.text() for s in w.stats.values()], ["----"] * 4)
+                self.assertEqual(w.info_png.cget("text"), "SIZE  —")
+                self.assertEqual(w.led_art.cget("fg"), w.theme["led_off"])
+                self.assertEqual(w.led_img.cget("fg"), w.theme["led_off"])
+                gate.set()
+                settle(w)
+            self.assertIn("b.png", w.path_label.cget("text"))
+            self.assertEqual(w.info_kind.cget("text"), "KIND  wafer")
+
+    def test_closing_while_working_leaves_gc_enabled(self):
+        import gc as gcmod
+        win = gui.Window(app)
+        gate = threading.Event()
+        real = app.analyze
+
+        def slow(path):
+            gate.wait(10)
+            return real(path)
+
+        try:
+            with Folder() as f, mock.patch.object(app, "analyze", slow):
+                win.open_path(f.put("a.png", tc.sample("chart")))
+                self.assertFalse(gcmod.isenabled())
+                win.root.destroy()
+                self.assertTrue(gcmod.isenabled())
+                gate.set()
+                time.sleep(0.3)
+        finally:
+            gcmod.enable()
+            gc.collect()
+
+    def test_failed_read_clears_a_pending_option(self):
+        with Folder() as f:
+            w = self.win
+            self.assertTrue(w.open_path(f.put("bad.png", b"nope")))
+            w.set_param("cols", 50)                                         # 읽는 중에 바꿈 → pending
+            settle(w)
+            settle(w)
+            self.assertFalse(w.pending)
+
+    def test_family_choice_is_fixed_width_only_and_never_proportional(self):
+        fixed = {"Unifont": 1, "Consolas": 1, "Malgun Gothic": 0, "D2Coding": 1}
+        pick = lambda installed: gui.pick_family(gui.UI_FONTS, set(installed), lambda n: bool(fixed.get(n)))      # noqa: E731
+        self.assertEqual(pick(["Malgun Gothic", "Consolas", "Arial"]), "Consolas")
+        self.assertEqual(pick(["Unifont", "Consolas"]), "Unifont")
+        self.assertIsNone(pick(["Malgun Gothic", "Arial"]), "비례폭만 있으면 고르지 않는다 — 마지막에 Tk 의 고정폭 글꼴")
+        self.assertNotIn("Malgun Gothic", gui.UI_FONTS)
+        self.assertTrue(self.win.font.metrics("fixed"), "실제로 고른 글꼴은 고정폭이다")
+
+    def test_window_title_uses_the_en_dash_name(self):
+        self.assertEqual(self.win.root.title(), "Ascii–1 " + app.VERSION)
+
+    def test_footer_is_a_numbered_zone(self):
+        texts = []
+
+        def walk(widget):
+            for child in widget.winfo_children():
+                if isinstance(child, gui.tk.Label):
+                    texts.append(child.cget("text"))
+                walk(child)
+        walk(self.win.root)
+        for want in ("01", "02", "03", "04", "05", "SOURCE", "STAT", "DECK", "ART", "STATUS"):
+            self.assertIn(want, texts)
+
     # ---- 부팅
     def test_boot_can_be_skipped_by_key_and_by_click_and_ends_by_itself(self):
         for how in ("key", "click", "call", "wait"):
@@ -569,7 +810,8 @@ class DesignRules(unittest.TestCase):
         import re
         zones = re.findall(r'_zone\([^,]+, "(\d\d)", "([A-Z]+)"', self.source)
         self.assertEqual(zones, [("01", "SOURCE"), ("02", "STAT"), ("03", "DECK"), ("04", "ART")])
-        self.assertIn("00 전체", self.source)                              # 00 은 전체 보기
+        self.assertNotIn("00 전체", self.source, "DESIGN 의 00 은 전체 보기 — ART 를 키우는 이 동작에 쓰지 않는다")
+        self.assertIn('"05"', self.source)
 
     def test_grid_and_font_sizes_follow_the_eight_pixel_rule(self):
         self.assertEqual(gui.GAP, 8)

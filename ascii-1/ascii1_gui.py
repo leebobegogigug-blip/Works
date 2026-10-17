@@ -47,11 +47,12 @@ THEMES = {
 }
 THEME_CYCLE = ("dark", "light", "system")
 
-UI_FONTS = ("Unifont", "D2Coding", "NanumGothicCoding", "Malgun Gothic", "Consolas", "DejaVu Sans Mono", "Menlo", "Courier New")
+UI_FONTS = ("Unifont", "D2Coding", "NanumGothicCoding", "Consolas", "DejaVu Sans Mono", "Menlo", "Courier New")      # 전부 고정폭 (맑은 고딕은 비례폭이라 뺀다)
 ART_SIZES = (8, 10, 12, 14, 16, 20, 24, 32)          # 16 의 정수배(16 · 32)에서 Unifont 가 가장 또렷하다
 GAP = 8                                               # 8px 격자 (원칙 6)
 LEFT_WIDTH = 304
 POLL_MS = 40
+ALT_MASK = 0x20000 if os.name == "nt" else 0x8        # Windows 의 Tk 에서 0x8 은 NumLock 이다
 SELFTEST_SECONDS = 60
 UNDO_SECONDS = 8
 STAMP_MS = 2400
@@ -99,6 +100,14 @@ def hide_own_console():
     except Exception:
         pass
     return False
+
+
+def pick_family(candidates, installed, is_fixed):
+    """후보 중 설치돼 있고 고정폭인 첫 글꼴. 없으면 None (글자 아트 줄이 어긋나지 않게 비례폭은 쓰지 않는다)"""
+    for name in candidates:
+        if name in installed and is_fixed(name):
+            return name
+    return None
 
 
 def shorten(text, width):
@@ -304,7 +313,7 @@ class Knob:
             button.configure(bg=theme["btn"], fg=theme["btn_fg"], activebackground=theme["btn_hover"], activeforeground=theme["btn_fg"])
         self.badge.configure(bg=self.color, fg=BLACK, highlightbackground=theme["line"])          # 흰 번호표가 밝은 칸에서 사라지지 않게 가는 테두리
         self.name_label.configure(bg=theme["cell"], fg=theme["label"])
-        self.value_label.configure(bg=theme["cell"], fg=theme["knob_value"] or self.color)      # 값은 노브의 색 (밝은 테마의 흰 노브만 글자색으로)
+        self.value_label.configure(bg=theme["cell"], fg=(theme["knob_value"] if self.color == WHITE and theme["knob_value"] else self.color))      # 값은 노브의 색 (밝은 테마의 흰 노브만 글자색으로)
         self.refresh(selected)
 
 
@@ -315,7 +324,7 @@ class Window:
     def __init__(self, app, root=None, boot=False):
         self.app = app
         self.root = root or tk.Tk()
-        self.root.title("%s %s" % (app.NAME, app.VERSION))
+        self.root.title("Ascii–1 %s" % app.VERSION)
         self.root.minsize(880, 680)
         self.root.geometry("1056x736")
         self.path = None
@@ -327,6 +336,7 @@ class Window:
         self.results = queue.Queue()
         self.saved = None                   # (경로, 쓴 글) — 되돌리기가 지울 수 있는 것은 우리가 방금 만든 이 파일뿐
         self.undo_left = 0
+        self.stamp_job = None
         self.theme_name = "dark"
         self.theme = THEMES["dark"]
         self.selected = 0
@@ -344,8 +354,9 @@ class Window:
             "box": Choice((False, True), False, {False: "OFF  - |", True: "ON  ─ │"}),
             "size": Choice(("fit",) + ART_SIZES, "fit", dict([("fit", "FIT")] + [(s, "%dpx" % s) for s in ART_SIZES]), wrap=False),
         }
-        families = set(tkfont.families(self.root))
-        self.family = next((f for f in UI_FONTS if f in families), "TkFixedFont")
+        installed = set(tkfont.families(self.root))
+        self.family = pick_family(UI_FONTS, installed, lambda n: bool(tkfont.Font(root=self.root, family=n, size=-16).metrics("fixed"))) \
+            or tkfont.nametofont("TkFixedFont").actual("family")
         self.font = tkfont.Font(root=self.root, family=self.family, size=-16)
         self.font_big = tkfont.Font(root=self.root, family=self.family, size=-32)
         self.art_font = tkfont.Font(root=self.root, family=self.family, size=-16)
@@ -373,6 +384,7 @@ class Window:
 
     def _on_destroy(self, event):
         if event.widget is self.root:
+            gc.enable()                     # 일하는 중에 닫아도 gc 를 켜 둔 채로 돌려준다
             for job in list(self.jobs):
                 try:
                     self.root.after_cancel(job)
@@ -385,6 +397,13 @@ class Window:
         self.styled.append((widget, roles))
         widget.configure(**{opt: self.theme[tok] for opt, tok in roles.items()})
         return widget
+
+    def restyle_role(self, widget, **roles):
+        """이미 칠한 위젯의 토큰을 바꾼다 — 테마를 바꿔도 새 토큰이 따라간다"""
+        for i, (w, old) in enumerate(self.styled):
+            if w is widget:
+                self.styled[i] = (w, dict(old, **roles))
+        widget.configure(**{opt: self.theme[tok] for opt, tok in roles.items()})
 
     def _zone(self, parent, number, name, note=""):
         """번호 붙은 구역 → (블록, 몸통, 오른쪽 메모 라벨)"""
@@ -434,7 +453,7 @@ class Window:
         self.paint(tk.Label(row, text="v" + self.app.VERSION, font=self.font, padx=3, pady=0), bg="chip", fg="chip_fg").pack(side="left", padx=(GAP, 0))
         row = self.paint(tk.Frame(right), bg="block")
         row.pack(anchor="e", pady=(GAP // 2, 0))
-        self.overview_button = self._button(row, "00 전체", self.toggle_overview)
+        self.overview_button = self._button(row, "ART 크게  F", self.toggle_overview)
         self.overview_button.pack(side="left", padx=(0, GAP // 2))
         self.theme_button = self._button(row, "THEME", self.cycle_theme)
         self.theme_button.pack(side="left")
@@ -465,7 +484,7 @@ class Window:
             cell.grid(row=i // 2, column=i % 2, sticky="ew", padx=(0, GAP // 2) if i % 2 == 0 else (GAP // 2, 0), pady=(0, GAP // 2))
             body.columnconfigure(i % 2, weight=1)
             self.paint(tk.Label(cell, text=label, font=self.font, anchor="w", pady=0), bg="cell", fg="label").pack(anchor="w", padx=GAP // 2)
-            seg = SevenSeg(cell, digits=3 if key == "cols" else 4, w=14, h=28, gap=5, t=3)
+            seg = SevenSeg(cell, digits=4, w=14, h=28, gap=5, t=3)
             seg.canvas.pack(anchor="w", padx=GAP // 2, pady=(0, GAP // 2))
             self.stats[key] = seg
 
@@ -505,6 +524,8 @@ class Window:
         # 발: 상태 줄
         foot = self.paint(tk.Frame(r, highlightthickness=1, bd=0), bg="block", highlightbackground="line")
         foot.grid(row=2, column=0, columnspan=2, sticky="ew", padx=GAP, pady=(0, GAP))
+        self.paint(tk.Label(foot, text="05", font=self.font, padx=3, pady=0), bg="chip", fg="chip_fg").pack(side="left", padx=(GAP, 0))
+        self.paint(tk.Label(foot, text="STATUS", font=self.font, padx=GAP // 2, pady=0), bg="block", fg="label").pack(side="left")
         self.led = self.paint(tk.Label(foot, text="○", font=self.font, padx=GAP, pady=GAP // 2), bg="block", fg="dim")
         self.led.pack(side="left")
         self.chip = self.paint(tk.Label(foot, text="", font=self.font, padx=3, pady=0), bg="chip", fg="chip_fg")
@@ -555,7 +576,8 @@ class Window:
         for knob in self.knobs:
             knob.restyle(t, knob.index == self.selected)
         self.theme_button.configure(text="THEME %s" % name.upper())
-        self.stamp.itemconfigure("stamp", outline=t["accent_text"], fill=t["accent_text"])
+        self.stamp.itemconfigure("stamp_ring", outline=t["accent_text"])
+        self.stamp.itemconfigure("stamp_text", fill=t["accent_text"])
         self._set_status(self.status_icon, self.status.cget("text"), muted=not self.text and self.path is None, error=self.status_error)
         self._draw_grid()
         self._paint_leds()
@@ -675,30 +697,30 @@ class Window:
     def _on_key(self, event):
         if self.skip_boot():
             return
-        if event.state & 0x4 or event.state & 0x8:           # Ctrl · Alt 조합은 단축키가 따로 받는다
+        if event.state & 0x4 or event.state & ALT_MASK:      # Ctrl · Alt 조합은 단축키가 따로 받는다
             return
-        k, fine = event.keysym, bool(event.state & 0x1)
+        k, shift = event.keysym, bool(event.state & 0x1)
         key = self.knobs[self.selected].key
         if k in ("1", "2", "3", "4"):
             self.select_knob(int(k) - 1)
-        elif k == "0":
+        elif k == "f":
             self.toggle_overview()
-        elif k in ("plus", "equal", "KP_Add"):
-            self.nudge(key, +1, fine)
-        elif k in ("minus", "KP_Subtract"):
-            self.nudge(key, -1, fine)
+        elif k in ("plus", "equal", "KP_Add"):               # 자판에서 + 는 Shift+= 이므로 Shift 를 한 칸 조정으로 읽지 않는다
+            self.nudge(key, +1)
+        elif k in ("minus", "underscore", "KP_Subtract"):
+            self.nudge(key, -1)
         elif k in ("Up", "Down", "Left", "Right") and self.root.focus_get() is not self.view:
-            self.nudge(key, +1 if k in ("Up", "Right") else -1, fine)
+            self.nudge(key, +1 if k in ("Up", "Right") else -1, shift)           # Shift+방향키 = 한 칸씩
 
     def toggle_overview(self):
-        """00 — 전체 보기: 왼쪽 열을 접고 ART 를 넓게"""
+        """ART 크게 — 왼쪽 열을 접고 ART 를 넓게 (키 F). DESIGN 의 `00` 은 전체 보기라 이 동작에는 쓰지 않는다"""
         self.overview = not self.overview
         if self.overview:
             self.left.grid_remove()
-            self.overview_button.configure(text="00 되돌림")
+            self.overview_button.configure(text="되돌림  F")
         else:
             self.left.grid()
-            self.overview_button.configure(text="00 전체")
+            self.overview_button.configure(text="ART 크게  F")
         self.root.update_idletasks()
         self._apply_size()
         return self.overview
@@ -730,9 +752,19 @@ class Window:
             return False
         self.path = os.path.abspath(path)
         self.seg = None
+        self.text = None
         self.info = {}
-        self.path_label.configure(text=shorten(self.path, 34), fg=self.theme["text"])
-        return self._start(self.path)
+        self.saved = None
+        self.end_undo()
+        self.hide_stamp()
+        self._show(None)                                     # 새 그림을 읽는 동안 옛 그림의 값이 남아 있지 않게
+        self._show_info({})
+        self._show_stats({})
+        self.restyle_role(self.path_label, fg="text")
+        self.path_label.configure(text=shorten(self.path, 34))
+        started = self._start(self.path)
+        self._paint_leds()
+        return started
 
     def _start(self, path):
         self.busy = True
@@ -780,6 +812,7 @@ class Window:
             self._set_status("●", "OK  %s (%s)" % (name, shape))
         elif code == self.app.FAIL:
             self.seg = None
+            self.pending = False
             self.face.set("error")
             self._set_status("×", line.replace("실패  ", "", 1), error=True)
         else:
@@ -818,11 +851,14 @@ class Window:
         except OSError:
             stem = os.path.splitext(os.path.basename(self.path))[0]
             target = filedialog.asksaveasfilename(title="저장 위치", defaultextension=".txt", initialfile=stem + ".txt",
-                                                  filetypes=[("글자 아트", "*.txt")])
+                                                  filetypes=[("글자 아트", "*.txt")], confirmoverwrite=False)
             if not target:
                 return None
             try:
-                f = open(target, "w", encoding="utf-8")
+                f = open(target, "x", encoding="utf-8")                   # 결과 파일은 덮어쓰지 않는다 (S-04) — 고른 곳에 이미 있으면 멈춘다
+            except FileExistsError:
+                self._set_status("×", "이미 있는 파일은 덮어쓰지 않습니다: %s — 다른 이름을 고르세요" % target, error=True)
+                return None
             except OSError as e:
                 self._set_status("×", "저장하지 못했습니다 (%s)" % e.__class__.__name__, error=True)
                 return None
@@ -839,12 +875,19 @@ class Window:
         """확정 도장 — 라임 동그라미에 저장"""
         c = self.stamp
         c.delete("all")
-        c.create_oval(4, 4, 36, 36, width=2, outline=self.theme["accent_text"], tags="stamp")
-        c.create_text(20, 20, text="저장", font=self.font, fill=self.theme["accent_text"], tags="stamp")
+        c.create_oval(4, 4, 36, 36, width=2, outline=self.theme["accent_text"], tags="stamp_ring")
+        c.create_text(20, 20, text="저장", font=self.font, fill=self.theme["accent_text"], tags="stamp_text")
         c.pack(side="right", padx=(0, GAP // 2), before=self.save_button)
-        self._after(STAMP_MS, self.hide_stamp)
+        if self.stamp_job is not None:                       # 앞 저장의 도장 시계가 새 도장을 일찍 지우지 않게
+            try:
+                self.root.after_cancel(self.stamp_job)
+            except Exception:
+                pass
+            self.jobs.discard(self.stamp_job)
+        self.stamp_job = self._after(STAMP_MS, self.hide_stamp)
 
     def hide_stamp(self):
+        self.stamp_job = None
         try:
             self.stamp.delete("all")
             self.stamp.pack_forget()
@@ -879,16 +922,17 @@ class Window:
 
     def undo_save(self):
         """방금 저장한 파일을 지운다 — 우리가 만든 그 파일이고 내용이 그대로일 때만 (사용자가 고친 것은 지우지 않는다)"""
-        if not self.saved or self.undo_left <= 0:
+        if not self.saved or self.undo_left <= 0 or self.busy:      # 일하는 중에는 얼굴 · 상태줄을 건드리지 않는다
             return False
         path, text = self.saved
         self.saved = None
         self.end_undo()
+        self.hide_stamp()
         try:
             with open(path, encoding="utf-8") as f:
                 same = f.read() == text
             if not same:
-                self._set_status("‼", "되돌리지 않았습니다 — 저장한 뒤 내용이 바뀌었습니다: %s" % path)
+                self._set_status("○", "되돌리지 않았습니다 — 저장한 뒤 내용이 바뀌었습니다: %s" % path)
                 return False
             os.remove(path)
         except OSError as e:
