@@ -26,5 +26,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - name: 창 시험용 가상 화면 (리눅스만 — Windows 는 화면이 있다)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libtk8.6
       - name: 단위 테스트
+        if: runner.os != 'Linux'
         run: python -m unittest discover -s tests -v
+      - name: 단위 테스트 (가상 화면)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m unittest discover -s tests -v

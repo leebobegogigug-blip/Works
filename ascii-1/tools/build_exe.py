@@ -4,7 +4,8 @@
   pip install pyinstaller==6.10.0
   python tools/build_exe.py                          dist/ascii-1.exe (Windows 밖에서는 확장자 없이) + ascii-1.exe.sha256
   python tools/build_exe.py --tag ascii-1-v0.1.0     태그가 ascii-1.py 의 VERSION 과 맞는지만 본다 (릴리스 워크플로가 먼저 부른다)
-  python tools/build_exe.py --smoke dist/ascii-1.exe 만든 파일로 version · check · 변환 · 이름 충돌 · 확인 필요를 시험한다
+  python tools/build_exe.py --smoke [--window] dist/ascii-1.exe   만든 파일로 version · check · 변환 · 이름 충돌 · 확인 필요를 시험한다.
+                                                     --window 는 창도 실제로 열어 그림 하나를 읽고 그려 본다 (화면이 있는 곳에서만)
 
 마지막 줄은 결과: OK · 결과: 점검 실패 (S-03). 서명하지 않은 exe 라서 SmartScreen · 사내 백신이 막을 수 있다 (docs/MANUAL.md).
 """
@@ -77,8 +78,9 @@ def _run(cmd, *args, cwd=None):
     return p.returncode, p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace")
 
 
-def smoke(cmd):
-    """cmd(실행 파일 또는 [python, ascii-1.py]) 가 실제로 돌아가는지 시험한다 → 틀린 것의 목록(없으면 [])"""
+def smoke(cmd, window=False):
+    """cmd(실행 파일 또는 [python, ascii-1.py]) 가 실제로 돌아가는지 시험한다 → 틀린 것의 목록(없으면 []).
+    window=True 면 `gui --selftest` 로 창도 연다 — 한 파일 exe 에 창 부품(tcl/tk)이 제대로 들어갔는지는 열어 봐야 안다"""
     problems = []
     cmd = [os.path.abspath(c) if os.path.isfile(c) else c for c in cmd]    # 시험은 임시 폴더에서 돌리므로 상대 경로를 고정한다
     app = _load_app()
@@ -126,6 +128,10 @@ def smoke(cmd):
         code, _, _ = _run(cmd, "--width", "5", src, cwd=tmp)
         if code != 2:
             problems.append("사용법 오류: 범위 밖 --width 는 종료 코드 2 여야 한다 (%d)" % code)
+    if window:
+        code, out, err = _run(cmd, "gui", "--selftest")
+        if code != 0 or not out.rstrip().endswith("결과: OK"):
+            problems.append("창: 종료 코드 %d · 출력 %r %r" % (code, out.strip()[-200:], err.strip()[-200:]))
     return problems
 
 
@@ -139,16 +145,18 @@ def main(argv):
         print("결과: 점검 실패" if bad else "결과: OK")
         return 1 if bad else 0
     if argv[:1] == ["--smoke"]:
-        if len(argv) < 2:
+        window = argv[1:2] == ["--window"]
+        cmd = argv[2:] if window else argv[1:]
+        if not cmd:
             print("--smoke 다음에 실행 파일이 필요합니다", file=sys.stderr)
             return 2
-        problems = smoke(argv[1:])
+        problems = smoke(cmd, window)
         for p in problems:
             print("  × " + p)
         print("결과: 점검 실패" if problems else "결과: OK")
         return 1 if problems else 0
     if argv:
-        print("사용법: build_exe.py [--tag TAG | --smoke 실행파일 [인자…]]", file=sys.stderr)
+        print("사용법: build_exe.py [--tag TAG | --smoke [--window] 실행파일 [인자…]]", file=sys.stderr)
         return 2
     out = build(os.path.join(APP, "dist"), os.path.join(APP, "build"))
     print("만들었습니다: %s (%d 바이트)" % (out, os.path.getsize(out)))

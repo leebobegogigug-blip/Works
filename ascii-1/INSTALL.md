@@ -57,7 +57,7 @@ python "D:\OPENCODE\ascii-1\ascii-1.py" check
 
 ## 4. (선택) `ascii-1.exe` 로 쓰기
 
-파이썬 없이 PNG 를 끌어다 놓으려는 사용자에게만. **[질문]** "`ascii-1.exe` (저장소 Releases 에서 받는, 서명하지 않은 한 파일)를 쓰시겠습니까?" → 아니오면 9단계로.
+파이썬 없이 쓰려는 사용자에게만 (두 번 누르면 창이 열리고, PNG 를 끌어다 놓으면 창 없이 `.txt` 가 생긴다). **[질문]** "`ascii-1.exe` (저장소 Releases 에서 받는, 서명하지 않은 한 파일)를 쓰시겠습니까?" → 아니오면 9단계로.
 
 1. 사용자가 `https://github.com/leebobegogigug-blip/Works/releases` 에서 `ascii-1-v…` 릴리스의 `ascii-1.exe` 와 `ascii-1.exe.sha256` 을 받아 아무 폴더에 둔다 (에이전트가 몰래 받거나 다른 곳에서 받지 않는다. 릴리스가 아직 없으면 "릴리스가 아직 없습니다" 라고 보고하고 3단계까지만).
 2. 해시를 확인한다: `certutil -hashfile "<폴더>\ascii-1.exe" SHA256` 의 해시가 `ascii-1.exe.sha256` 에 적힌 것과 같아야 한다. **다르면 멈추고** 사용자에게 알린다.

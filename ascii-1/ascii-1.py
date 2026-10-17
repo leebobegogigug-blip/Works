@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """ascii-1 - PNG 를 끌어다 놓으면 ASCII 아트로 바꿔 주는 명령형 도구 (표준 라이브러리만 · Python 3.8+)
 
+  ascii-1.py                               작은 창을 연다 (그림을 골라 보고 저장 · 복사) — exe 를 두 번 눌러도 같다
   ascii-1.py <그림.png> [<그림.png> ...]   입력 옆에 <이름>.txt 를 만든다 (있으면 덮어쓰지 않고 <이름> (2).txt)
-  ascii-1.py version | help | check
+  ascii-1.py version | help | check | gui [<그림.png>]
 
 종료 코드: 0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요 (RULES.md › S-03)
 출력의 마지막 줄은 결과: OK · 결과: 확인 필요 · 결과: 점검 실패 중 하나 (에이전트가 이 줄로 판단한다)
@@ -13,8 +14,10 @@ import os
 import struct
 import sys
 import zlib
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ascii1_gui as gui          # noqa: E402
 import ascii1_png as png          # noqa: E402
 import ascii1_render as render    # noqa: E402
 import ascii1_seg as seg_mod      # noqa: E402
@@ -30,9 +33,11 @@ MAX_COLLISIONS = 999               # <이름> (2).txt … (999).txt 까지 비�
 
 HELP = """Ascii–1 — PNG 를 ASCII 아트로
 
+  ascii-1.py                                작은 창을 엽니다. 그림을 골라 보고, 열 수 · 종류를 바꾸고, 저장하거나 복사합니다
   ascii-1.py <그림.png> [<그림.png> ...]    그림 옆에 <이름>.txt 를 만듭니다. 이미 있으면 덮어쓰지 않고 <이름> (2).txt
   ascii-1.py version                        버전
   ascii-1.py check                          자가 점검 (마지막 줄 결과: …)
+  ascii-1.py gui [<그림.png>]               창을 엽니다 (그림을 바로 열 수도 있음). gui --selftest 는 창을 열었다 닫는 점검
   ascii-1.py help                           이 도움말
 
 옵션
@@ -104,25 +109,41 @@ def output_file(src):
     raise OSError("비어 있는 이름을 찾지 못했습니다 (%s (%d).txt 까지 있음)" % (stem, MAX_COLLISIONS))
 
 
-def convert(src, opts, out):
-    """그림 하나 → (상태, 한 줄). 상태는 OK · CONFIRM · FAIL. 원본은 읽기만 한다"""
+def analyze(src):
+    """그림 하나를 읽어 요소를 찾는다 (오래 걸리는 부분) → (Segmentation 또는 None, 상태, 한 줄). 원본은 읽기만 한다"""
     name = os.path.basename(src)
     try:
         image = png.load(src)
     except png.PngError as e:
-        return FAIL, "실패  %s: %s" % (name, e)
+        return None, FAIL, "실패  %s: %s" % (name, e)
     seg = seg_mod.segment(image)
     if seg.reason:
-        return CONFIRM, "확인 필요  %s: %s" % (name, seg.reason)
+        return None, CONFIRM, "확인 필요  %s: %s" % (name, seg.reason)
     if not [e for e in seg.elements if e.kind != "text"]:
-        return CONFIRM, "확인 필요  %s: 그릴 것(선 · 점 · 외곽)을 찾지 못했습니다" % name
+        return None, CONFIRM, "확인 필요  %s: 그릴 것(선 · 점 · 외곽)을 찾지 못했습니다" % name
+    return seg, OK, ""
+
+
+def make_art(seg, name, opts):
+    """찾은 요소 → (상태, 한 줄, 글자 아트 또는 None, 모양). --kind 가 그림과 맞지 않으면 만들지 않고 확인을 요청한다"""
     if opts["kind"] == "wafer" and seg.ring is None:
-        return CONFIRM, "확인 필요  %s: 웨이퍼 외곽(원)을 찾지 못했습니다 — --kind auto 로 해 보세요" % name
+        return CONFIRM, "확인 필요  %s: 웨이퍼 외곽(원)을 찾지 못했습니다 — --kind auto 로 해 보세요" % name, None, ""
     if opts["kind"] == "chart" and seg.ring is not None:
-        return CONFIRM, "확인 필요  %s: 웨이퍼 맵처럼 보입니다 — --kind wafer 나 auto 로 해 보세요" % name
+        return CONFIRM, "확인 필요  %s: 웨이퍼 맵처럼 보입니다 — --kind wafer 나 auto 로 해 보세요" % name, None, ""
     text = render.render(seg, opts["width"], opts["box"])
     lines = text.rsplit("\n\n", 1)[0].split("\n")
-    shape = "%d열 %d행 · 점 추정 %d개" % (max(len(x) for x in lines), len(lines), seg.dots())
+    return OK, "", text, "%d열 %d행 · 점 추정 %d개" % (max(len(x) for x in lines), len(lines), seg.dots())
+
+
+def convert(src, opts, out):
+    """그림 하나 → (상태, 한 줄). 상태는 OK · CONFIRM · FAIL. 원본은 읽기만 한다"""
+    name = os.path.basename(src)
+    seg, code, line = analyze(src)
+    if seg is None:
+        return code, line
+    code, line, text, shape = make_art(seg, name, opts)
+    if text is None:
+        return code, line
     if opts["stdout"]:
         out.write("== %s ==\n%s\n" % (name, text))
         return OK, "OK  %s (%s)" % (name, shape)
@@ -148,6 +169,7 @@ def check(out):
     """내장 그림(붉은 가로선 하나와 파란 점 셋)을 PNG 로 만들어 읽기 → 요소 찾기 → 글자 아트까지 한 번 통과시킨다"""
     problems = []
     out.write("%s %s · 파이썬 %d.%d.%d\n" % (APP, VERSION, *sys.version_info[:3]))
+    out.write("  창 (tkinter)  %s\n" % ("있음" if gui.available() else "없음 — 명령줄로만 쓸 수 있습니다"))
     if sys.version_info < (3, 8):
         problems.append("파이썬 3.8 이상이 필요합니다")
     w, h = 90, 60
@@ -232,12 +254,25 @@ def wait_for_enter():
         pass
 
 
+def entry(args):
+    """실행 진입 → 종료 코드. 인자가 없거나 gui 면 창, 그 밖에는 명령줄"""
+    if not args or args[0] == "gui":
+        rest = args[1:]
+        me = sys.modules.get(__name__) or SimpleNamespace(**globals())      # 시험은 파일 경로로 불러와 sys.modules 에 없다
+        if rest == ["--selftest"]:
+            return gui.selftest(me)
+        if len(rest) > 1 or (rest and rest[0].startswith("-")):
+            sys.stderr.write("사용법: ascii-1.py gui [<그림.png> | --selftest]\n")
+            return USAGE
+        return gui.run(me, rest)
+    code = main(args)
+    if should_wait(args):
+        wait_for_enter()
+    return code
+
+
 if __name__ == "__main__":
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    args = sys.argv[1:]
-    code = main(args)
-    if should_wait(args):
-        wait_for_enter()
-    sys.exit(code)
+    sys.exit(entry(sys.argv[1:]))
