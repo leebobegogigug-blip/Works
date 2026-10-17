@@ -27,7 +27,9 @@ jobs:
           python-version: "3.12"
       - name: 태그가 VERSION 과 맞는지 (태그로 돌 때만)
         if: startsWith(github.ref, 'refs/tags/ascii-1-v')
-        run: python tools/build_exe.py --tag "${{ github.ref_name }}"
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python tools/build_exe.py --tag "$env:TAG"
       - name: PyInstaller (버전 고정)
         run: python -m pip install pyinstaller==6.10.0
       - name: exe 만들기

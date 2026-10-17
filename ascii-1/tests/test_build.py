@@ -147,6 +147,21 @@ class Workflow(unittest.TestCase):
         self.assertLess(self.text.index("build_exe.py --smoke"), self.text.index("upload-artifact"))
         self.assertLess(self.text.index("--tag"), self.text.index("pip install pyinstaller"), "태그 검사가 먼저")
 
+    def test_no_expressions_inside_run_scripts(self):
+        """태그 이름 같은 값은 env 로만 넘긴다 — run 스크립트 안의 ${{ }} 는 셸에 그대로 끼워져 명령이 될 수 있다"""
+        lines = self.text.splitlines()
+        for n, ln in enumerate(lines):
+            stripped = ln.lstrip()
+            if not stripped.startswith(("run:", "- run:")):
+                continue
+            indent = len(ln) - len(stripped)
+            block = [ln.split("run:", 1)[1]]
+            for nxt in lines[n + 1:]:
+                if nxt.strip() and len(nxt) - len(nxt.lstrip()) <= indent:
+                    break
+                block.append(nxt)
+            self.assertNotIn("${{", "\n".join(block), "줄 %d 의 run" % (n + 1))
+
     def test_pull_requests_build_but_do_not_release(self):
         self.assertIn("pull_request:", self.text)
         self.assertIn('paths: ["ascii-1/**"', self.text)
