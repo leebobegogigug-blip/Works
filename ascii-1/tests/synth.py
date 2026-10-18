@@ -347,6 +347,8 @@ HARD_SPECS: Dict[str, dict] = {
     "K": dict(text=True),
     "L": dict(series2=True),
     "Z": dict(grid=LBLUE_GRID, gridw=2, n=2500, r=(2, 6), hollow=True, trend="dash", text=True, blur=True),
+    "G": dict(trend=None, hollow=True, r=(3, 3)),
+    "A3": dict(n=120, trend=None),
 }
 HARD = tuple(HARD_SPECS)
 

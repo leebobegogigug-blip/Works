@@ -59,6 +59,15 @@ GRID_MIN_LINES = (3, 6)   # 가로 · 세로 둘 다 3 줄 이상 등간격, 또
 GRID_SAME = 2             # 연한 격자와 같은 자리(± px)의 중립 선은 격자 줄이다
 PLOT_MIN = 0.30           # 그림 상자가 그림 폭 · 높이의 이 비율보다 작으면 상자가 없는 것
 PLOT_JOIN = 3             # L 자 축: 세로선 아래 끝 · 가로선 왼쪽 끝이 서로 이만큼(+ 가로선 두께) 안에서 만나야
+PLOT_INSET = 2            # "상자 안" = 중심이 그림 상자에서 이만큼(px) 안쪽 — 틀 선 위의 조각은 안이 아니다
+# 속 빈 원 표식 · 글자 제외 (설계서 14-8)
+HOLLOW_MIN = 5            # 속 빈 표식: 경계상자 짧은 변 ≥ (px)
+HOLLOW_ASPECT = 0.8       # …가로 ÷ 세로가 이 값 – 1 / 이 값 (정사각 ±20%)
+HOLLOW_FILL = 0.6         # …채움률(면적 ÷ 상자) <
+HOLLOW_CENTER = 0.25      # …둘러싸인 바탕(구멍)의 무게중심이 상자 중심에서 가로 · 세로 이 비율 안
+HOLLOW_BINS = 12          # …중심 둘레를 이만큼(30°)으로 나눠
+HOLLOW_COVER = 10         # …그중 이만큼 이상에 획이 있다
+MARKER_REPEAT = 5         # 상자 안에 표식 외톨이가 이만큼 이상인 색 군집은 상자 안 덩어리를 글자 후보에서 뺀다
 
 HUE_NAMES = ((15, "빨강"), (40, "주황"), (70, "노랑"), (165, "초록"), (190, "청록"), (260, "파랑"), (290, "보라"),
              (340, "자홍"), (361, "빨강"))
@@ -612,6 +621,62 @@ def is_disc(pix: Sequence[int], box: Tuple[int, int, int, int], w: int) -> bool:
     return hit >= DISC_INSIDE * inside and len(pix) - hit <= DISC_OUTSIDE * len(pix)
 
 
+def is_hollow(pix: Sequence[int], box: Tuple[int, int, int, int], w: int) -> bool:
+    """속 빈 원(고리) 표식인가 — 정사각에 가깝고(±20%) · 채움률이 낮고 · 가운데에 둘러싸인 바탕(구멍)이 있고 ·
+    획이 중심 둘레를 거의 다 돈다. 구멍은 상자를 한 칸 넓혀 바깥에서 4방향으로 바탕을 채웠을 때 닿지 않은 바탕 칸이다"""
+    x0, y0, x1, y1 = box
+    bw, bh = x1 - x0 + 1, y1 - y0 + 1
+    if min(bw, bh) < HOLLOW_MIN or not HOLLOW_ASPECT <= bw / bh <= 1 / HOLLOW_ASPECT \
+            or len(pix) >= HOLLOW_FILL * bw * bh:
+        return False
+    sw, sh = bw + 2, bh + 2
+    seen = bytearray(sw * sh)                     # 1 = 획 또는 바깥에서 닿은 바탕
+    for i in pix:
+        seen[(i // w - y0 + 1) * sw + (i % w - x0 + 1)] = 1
+    seen[0] = 1
+    stack = [0]
+    while stack:
+        k = stack.pop()
+        x = k % sw
+        for j in (k - 1 if x else -1, k + 1 if x < sw - 1 else -1, k - sw, k + sw):
+            if 0 <= j < sw * sh and not seen[j]:
+                seen[j] = 1
+                stack.append(j)
+    hole = [k for k in range(sw * sh) if not seen[k]]
+    if not hole:
+        return False
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    hx = sum(k % sw for k in hole) / len(hole) - 1 + x0
+    hy = sum(k // sw for k in hole) / len(hole) - 1 + y0
+    if abs(hx - cx) > HOLLOW_CENTER * bw or abs(hy - cy) > HOLLOW_CENTER * bh:
+        return False
+    step = 360 / HOLLOW_BINS
+    bins = {int(((atan2(i // w - cy, i % w - cx) * 180 / pi) % 360) // step) for i in pix}
+    return len(bins) >= HOLLOW_COVER
+
+
+def marker_clusters(comps, clusters: List[Cluster], plot_box, ring, w: int, h: int) -> Set[int]:
+    """그림 상자 안에서 표식이 되풀이되는 색 군집 — 상자 안 외톨이(원판 · 둥근 덩어리 · 속 빈 원, 면적 ≥ 4,
+    긴 변 ≤ 그림 긴 변의 10%)가 MARKER_REPEAT 개 이상. 상자가 없거나 링이 있으면 없음 (설계서 14-8)"""
+    if plot_box is None or ring is not None:
+        return set()
+    seen: Counter = Counter()
+    for k, pix, box in comps:
+        if clusters[k - 1].neutral or seen[k] >= MARKER_REPEAT or not in_plot(plot_box, box):
+            continue
+        bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
+        if len(pix) >= 4 and max(bw, bh) <= 0.1 * max(w, h) \
+                and (is_round(bw, bh, len(pix)) or is_disc(pix, box, w) or is_hollow(pix, box, w)):
+            seen[k] += 1
+    return {k for k, n in seen.items() if n >= MARKER_REPEAT}
+
+
+def in_plot(plot_box, box) -> bool:
+    """덩어리 상자의 중심이 그림 상자에서 PLOT_INSET 안쪽에 있는가"""
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    return plot_box[0] + PLOT_INSET < cx < plot_box[2] - PLOT_INSET and plot_box[1] + PLOT_INSET < cy < plot_box[3] - PLOT_INSET
+
+
 def find_ring(wide, per: Dict[int, List[int]], cls: bytearray, w: int, h: int):
     """원 외곽: 정사각에 가깝고 크고 속이 빈 덩어리 중 가장 큰 것 → (Ring, 군집, 외곽 칸, 지울 칸) 또는 None.
     획(반지름 ± 몇 칸)만 외곽이고, 점에 닿은 안쪽의 옅은 번짐은 버린다. 노치는 점에 닿지 않은 안쪽 칸의 쏠림"""
@@ -876,12 +941,15 @@ def segment(img) -> Segmentation:
     for k, idx in per.items():
         for pix in components_of(idx, w):
             comps.append((k, pix, bbox_of(pix, w)))
-    # ── 글자: 높이가 글자만 한 덩어리 중 줄을 이루는 것 (링 안은 데이터)
+    # ── 글자: 높이가 글자만 한 덩어리 중 줄을 이루는 것 (링 안은 데이터).
+    #    상자 안에서 표식이 되풀이되는 색 군집의 상자 안 덩어리는 후보가 아니다 — 겹친 표식 쌍이 줄 묶기를 켜지 않게
+    marked = marker_clusters(comps, clusters, seg.plot_box, ring, w, h)
     max_h = max(GLYPH_MAX_H[0], GLYPH_MAX_H[1] * h)
     cands = []
     for n, (k, pix, box) in enumerate(comps):
         bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
-        if GLYPH_MIN_H <= max(bw, bh) <= max_h * 6 and min(bw, bh) <= max_h and not in_ring(box):
+        if GLYPH_MIN_H <= max(bw, bh) <= max_h * 6 and min(bw, bh) <= max_h and not in_ring(box) \
+                and not (k in marked and in_plot(seg.plot_box, box)):
             cands.append((n, box, len(pix), is_round(bw, bh, len(pix)) or is_disc(pix, box, w)))
     text: Set[int] = set()
     for vertical in (False, True):
@@ -920,7 +988,7 @@ def segment(img) -> Segmentation:
 
     keep = [c for c in keep if not (max(c[2][2] - c[2][0], c[2][3] - c[2][1]) + 1 <= max_h
                                     and (on_text(c[2]) or on_line(c[0], c[2], len(c[1]))))]
-    # ── 낱점 면적: 군집마다 외톨이 둥근 덩어리의 중앙값
+    # ── 낱점 면적: 군집마다 외톨이 둥근 덩어리(원판 · 속 빈 원 포함)의 중앙값
     unit: Dict[int, float] = {}
 
     def estimate(k: int, comps_) -> None:
@@ -928,7 +996,7 @@ def segment(img) -> Segmentation:
         for kk, pix, box in comps_:
             bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
             if kk == k and len(pix) >= 4 and max(bw, bh) <= 0.1 * max(w, h) \
-                    and (is_round(bw, bh, len(pix)) or is_disc(pix, box, w)):
+                    and (is_round(bw, bh, len(pix)) or is_disc(pix, box, w) or is_hollow(pix, box, w)):
                 areas.append(len(pix))
         if areas:
             m = median(areas)
