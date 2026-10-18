@@ -486,19 +486,32 @@ def glyph_runs(cands, vertical: bool) -> Set[int]:
 
 
 def split_markers(pix: List[int], w: int, rc: float):
-    """굵은 곡선에 붙은 마커를 거리 변환으로 떼어 낸다 → ([(중심 x, 중심 y, 몸통 칸, 코어 면적)], 곡선 칸) 또는 None"""
+    """굵은 곡선에 붙은 마커를 거리 변환으로 떼어 낸다 → ([(중심 x, 중심 y, 몸통 칸, 코어 면적)], 곡선 칸) 또는 None.
+    몸통은 코어 중심에서 reach 안의 칸이다 — 덩어리 전체가 아니라 중심 둘레 상자 안의 칸만 보고(같은 hypot 판정),
+    덩어리 안의 순서(pix 순서)대로 늘어놓는다"""
     box = bbox_of(pix, w)
     dist = distance_map(pix, w, box)
     cut = int(round(rc * CHAMFER))
     core = [i for i, d in dist.items() if d >= cut]
     if not core:
         return None
+    order = {i: n for n, i in enumerate(pix)}       # 칸 → 덩어리 안의 순서
     marks = []
     body: Set[int] = set()
     for cp in components_of(core, w):
         cx, cy = sum(i % w for i in cp) / len(cp), sum(i // w for i in cp) / len(cp)
         reach = max(dist[i] for i in cp) / CHAMFER + 0.5
-        mb = [i for i in pix if hypot(i % w - cx, i // w - cy) <= reach]
+        # hypot ≥ |dx| · |dy| 이므로 상자 밖 칸은 판정을 통과할 수 없다 (상자는 1칸씩 넉넉히)
+        xa, xb = max(box[0], int(cx - reach) - 1), min(box[2], int(cx + reach) + 1)
+        ya, yb = max(box[1], int(cy - reach) - 1), min(box[3], int(cy + reach) + 1)
+        hits = []
+        for y in range(ya, yb + 1):
+            for x in range(xa, xb + 1):
+                n = order.get(y * w + x)
+                if n is not None and hypot(x - cx, y - cy) <= reach:
+                    hits.append(n)
+        hits.sort()
+        mb = [pix[n] for n in hits]
         body.update(mb)
         marks.append((cx, cy, mb, len(cp)))
     return marks, [i for i in pix if i not in body]
