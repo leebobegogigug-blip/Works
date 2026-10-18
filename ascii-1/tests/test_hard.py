@@ -12,6 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 sys.path.insert(0, HERE)
+import ascii1_seg as sg  # noqa: E402
 import synth  # noqa: E402
 
 spec = importlib.util.spec_from_file_location("measure_hard", os.path.join(ROOT, "tools", "measure_hard.py"))
@@ -90,6 +91,100 @@ class HardSet(unittest.TestCase):
         synth.dashed(d, [(2.0, 5.0), (58.0, 5.0)], 10, 6, 1, (0, 0, 0))
         row = [d.px[5 * 60 + x] == (0, 0, 0) for x in range(60)]
         self.assertTrue(row[4] and not row[13] and row[20], "10 긋고 6 비운다")
+
+
+GRIDDED = ("B0", "C", "Z", "D")
+NO_GRID = tuple(n for n in synth.HARD if n not in GRIDDED)
+_SEGS = {}
+
+
+def seg_of(name):
+    if name not in _SEGS:
+        _SEGS[name] = sg.segment(case(name).image)
+    return _SEGS[name]
+
+
+def true_lines(name):
+    """정답 격자줄의 중심 (가로 y · 세로 x) — synth.grid 가 긋는 자리. 두께 2 면 반 칸 위 · 왼쪽"""
+    x0, y0, x1, y1 = synth.HARD_BOX
+    t = synth.HARD_SPECS[name].get("gridw", 1)
+    off = -0.5 if t == 2 else 0.0
+    nx, ny = synth.GRID_LINES
+    return ([round(y0 + (y1 - y0) * k / (ny - 1)) + off for k in range(ny)],
+            [round(x0 + (x1 - x0) * k / (nx - 1)) + off for k in range(nx)])
+
+
+class GridAC(unittest.TestCase):
+    """설계서 14-15 의 AC1 (격자 검출) · AC2 (격자–데이터 분리) — T4 가 거는 합격 기준"""
+
+    def test_ac1_every_grid_line_found(self):
+        for name in GRIDDED:
+            with self.subTest(name=name):
+                g = seg_of(name).grid
+                self.assertIsNotNone(g)
+                self.assertEqual(g.source, "lines" if name == "D" else "light")
+                hs, vs = true_lines(name)
+                self.assertEqual(len(g.horizontal) + len(g.vertical), case(name).grid_lines)      # 38/38
+                for got, want in ((g.horizontal, hs), (g.vertical, vs)):
+                    self.assertEqual(len(got), len(want))
+                    self.assertTrue(all(abs(a.pos - b) <= 1.0 for a, b in zip(got, want)), [a.pos for a in got])
+                self.assertAlmostEqual(g.pitch_h, (synth.HARD_BOX[3] - synth.HARD_BOX[1]) / 16, delta=1.0)
+                self.assertAlmostEqual(g.pitch_v, (synth.HARD_BOX[2] - synth.HARD_BOX[0]) / 20, delta=1.0)
+
+    def test_ac1_grid_lines_are_not_lines(self):
+        """격자 줄은 Segmentation.grid 에 한 번만 — hline · vline 에 섞이지 않는다"""
+        for name in GRIDDED:
+            with self.subTest(name=name):
+                seg = seg_of(name)
+                hs, vs = true_lines(name)
+                stray = [e for e in seg.of("hline") if any(abs(e.cy - y) <= 2 for y in hs)] + \
+                        [e for e in seg.of("vline") if any(abs(e.cx - x) <= 2 for x in vs)]
+                self.assertEqual(stray, [])
+
+    def test_ac1_no_grid_where_there_is_none(self):
+        for name in NO_GRID:
+            with self.subTest(name=name):
+                img = case(name).image
+                self.assertIsNone(sg.find_grid(img, sg.find_bg(img)))
+                self.assertIsNone(seg_of(name).grid)
+
+    def test_ac2_grid_cells_do_not_go_to_data(self):
+        for name in GRIDDED:
+            with self.subTest(name=name):
+                c, seg = case(name), seg_of(name)
+                cls, clusters, grid = sg.classify(c.image, seg.bg)
+                if name == "D":         # 진한 격자는 중립 군집 그대로 두고 선 단계에서 뗀다 — 색 있는 군집으로 가면 안 된다
+                    chroma = {k.index for k in clusters if not k.neutral}
+                    leak = sum(1 for i in c.grid_cells if cls[i] in chroma)
+                else:
+                    leak = sum(1 for i in c.grid_cells if cls[i])
+                self.assertLessEqual(100.0 * leak / len(c.grid_cells), 2.0)
+                m = mh.measure(c)
+                self.assertLessEqual(m["leak"][0], 2.0)
+                self.assertLessEqual(m["leak"][1], 2.0, "격자 칸 중 점 · 글자 · 곡선이 된 비율")
+
+    def test_ac2_no_data_element_on_the_grid(self):
+        """칸의 절반 이상이 격자 칸인 점 · 글자 덩어리가 없다 (지금 B0 · C · Z 에서 파랑 점 123 덩어리)"""
+        for name in GRIDDED:
+            with self.subTest(name=name):
+                cells = case(name).grid_cells
+                on = [e for e in seg_of(name).elements if e.kind in ("dot", "text")
+                      and sum(1 for i in e.pixels if i in cells) * 2 >= len(e.pixels)]
+                self.assertEqual(on, [])
+
+    def test_plot_box(self):
+        for name, source in (("B0", "grid"), ("C", "grid"), ("Z", "grid"), ("D", "grid"), ("A0", "frame"), ("E", "frame")):
+            with self.subTest(name=name):
+                seg = seg_of(name)
+                self.assertEqual(seg.plot_source, source)
+                self.assertTrue(all(abs(a - b) <= 1 for a, b in zip(seg.plot_box, synth.HARD_BOX)), seg.plot_box)
+
+    def test_measure_counts_grid_lines(self):
+        for name in ("B0", "D"):
+            with self.subTest(name=name):
+                m = mh.measure(case(name))
+                self.assertEqual((m["lines"], m["lines_true"]), (38, 38))
+        self.assertEqual(mh.measure(case("A0"))["lines"], 4)
 
 
 class MeasureTool(unittest.TestCase):

@@ -444,6 +444,200 @@ class Colors(unittest.TestCase):
         self.assertGreater(seg.clusters[0].pixels, seg.clusters[1].pixels)
 
 
+LIGHT = (200, 225, 240)          # 연한 하늘색 격자 (바탕과 거리 64 · 채도 0.17) — HARD 의 격자와 같은 색
+
+
+def grid_canvas(xs=(), ys=(), color=LIGHT, t=1, w=300, h=220, span=1.0):
+    """세로줄 xs · 가로줄 ys 를 그린 캔버스. span 은 줄이 그림 폭 · 높이에서 차지하는 비율 (가운데 정렬)"""
+    c = synth.Canvas(w, h)
+    lx, ly = int(w * span), int(h * span)
+    for x in xs:
+        c.vline(x, (h - ly) // 2, (h - ly) // 2 + ly - 1, t, color)
+    for y in ys:
+        c.hline(y, (w - lx) // 2, (w - lx) // 2 + lx - 1, t, color)
+    return c
+
+
+def found(c):
+    """find_grid 의 판정 → (가로줄 수, 세로줄 수) 또는 None"""
+    img = c.image()
+    g = sg.find_grid(img, sg.find_bg(img))
+    return None if g is None else (len(g.horizontal), len(g.vertical))
+
+
+class GridLayer(unittest.TestCase):
+    """설계서 14-5 · 14-6 · 14-7 — 격자 판정의 문턱마다 양쪽 반례를 둔다 (문턱을 옮기면 어느 한쪽이 깨진다)"""
+    XS = tuple(range(20, 290, 30))      # 세로 9 줄 · 간격 30
+    YS = tuple(range(20, 210, 30))      # 가로 7 줄
+
+    def test_light_grid_is_found_with_pitch_and_source(self):
+        img = grid_canvas(self.XS, self.YS).image()
+        g = sg.find_grid(img, sg.find_bg(img))
+        self.assertIsNotNone(g)
+        self.assertEqual(g.source, "light")
+        self.assertEqual([round(ln.pos) for ln in g.horizontal], list(self.YS))
+        self.assertEqual([round(ln.pos) for ln in g.vertical], list(self.XS))
+        self.assertEqual((g.pitch_h, g.pitch_v), (30.0, 30.0))
+        ln = g.horizontal[0]
+        self.assertEqual((ln.lo, ln.hi, ln.rgb), (20, 20, LIGHT))
+        self.assertTrue(ln.start <= 1 and ln.end >= 298)
+
+    def test_both_directions_need_three(self):
+        self.assertEqual(found(grid_canvas(self.XS[:3], self.YS[:3])), (3, 3))
+        self.assertIsNone(found(grid_canvas(self.XS[:2], self.YS[:3])), "관리도 원본처럼 가로 3 · 세로 2 는 격자가 아니다")
+        self.assertIsNone(found(grid_canvas(self.XS[:3], self.YS[:2])))
+
+    def test_one_direction_needs_six(self):
+        self.assertEqual(found(grid_canvas((), self.YS[:6])), (6, 0))
+        self.assertIsNone(found(grid_canvas((), self.YS[:5])))
+        self.assertEqual(found(grid_canvas(self.XS[:6], ())), (0, 6))
+        self.assertIsNone(found(grid_canvas(self.XS[:5], ())))
+
+    def test_band_thickness(self):
+        self.assertEqual(found(grid_canvas(self.XS, self.YS, t=4)), (7, 9))
+        self.assertIsNone(found(grid_canvas(self.XS, self.YS, t=5)), "두꺼운 띠는 줄이 아니다")
+
+    def test_minimum_pitch(self):
+        self.assertEqual(found(grid_canvas((), tuple(range(20, 80, 6)))), (10, 0))
+        self.assertIsNone(found(grid_canvas((), tuple(range(20, 80, 5)))), "선의 번짐 띠 간격")
+
+    def test_even_spacing(self):
+        self.assertIsNone(found(grid_canvas((), (20, 50, 80, 120, 150, 180))), "한 간격이 1.33 배")
+        jitter = (20, 51, 79, 110, 200, 230)                         # ±1 px 흔들림 · 가운데 두 줄이 가려 빠짐
+        self.assertEqual(found(grid_canvas((), jitter, h=260)), (6, 0))
+
+    def test_odd_thick_band_is_left_out(self):
+        """등간격 1 px 격자에 두께 4 의 연한 띠(범례 막대 같은 것) 하나 — 두께가 달라 줄에서 빠지고 격자는 그대로"""
+        c = grid_canvas(self.XS, self.YS)
+        c.rect(0, 64, 299, 67, LIGHT)
+        self.assertEqual(found(c), (7, 9))
+
+    def test_distance_window(self):
+        self.assertEqual(found(grid_canvas(self.XS, self.YS, color=(225, 225, 225))), (7, 9), "거리 52")
+        self.assertEqual(found(grid_canvas(self.XS, self.YS, color=(175, 175, 175))), (7, 9), "거리 139")
+        self.assertIsNone(found(grid_canvas(self.XS, self.YS, color=(242, 242, 242))), "거리 23 — 바탕 잡음")
+        self.assertIsNone(found(grid_canvas(self.XS, self.YS, color=(150, 150, 150))), "거리 182 — 진한 격자는 선 쪽")
+
+    def test_saturation(self):
+        self.assertEqual(found(grid_canvas(self.XS, self.YS, color=(255, 170, 170))), (7, 9), "채도 0.33")
+        self.assertIsNone(found(grid_canvas(self.XS, self.YS, color=(255, 160, 160))), "채도 0.37 — 색 있는 선")
+
+    def test_projection_fraction(self):
+        self.assertEqual(found(grid_canvas(self.XS, self.YS, span=0.35)), (7, 9))
+        self.assertIsNone(found(grid_canvas(self.XS, self.YS, span=0.25)))
+
+    def test_filled_light_panel_is_not_a_grid(self):
+        c = synth.Canvas(300, 220)
+        c.rect(20, 20, 280, 200, (235, 235, 235))
+        self.assertIsNone(found(c))
+
+    def marked(self, grid=True):
+        """연한 격자 위 교차점에 파랑 원판 하나 + 오른쪽으로 옅은 파랑 가장자리 칸 6 개가 이어진 원판 하나"""
+        c = grid_canvas(self.XS if grid else (), self.YS if grid else ())
+        c.disc(80, 80, 4.5, synth.BLUE)                  # 교차점 (80, 80) 위
+        c.disc(152, 185, 4.5, synth.BLUE)
+        for x in range(157, 163):
+            c.set(x, 185, (170, 185, 205))              # 가장자리 색 (채도 0.17 · 같은 색상) — 격자 띠에서 먼 곳
+        return c
+
+    def test_crossing_marker_cells_stay_data(self):
+        c = self.marked()
+        img = c.image()
+        cls, clusters, grid = sg.classify(img, sg.find_bg(img))
+        self.assertIsNotNone(grid)
+        blue = next(k.index for k in clusters if k.name == "파랑")
+        disc = [i for i, p in enumerate(c.px) if p == synth.BLUE and abs(i % c.w - 80) <= 6]
+        self.assertTrue(all(cls[i] == blue for i in disc), "격자 띠 위의 진한 데이터 칸은 데이터에 남는다")
+        light = [i for i, p in enumerate(c.px) if p == LIGHT]
+        self.assertEqual([i for i in light if cls[i]], [], "격자 칸은 바탕")
+        self.assertEqual(grid.removed, len(light))
+        seg = sg.segment(img)
+        self.assertEqual(seg.dots(blue), 2)
+        self.assertEqual(seg.of("hline") + seg.of("vline"), [])
+
+    def test_absorption_uses_a_snapshot_only_with_a_grid(self):
+        run = [185 * 300 + x for x in range(157, 163)]
+        for grid, want in ((True, 2), (False, 6)):
+            with self.subTest(grid=grid):
+                img = self.marked(grid).image()
+                cls, clusters, g = sg.classify(img, sg.find_bg(img))
+                self.assertEqual(g is not None, grid)
+                blue = next(k.index for k in clusters if k.name == "파랑")
+                self.assertEqual(sum(cls[i] == blue for i in run), want,
+                                 "격자가 있으면 패스마다 스냅숏 (두 칸까지), 없으면 지금처럼 스캔 순서로 번진다")
+
+    def test_dark_gray_grid_comes_from_lines(self):
+        c = grid_canvas(self.XS, self.YS, color=(150, 150, 150))
+        c.disc(95, 95, 4.5, synth.BLUE)
+        seg = sg.segment(c.image())
+        self.assertIsNotNone(seg.grid)
+        self.assertEqual(seg.grid.source, "lines")
+        self.assertEqual([round(ln.pos) for ln in seg.grid.horizontal], list(self.YS))
+        self.assertEqual([round(ln.pos) for ln in seg.grid.vertical], list(self.XS))
+        self.assertEqual(seg.of("hline") + seg.of("vline"), [], "격자 줄은 선에 섞이지 않는다")
+        self.assertEqual(seg.dots(), 1)
+        self.assertEqual(seg.guess_kind(), "chart")
+
+    def test_dark_frame_on_a_light_grid_joins_the_grid(self):
+        """연한 격자의 바깥 줄 자리에 진한 틀이 겹쳐 있으면 그 틀도 격자 줄이다 (선으로 두 번 세지 않는다)"""
+        c = grid_canvas(self.XS, self.YS)
+        for x in (self.XS[0], self.XS[-1]):
+            c.vline(x, 0, 219, 1, synth.BLACK)
+        for y in (self.YS[0], self.YS[-1]):
+            c.hline(y, 0, 299, 1, synth.BLACK)
+        c.disc(95, 95, 4.5, synth.BLUE)
+        seg = sg.segment(c.image())
+        self.assertEqual(seg.grid.source, "light")
+        self.assertEqual((len(seg.grid.horizontal), len(seg.grid.vertical)), (7, 9))
+        self.assertEqual(seg.of("hline") + seg.of("vline"), [])
+        self.assertEqual(seg.plot_box, (20, 20, 260, 200))
+        self.assertEqual(seg.dots(), 1)
+
+    def test_colored_or_few_dark_lines_stay_lines(self):
+        seg = sg.segment(grid_canvas(self.XS, self.YS, color=synth.RED).image())
+        self.assertIsNone(seg.grid, "색 있는 선은 격자가 아니다 (관리도의 한계선)")
+        self.assertEqual(len(seg.of("hline")) + len(seg.of("vline")), 16)
+        seg = sg.segment(grid_canvas(self.XS[:2], (20, 100, 180), color=(150, 150, 150)).image())
+        self.assertIsNone(seg.grid, "가로 3 · 세로 2 의 회색 선 (관리도 원본)")
+        self.assertEqual((len(seg.of("hline")), len(seg.of("vline"))), (3, 2))
+
+    def test_plot_box(self):
+        seg = sg.segment(grid_canvas(self.XS, self.YS).image())
+        self.assertEqual((seg.plot_box, seg.plot_source), ((20, 20, 260, 200), "grid"))
+        seg = sg.segment(grid_canvas((), self.YS[:6]).image())
+        self.assertEqual(seg.plot_source, "grid")
+        self.assertEqual(seg.plot_box[1::2], (20, 170))
+        c = grid_canvas((30, 270), (30, 190), color=synth.BLACK)
+        c.disc(100, 100, 4, synth.BLUE)
+        seg = sg.segment(c.image())
+        self.assertEqual((seg.plot_box, seg.plot_source), ((30, 30, 270, 190), "frame"))
+        c = synth.Canvas(300, 220)
+        c.vline(30, 20, 190, 1, synth.BLACK)
+        c.hline(190, 30, 280, 1, synth.BLACK)
+        c.disc(100, 100, 4, synth.BLUE)
+        seg = sg.segment(c.image())
+        self.assertEqual((seg.plot_box, seg.plot_source), ((30, 20, 280, 190), "axes"))
+        c = grid_canvas((30, 100), (30, 100), color=synth.BLACK, span=0.5)
+        seg = sg.segment(c.image())
+        self.assertEqual((seg.plot_box, seg.plot_source), (None, ""), "그림의 30% 보다 작은 상자")
+        seg = sg.segment(synth.wafer_map()[0])
+        self.assertEqual((seg.plot_box, seg.plot_source, seg.grid), (None, "", None))
+
+    def test_new_fields_have_defaults(self):
+        seg = sg.Segmentation(10, 10, (255, 255, 255))
+        self.assertEqual((seg.grid, seg.plot_box, seg.plot_source), (None, None, ""))
+
+    def test_control_and_wafer_pictures_have_no_grid(self):
+        pics = {"chart": synth.control_chart()[0], "chart_frame": synth.control_chart(frame=True)[0],
+                "chart_soft": synth.soften(synth.control_chart(frame=True)[0]), "line": synth.line_chart()[0],
+                "wafer": synth.wafer_map(plus=3)[0], "wafer_faint": synth.wafer_map(faint=True)[0],
+                "wafer_halo": synth.wafer_map(halo=2)[0], "chart_x2": synth.zoom(synth.control_chart()[0], 2)}
+        for name, img in pics.items():
+            with self.subTest(name=name):
+                self.assertIsNone(sg.find_grid(img, sg.find_bg(img)))
+                self.assertIsNone(sg.segment(img).grid)
+
+
 class Robust(unittest.TestCase):
     def test_empty_and_tiny_images(self):
         for w, h in ((1, 1), (2, 2), (3, 1), (1, 7), (50, 50)):

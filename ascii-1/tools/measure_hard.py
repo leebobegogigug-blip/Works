@@ -6,7 +6,7 @@
   python tools/measure_hard.py --real 그림.png ...  내 PC 의 그림도 잰다 (설계서 08 의 기준값과 비교). 사용자 그림은 저장소에 넣지 않는다 (W-12)
 
 열: 시간 · 정답 개수 · 파랑 점 추정과 오차% · 파랑 글자 · 파랑 곡선 · 밀도 상관 R(16×8 / 60×25) ·
-    추세선 덮음(%) · 빨강 점 · 빨강 글자 · 격자 선 찾은 수/정답(격자가 없으면 틀 4) · 검정 · 회색 군집의 점 · 글자 · 격자 칸 누수%(색 있는 군집으로 간 비율) · 격자 위 요소 칸%.
+    추세선 덮음(%) · 빨강 점 · 빨강 글자 · 선 찾은 수(가로 · 세로선 + 격자 줄)/정답(격자가 없으면 틀 4) · 검정 · 회색 군집의 점 · 글자 · 격자 칸 누수%(색 있는 군집으로 간 비율) · 격자 위 요소 칸%.
 마지막 줄은 결과: 측정 끝 (S-03).
 """
 import os
@@ -81,10 +81,11 @@ def trend_cover(seg, case) -> Optional[float]:
 
 
 def grid_leak(case, img, bg, seg) -> Optional[List[float]]:
-    """격자 칸(데이터가 덮지 않고 남은 칸) 중 색 있는 군집으로 간 %, 그리고 점 · 글자 · 곡선 · 원 요소가 된 %"""
+    """격자 칸(데이터가 덮지 않고 남은 칸) 중 색 있는 군집으로 간 %, 그리고 점 · 글자 · 곡선 · 원 요소가 된 %.
+    군집은 segment() 와 같은 classify 결과 (격자가 있으면 격자 칸을 뺀 뒤)"""
     if not case.grid_cells:
         return None
-    cls, clusters = sg.classify(img, bg)
+    cls, clusters, _ = sg.classify(img, bg)
     chroma = {c.index for c in clusters if not c.neutral}
     leak = sum(1 for i in case.grid_cells if cls[i] in chroma)
     covered = set()
@@ -116,7 +117,8 @@ def measure(case) -> dict:
         "red_text": sum(1 for e in seg.elements if e.kind == "text" and e.cluster in red),
         "neutral": [sum(e.count for e in seg.elements if e.kind == "dot" and seg.clusters[e.cluster - 1].neutral),
                     sum(1 for e in seg.elements if e.kind == "text" and seg.clusters[e.cluster - 1].neutral)],
-        "lines": len(seg.of("hline")) + len(seg.of("vline")),
+        "lines": len(seg.of("hline")) + len(seg.of("vline"))
+        + (len(seg.grid.horizontal) + len(seg.grid.vertical) if seg.grid else 0),   # 격자 줄은 seg.grid 에 있다
         "lines_true": case.grid_lines or 4,                     # 격자가 없는 변형은 1 픽셀 틀 네 줄
         "leak": grid_leak(case, img, seg.bg, seg),
         "clusters": ",".join(c.name for c in seg.clusters),
