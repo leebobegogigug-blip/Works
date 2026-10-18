@@ -5,8 +5,8 @@
 soften() 은 JPEG 처럼 가장자리가 번지고 잡티가 낀 모습을 흉내 낸다.
 """
 import random
-from math import cos, hypot, pi, sin
-from typing import List, Tuple
+from math import cos, exp, hypot, pi, sin
+from typing import Dict, List, Optional, Set, Tuple
 
 from ascii1_png import Image
 
@@ -20,6 +20,25 @@ FONT = {
     "1": ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
     "0": [".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
     "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
+}
+
+# HARD 세트의 제목 · 눈금 글자 (FONT 와 나눈 까닭: test_seg 가 FONT 의 글자마다 '원판이 아니다' 를 확인하는데 점 · 공백은 그 대상이 아니다)
+FONT_HARD = {
+    "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+    "3": [".###.", "#...#", "....#", "..##.", "....#", "#...#", ".###."],
+    "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."],
+    "6": [".###.", "#....", "#....", "####.", "#...#", "#...#", ".###."],
+    "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
+    "8": [".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."],
+    "9": [".###.", "#...#", "#...#", ".####", "....#", "....#", ".###."],
+    ".": [".....", ".....", ".....", ".....", ".....", "..##.", "..##."],
+    " ": [".....", ".....", ".....", ".....", ".....", ".....", "....."],
+    "T": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+    "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+    "M": ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"],
+    "P": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+    "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+    "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
 }
 
 
@@ -54,10 +73,34 @@ class Canvas:
         for k in range(n + 1):
             self.disc(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n, r, c)
 
+    def ring(self, cx: float, cy: float, r: float, width: float, c: Color) -> None:
+        """속 빈 원 — 바깥 반지름 r 에서 안쪽으로 width 만큼 두른 고리 (width 1 이면 1 픽셀 테두리)"""
+        for y in range(int(cy - r) - 1, int(cy + r) + 2):
+            for x in range(int(cx - r) - 1, int(cx + r) + 2):
+                d = hypot(x - cx, y - cy)
+                if r - width < d <= r:
+                    self.set(x, y, c)
+
+    def polyline(self, pts: List[Tuple[float, float]], width: float, c: Color,
+                 on: Optional[float] = None, off: float = 0.0) -> None:
+        """꺾은선 (굵기 width). on 을 주면 점선 — 호의 길이를 따라 on 만큼 긋고 off 만큼 비운다"""
+        r, s = width / 2.0, 0.0
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            length = hypot(x1 - x0, y1 - y0)
+            n = max(1, int(length * 2))
+            for k in range(n):
+                t = k / n
+                if on is None or (s + t * length) % (on + off) < on:
+                    if width <= 1:                 # 1 픽셀 선은 가장 가까운 칸 하나씩 (8 방향으로 이어진 가는 선)
+                        self.set(int(round(x0 + (x1 - x0) * t)), int(round(y0 + (y1 - y0) * t)), c)
+                    else:
+                        self.disc(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, r, c)
+            s += length
+
     def text(self, s: str, x: int, y: int, c: Color) -> None:
         """5×7 글자를 한 칸 띄워 가로로 쓴다 (x · y 는 왼쪽 위)"""
         for n, ch in enumerate(s):
-            for j, row in enumerate(FONT[ch]):
+            for j, row in enumerate(FONT.get(ch) or FONT_HARD[ch]):
                 for i, v in enumerate(row):
                     if v == "#":
                         self.set(x + n * 7 + i, y + j, c)
@@ -186,3 +229,162 @@ def wafer_map(blue: int = 50, orange: int = 12, gray: int = 8, tile: int = 4, se
         for j in range(tile):
             c.rect(blob[0] + 3 * i, blob[1] + 3 * j, blob[0] + 3 * i + 2, blob[1] + 3 * j + 2, BLUE)
     return c.image(), {"blue": blue, "orange": orange, "gray": gray, "tile": tile * tile, "plus": plus * 5, "stripe": stripe, "R": R, "center": (cx, cy)}
+
+
+# ─────────────────────────────────────────────────────────────── HARD 세트: 격자 · 속 빈 표식 · 겹침 · 점선 추세선 · 번짐
+# 산점도형 차트(800×600)를 축마다 한 가지씩 바꿔 가며 그린다. 정답(개수 · 좌표 · 격자 줄 수 · 그림 상자)을 같이 돌려준다.
+# 실험 때 Pillow 로 그린 그림의 모양을 표준 라이브러리로 다시 그린 것이다 (W-02: 시험 · 개발 도구만 쓴다).
+
+LBLUE_GRID, DGRAY_GRID = (200, 225, 240), (150, 150, 150)
+SERIES, SERIES2, TREND, INK = (31, 119, 180), (255, 127, 14), (214, 39, 40), (20, 20, 20)
+HARD_SIZE = (800, 600)
+HARD_BOX = (90, 60, 770, 530)                      # 그림 상자 x0 y0 x1 y1 (격자의 바깥 줄이 놓이는 곳)
+GRID_LINES = (21, 17)                              # 세로 · 가로 줄 수
+
+
+def ring(c: Canvas, cx: float, cy: float, r: float, width: float, color: Color) -> None:
+    """속 빈 원"""
+    c.ring(cx, cy, r, width, color)
+
+
+def dashed(c: Canvas, pts: List[Tuple[float, float]], on: float, off: float, width: float, color: Color) -> None:
+    """점선 꺾은선"""
+    c.polyline(pts, width, color, on, off)
+
+
+def grid(c: Canvas, box: Tuple[int, int, int, int], nx: int, ny: int, color: Color, width: int) -> Set[int]:
+    """연한 격자: 세로 nx 줄 · 가로 ny 줄을 상자 안에 같은 간격으로 긋는다. 그린 칸 번호(y * w + x)의 집합을 돌려준다"""
+    x0, y0, x1, y1 = box
+    before = list(c.px)
+    for k in range(nx):
+        c.vline(int(round(x0 + (x1 - x0) * k / (nx - 1))), y0, y1, width, color)
+    for k in range(ny):
+        c.hline(int(round(y0 + (y1 - y0) * k / (ny - 1))), x0, x1, width, color)
+    return {i for i, (a, b) in enumerate(zip(before, c.px)) if a is not b and a != b}
+
+
+def sigmoid_band(t: float) -> float:
+    """가로 위치 t(0–1)에서 띠 중심의 높이(0–1) — 왼쪽 낮고 오른쪽 높은 S 자"""
+    return 1.0 / (1.0 + exp(-(t - 0.5) * 10)) * 0.6 + 0.2
+
+
+def scatter(c: Canvas, box: Tuple[int, int, int, int], n: int, r_range: Tuple[float, float], hollow: bool,
+            seed: int, color: Color = SERIES, lift: float = 0.0) -> List[Tuple[float, float, float]]:
+    """겹치는 산점 n 개 — 시그모이드 띠 + 가우스 잡음. 속이 비면 1 픽셀 테두리 원. 정답 (x, y, r) 목록을 돌려준다"""
+    x0, y0, x1, y1 = box
+    rng = random.Random(seed)
+    pts = []
+    for _ in range(n):
+        t = rng.random()
+        v = min(0.98, max(0.02, sigmoid_band(t) + rng.gauss(0, 0.08) + lift))
+        x, y, r = x0 + t * (x1 - x0), y1 - v * (y1 - y0), rng.uniform(*r_range)
+        pts.append((x, y, r))
+        if hollow:
+            ring(c, x, y, r, 1, color)
+        else:
+            c.disc(x, y, r, color)
+    return pts
+
+
+def trend_points(box: Tuple[int, int, int, int]) -> List[Tuple[float, float]]:
+    """추세선 정답 좌표 (띠 중심을 따라 가로 폭의 약 95%)"""
+    x0, y0, x1, y1 = box
+    out = []
+    for k in range(400):
+        t = k / 399
+        out.append((x0 + t * (x1 - x0) * 0.95 + 0.02 * (x1 - x0), y1 - sigmoid_band(t) * (y1 - y0)))
+    return out
+
+
+class HardCase:
+    """HARD 변형 하나: 그림과 정답"""
+
+    def __init__(self, name: str, image: Image, box, pts, pts2, trend, trend_kind, grid_lines, grid_cells, series_color):
+        self.name, self.image, self.box = name, image, box
+        self.pts = pts                       # 첫 계열 (x, y, r) — 개수의 정답
+        self.pts2 = pts2                     # 둘째 계열 (L)
+        self.trend = trend                   # 추세선 정답 좌표 (없으면 [])
+        self.trend_kind = trend_kind         # None · "solid" · "dash"
+        self.grid_lines = grid_lines         # 격자 줄 수 (세로 + 가로, 없으면 0)
+        self.grid_cells = grid_cells         # 데이터에 덮이지 않고 남은 격자 칸 번호
+        self.series_color = series_color
+
+    @property
+    def n(self) -> int:
+        return len(self.pts)
+
+    def cell_counts(self, gx: int, gy: int, series: int = 0) -> List[int]:
+        """그림 상자를 gx × gy 칸으로 나눠 칸마다 센 정답 개수 (행 우선)"""
+        x0, y0, x1, y1 = self.box
+        out = [0] * (gx * gy)
+        for x, y, _ in (self.pts if series == 0 else self.pts2):
+            i = min(gx - 1, max(0, int((x - x0) / (x1 - x0) * gx)))
+            j = min(gy - 1, max(0, int((y - y0) / (y1 - y0) * gy)))
+            out[j * gx + i] += 1
+        return out
+
+
+# 이름 → 그리는 값. 기본은 채운 r4 300 개 + 실선 폭 3 + 1 픽셀 틀(검정)
+_BASE = dict(grid=None, gridw=1, n=300, r=(4, 4), hollow=False, trend="solid", trendw=3, text=False, series2=False,
+             blur=False, frame=True)
+HARD_SPECS: Dict[str, dict] = {
+    "A_base": {},
+    "A0": dict(n=60, trend=None),
+    "A1": dict(trend=None),
+    "E0": dict(n=60, trend=None, hollow=True),
+    "E": dict(trend=None, hollow=True),
+    "F0": dict(n=60, trend=None, r=(2, 2)),
+    "F1": dict(n=60, trend=None, r=(1.5, 1.5)),
+    "H": dict(n=2000, r=(3, 3), trend=None),
+    "I": dict(n=2000, r=(2, 6), hollow=True, trend=None),
+    "B0": dict(n=60, trend=None, grid=LBLUE_GRID),
+    "C": dict(grid=LBLUE_GRID, gridw=2),
+    "D": dict(grid=DGRAY_GRID),
+    "J": dict(trend="dash"),
+    "J0": dict(n=0, trend="dash"),
+    "J1": dict(n=0),
+    "J2": dict(trendw=1),
+    "K": dict(text=True),
+    "L": dict(series2=True),
+    "Z": dict(grid=LBLUE_GRID, gridw=2, n=2500, r=(2, 6), hollow=True, trend="dash", text=True, blur=True),
+}
+HARD = tuple(HARD_SPECS)
+
+
+def hard_case(name: str) -> HardCase:
+    """HARD 변형 name 의 그림과 정답. 같은 이름이면 늘 같은 그림이다 (씨앗 고정)"""
+    cfg = dict(_BASE, **HARD_SPECS[name])
+    w, h = HARD_SIZE
+    box = HARD_BOX
+    x0, y0, x1, y1 = box
+    c = Canvas(w, h)
+    gcells, glines = set(), 0
+    if cfg["grid"]:
+        gcells = grid(c, box, GRID_LINES[0], GRID_LINES[1], cfg["grid"], cfg["gridw"])
+        glines = sum(GRID_LINES)
+    elif cfg["frame"]:
+        for x in (x0, x1):
+            c.vline(x, y0, y1, 1, (40, 40, 40))
+        for y in (y0, y1):
+            c.hline(y, x0, x1, 1, (40, 40, 40))
+    if cfg["text"]:
+        c.text("TEMP RATE 2.5", w // 2 - 45, 25, INK)                      # 제목
+        for k in range(11):
+            c.text(str(k * 10), x0 + (x1 - x0) * k // 10 - 7, y1 + 10, INK)    # 가로 눈금
+        for k in range(9):
+            c.text("%.1f" % (k * 0.3), x0 - 33, y1 - (y1 - y0) * k // 8 - 3, INK)  # 세로 눈금
+        c.text("TEMP", w // 2 - 14, h - 28, INK)
+    pts = scatter(c, box, cfg["n"], cfg["r"], cfg["hollow"], 1, SERIES) if cfg["n"] else []
+    pts2 = scatter(c, box, cfg["n"] // 2, cfg["r"], cfg["hollow"], 2, SERIES2, lift=0.15) if cfg["series2"] else []
+    trend = []
+    if cfg["trend"]:
+        trend = trend_points(box)
+        if cfg["trend"] == "solid":
+            c.polyline(trend, cfg["trendw"], TREND)
+        else:
+            dashed(c, trend, 10, 6, cfg["trendw"], TREND)
+    gcells = {i for i in gcells if c.px[i] == cfg["grid"]}                 # 데이터가 덮은 칸은 뺀다
+    img = c.image()
+    if cfg["blur"]:
+        img = soften(img, 0.8, 4, 7)                       # JPEG q80 쯤의 번짐 · 잡티
+    return HardCase(name, img, box, pts, pts2, trend, cfg["trend"], glines, gcells, SERIES)
