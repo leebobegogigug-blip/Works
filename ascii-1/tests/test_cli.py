@@ -232,12 +232,13 @@ class NeedsAHuman(Folder):
 
 
 class Failing(Folder):
-    def test_a_jpeg_with_a_png_name(self):
+    def test_a_broken_jpeg_with_a_png_name(self):
+        # 이름은 .png 여도 시그니처로 JPEG 로 읽는다 (JPEG 를 읽게 된 뒤로 — 그 전에는 'JPEG 로 보입니다' 로 거부). 깨진 JPEG 는 종료 코드 1
         src = self.put("fake.png", b"\xff\xd8\xff\xe0" + bytes(100))
         before = sha(src)
         code, out, _ = run(src)
         self.assertEqual(code, 1)
-        self.assertIn("JPEG", out)
+        self.assertIn("실패  fake.png: JPEG", out)
         self.assertEqual(out.splitlines()[-1], "결과: 점검 실패")
         self.assertEqual(self.names(), ["fake.png"])
         self.assertEqual(sha(src), before)

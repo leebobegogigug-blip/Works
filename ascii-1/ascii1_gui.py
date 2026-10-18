@@ -467,7 +467,7 @@ class Window:
         block.pack(fill="x")
         self.open_button = self._button(body, "▶ 그림 열기  Ctrl+O", self.choose)
         self.open_button.pack(fill="x")
-        self.path_label = self.paint(tk.Label(body, text="PNG 파일을 고르세요", font=self.font, anchor="w", pady=0), bg="block", fg="dim")
+        self.path_label = self.paint(tk.Label(body, text="PNG · JPEG 파일을 고르세요", font=self.font, anchor="w", pady=0), bg="block", fg="dim")
         self.path_label.pack(fill="x", pady=(GAP // 2, 0))
         self.info_png = self.paint(tk.Label(body, text="SIZE  —", font=self.font, anchor="w", pady=0), bg="block", fg="text")
         self.info_png.pack(fill="x")
@@ -742,7 +742,7 @@ class Window:
     def choose(self):
         if self.busy:
             return
-        path = filedialog.askopenfilename(title="그림 열기", filetypes=[("PNG 그림", "*.png"), ("모든 파일", "*.*")])
+        path = filedialog.askopenfilename(title="그림 열기", filetypes=[("그림 (PNG · JPEG)", "*.png *.jpg *.jpeg"), ("모든 파일", "*.*")])
         if path:
             self.open_path(path)
 

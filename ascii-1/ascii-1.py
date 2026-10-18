@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""ascii-1 - PNG 를 끌어다 놓으면 ASCII 아트로 바꿔 주는 명령형 도구 (표준 라이브러리만 · Python 3.8+)
+"""ascii-1 - PNG · JPEG 를 끌어다 놓으면 ASCII 아트로 바꿔 주는 명령형 도구 (표준 라이브러리만 · Python 3.8+)
 
   ascii-1.py                               작은 창을 연다 (그림을 골라 보고 저장 · 복사) — exe 를 두 번 눌러도 같다
   ascii-1.py <그림.png> [<그림.png> ...]   입력 옆에 <이름>.txt 를 만든다 (있으면 덮어쓰지 않고 <이름> (2).txt)
@@ -31,7 +31,7 @@ RESULT = {OK: "결과: OK", CONFIRM: "결과: 확인 필요", FAIL: "결과: 점
 KINDS = ("auto", "chart", "wafer")
 MAX_COLLISIONS = 999               # <이름> (2).txt … (999).txt 까지 비어 있는 이름을 찾는다
 
-HELP = """Ascii–1 — PNG 를 ASCII 아트로
+HELP = """Ascii–1 — PNG · JPEG 를 ASCII 아트로
 
   ascii-1.py                                작은 창을 엽니다. 그림을 골라 보고, 열 수 · 종류를 바꾸고, 저장하거나 복사합니다
   ascii-1.py <그림.png> [<그림.png> ...]    그림 옆에 <이름>.txt 를 만듭니다. 이미 있으면 덮어쓰지 않고 <이름> (2).txt

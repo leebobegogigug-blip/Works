@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ascii1_png - 표준 라이브러리만으로 PNG 를 읽는다 (zlib · struct). 설계서 docs/plans/ascii-1-design.md › ①
+그림을 읽는 입구(decode · load)는 시그니처를 보고 JPEG(FF D8 FF)면 ascii1_jpeg 에 넘긴다 — 확장자는 보지 않는다.
 
 지원: 색 유형 0 · 2 · 3 · 4 · 6 · 비트 깊이 1 · 2 · 4 · 8 · 16 · 필터 0–4 · tRNS · Adam7 · 여러 IDAT
 알파는 흰 바탕에 합성하고, 16 비트는 위 바이트만 쓴다. 결과는 늘 8 비트 RGB 다.
@@ -12,6 +13,7 @@ from itertools import accumulate
 from typing import Dict, Iterator, List, Optional, Tuple
 
 SIGNATURE = b"\x89PNG\r\n\x1a\n"
+JPEG_SIGNATURE = b"\xff\xd8\xff"
 MAX_SIDE = 4000                        # 폭 · 높이 각각의 상한
 MAX_FILE_BYTES = 64 * 1024 * 1024      # 파일 크기 상한
 CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
@@ -39,7 +41,7 @@ class Image:
 def read_chunks(data: bytes) -> List[Tuple[bytes, bytes]]:
     """[(종류, 내용)] — IEND 까지. 길이 · CRC 가 틀리면 PngError"""
     if data[:8] != SIGNATURE:
-        raise PngError("PNG 가 아닙니다 (JPEG 로 보입니다)" if data[:3] == b"\xff\xd8\xff" else "PNG 가 아닙니다")
+        raise PngError("PNG 가 아닙니다")
     chunks, pos = [], 8
     while True:
         if pos + 8 > len(data):
@@ -218,7 +220,10 @@ class Decoder:
 # ─────────────────────────────────────────────────────────────── 위
 
 def decode(data: bytes) -> Image:
-    """PNG 바이트 → Image. 읽을 수 없으면 PngError"""
+    """PNG 또는 JPEG 바이트 → Image (시그니처로 가른다). 읽을 수 없으면 PngError (JPEG 는 그 갈래인 JpegError)"""
+    if data[:3] == JPEG_SIGNATURE:
+        import ascii1_jpeg                   # 서로 부르는 모듈이라 쓸 때 불러온다 (ascii1_jpeg 가 Image · PngError 를 쓴다)
+        return ascii1_jpeg.decode(data)
     chunks = read_chunks(data)
     h = parse_header(chunks)
     palette = trns = None

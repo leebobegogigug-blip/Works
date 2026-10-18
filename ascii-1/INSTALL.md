@@ -57,7 +57,7 @@ python "D:\OPENCODE\ascii-1\ascii-1.py" check
 
 ## 4. (선택) `ascii-1.exe` 로 쓰기
 
-파이썬 없이 쓰려는 사용자에게만 (두 번 누르면 창이 열리고, PNG 를 끌어다 놓으면 창 없이 `.txt` 가 생긴다). **[질문]** "`ascii-1.exe` (저장소 Releases 에서 받는, 서명하지 않은 한 파일)를 쓰시겠습니까?" → 아니오면 9단계로.
+파이썬 없이 쓰려는 사용자에게만 (두 번 누르면 창이 열리고, 그림(PNG · JPEG)을 끌어다 놓으면 창 없이 `.txt` 가 생긴다). **[질문]** "`ascii-1.exe` (저장소 Releases 에서 받는, 서명하지 않은 한 파일)를 쓰시겠습니까?" → 아니오면 9단계로.
 
 1. 사용자가 `https://github.com/leebobegogigug-blip/Works/releases` 에서 `ascii-1-v…` 릴리스의 `ascii-1.exe` 와 `ascii-1.exe.sha256` 을 받아 아무 폴더에 둔다 (에이전트가 몰래 받거나 다른 곳에서 받지 않는다. 릴리스가 아직 없으면 "릴리스가 아직 없습니다" 라고 보고하고 3단계까지만).
 2. 해시를 확인한다: `certutil -hashfile "<폴더>\ascii-1.exe" SHA256` 의 해시가 `ascii-1.exe.sha256` 에 적힌 것과 같아야 한다. **다르면 멈추고** 사용자에게 알린다.
@@ -88,7 +88,8 @@ Ascii–1 설치 완료
 | `git pull` 이 `untracked working tree files would be overwritten` 와 함께 `AGENTS.md` · `CLAUDE.md` 를 보여 줌 | `D:\OPENCODE` 에 사용자가 만든 같은 이름 파일이 있다 (opencode `/init` 등). **[질문]** "`D:\OPENCODE\AGENTS.md` 를 `AGENTS.local.md` 로 이름을 바꿔도 될까요?" → 바꾼 뒤 pull 을 다시 한다. 그 내용을 계속 쓰려면 opencode 설정의 `instructions` 에 `AGENTS.local.md` 를 넣도록 사용자에게 안내한다 (설정 파일은 에이전트가 고치지 않는다) |
 | `python` 을 찾을 수 없음 | 1단계의 `py -3` 안내를 따른다 |
 | `결과: 확인 필요` — `사진이나 채워진 그림` · `그릴 것을 찾지 못했습니다` | 바탕 · 선 · 점이 또렷한 그림이 아니다. 사용자에게 알리고 다른 그림을 부탁한다 |
-| `실패 … PNG 가 아닙니다 (JPEG 로 보입니다)` | 확장자만 `.png` 인 JPEG 다. PNG 로 다시 저장해 달라고 사용자에게 부탁한다 |
+| `실패 … JPEG 이지만 지원하지 않는 형식입니다 (PNG 로 저장해 주세요)` | progressive · CMYK 같은 baseline 이 아닌 JPEG 다. 그림판 등에서 PNG 로 다시 저장해 달라고 사용자에게 부탁한다 |
+| `실패 … PNG 가 아닙니다` | PNG 도 JPEG 도 아닌 파일이다 (확장자와 상관없이 파일 안을 보고 가린다). PNG 로 다시 저장해 달라고 사용자에게 부탁한다 |
 | `실패 … 결과 파일을 만들 수 없습니다` | 그림이 있는 폴더에 쓸 수 없다. `--stdout` 으로 화면에 찍거나 쓸 수 있는 폴더로 그림을 옮겨 달라고 부탁한다 |
 
 ## 업데이트
@@ -103,7 +104,7 @@ python "D:\OPENCODE\ascii-1\ascii-1.py" version
 Ascii–1 은 PC 에 남기는 것이 없다 (사용자 PATH · 바로가기 · 레지스트리 · 데이터 폴더 모두 없음). 되돌릴 것이 없다.
 
 프로그램 폴더 `D:\OPENCODE\ascii-1` 은 works 저장소의 일부라서 **지우지 않는다** — 지우면 git 이 '바뀐 파일' 로 보고 다른 앱의 업데이트(`git pull`)가 멈춘다.
-이 앱으로 만든 결과 `.txt` 파일은 입력 PNG 옆에 있으니 사용자가 직접 지운다. 4단계로 받은 `ascii-1.exe` · `.sha256` 은 둔 폴더에서 그 파일들만 지운다.
+이 앱으로 만든 결과 `.txt` 파일은 입력 그림 옆에 있으니 사용자가 직접 지운다. 4단계로 받은 `ascii-1.exe` · `.sha256` 은 둔 폴더에서 그 파일들만 지운다.
 works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워집니다. `D:\OPENCODE` 를 지울까요?" → 확인 후 지운다.
 
 ## 참고: 명령 모음

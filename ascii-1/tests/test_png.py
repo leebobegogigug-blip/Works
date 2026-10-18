@@ -115,8 +115,14 @@ class Rejects(unittest.TestCase):
         self.fails(b"", "PNG 가 아닙니다")
         self.fails(b"hello world, not a png", "PNG 가 아닙니다")
 
-    def test_jpeg_is_named(self):
-        self.fails(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + bytes(50), "JPEG")
+    def test_jpeg_signature_goes_to_the_jpeg_reader(self):
+        # JPEG 를 읽게 되면서 (설계서 03① 의 결정이 바뀜): 시그니처 FF D8 FF 면 PNG 로 거부하지 않고 JPEG 로 읽는다.
+        # 이 바이트는 JFIF 머리 뒤가 0 뿐인 깨진 JPEG 라서, JPEG 쪽의 정해진 오류 한 줄로 끝나야 한다
+        with self.assertRaises(ap.PngError) as cm:
+            ap.decode(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + bytes(50))
+        self.assertEqual(cm.exception.__class__.__name__, "JpegError")
+        self.assertIn("JPEG", str(cm.exception))
+        self.assertNotIn("PNG 가 아닙니다", str(cm.exception))
 
     def test_truncated_anywhere(self):
         data = self.png()
