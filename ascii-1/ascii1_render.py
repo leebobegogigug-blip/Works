@@ -12,8 +12,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from ascii1_seg import TREND_GAP, Element, Grid, Segmentation, components_of, trend_bin
 
-DEFAULT_WIDTH = 120
+DEFAULT_WIDTH = 40
 MIN_WIDTH, MAX_WIDTH = 40, 300
+DEFAULT_EOL = "$"          # 글자 아트의 모든 줄을 폭만큼 채우고 그 다음 칸(폭 + 1 번째)에 찍는 줄 끝 기호. 줄 끝 공백이 잘려도 폭이 눈에 보인다
 CELL_ASPECT = 2.0                  # 셀 세로 ÷ 셀 가로 (터미널 글자 종횡비 1:2)
 PATH_MIN_PIXELS = {"curve": 2, "ring": 1}   # 셀 안에 이만큼은 있어야 그린다 (1칸 외곽선은 셀당 1–2 칸뿐)
 HORIZONTAL_SLOPE = 1.4             # 픽셀 기울기 |dy/dx| 가 이보다 작으면 가로(글자가 세로로 2 배라 셀 기울기는 0.7), VERTICAL 보다 크면 세로
@@ -544,9 +545,10 @@ def layout(seg: Segmentation, width: int = DEFAULT_WIDTH, grid: str = "hide") ->
     return cells, geo
 
 
-def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False, grid: str = "hide") -> str:
+def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False, grid: str = "hide", eol: Optional[str] = None) -> str:
     """그림 → 글자 아트 + 범례. 격자 줄은 순수 ASCII (box 면 선 글자만 ─ │ ┼), 범례는 한국어.
-    grid 는 그림의 격자를 어떻게 그릴지 (GRID_MODES). 격자가 없는 그림에서는 아무것도 바꾸지 않는다"""
+    grid 는 그림의 격자를 어떻게 그릴지 (GRID_MODES). 격자가 없는 그림에서는 아무것도 바꾸지 않는다.
+    eol 이 한 글자면 글자 아트의 모든 줄을 width 칸으로 채우고(짧은 줄은 공백) width + 1 번째 칸에 그 글자를 찍는다 — None 이면 줄을 채우지도 찍지도 않는다"""
     cells, geo = layout(seg, width, grid)
     glyphs = assign_glyphs(seg)
     names = {c.index: c.name for c in seg.clusters}
@@ -560,8 +562,14 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False, gri
             line = "".join((BOX.get(cells[(r, c)][1], cells[(r, c)][1]) if box else cells[(r, c)][1]) if (r, c) in cells else " "
                            for c in range(c0, c1 + 1))
             rows.append(line.rstrip())
+        if eol:
+            fill = max(MIN_WIDTH, min(MAX_WIDTH, width))
+            fill = max([fill] + [len(x) for x in rows])
+            rows = [x.ljust(fill) + eol for x in rows]
+            size = (fill, len(rows))
+        else:
+            size = (max(len(x) for x in rows), len(rows))     # 범례에는 실제로 그린 격자의 크기 (잘라 낸 뒤)
         art = "\n".join(rows) + "\n"
-        size = (max(len(x) for x in rows), len(rows))     # 범례에는 실제로 그린 격자의 크기 (잘라 낸 뒤)
     else:
         art = ""
         size = (geo.cols, geo.rows)

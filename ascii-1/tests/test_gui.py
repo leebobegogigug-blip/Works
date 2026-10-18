@@ -79,6 +79,8 @@ class Folder:
 class WindowTests(unittest.TestCase):
     def setUp(self):
         self.win = gui.Window(app)
+        self.assertEqual(self.win.params["cols"].value, 40, "창의 열 수 기본값도 40")           # DefaultWidth 가 따로 지킨다
+        self.win.set_param("cols", 120)                      # 아래 시험들은 120 열을 기준으로 쓴다
         self.addCleanup(gc.collect)                          # 창의 순환 쓰레기는 주 스레드에서 치운다
         self.addCleanup(self.win.root.destroy)
         self.addCleanup(lambda: settle(self.win))           # 일꾼이 도는 채로 창을 부수지 않는다 (Tcl 이 다른 스레드에서 죽는다)
@@ -91,7 +93,8 @@ class WindowTests(unittest.TestCase):
         return self.win.view.get("1.0", "end").rstrip("\n")
 
     def art_width(self):
-        return max(len(x) for x in self.art().rsplit("\n\n", 1)[0].split("\n"))
+        """글자 아트의 폭 — 줄 끝 기호(41 번째 칸)는 뺀다"""
+        return max(len(x) for x in self.art().rsplit("\n\n", 1)[0].split("\n")) - 1
 
     def press(self, keysym, state=0):
         self.win._on_key(types.SimpleNamespace(keysym=keysym, state=state))
@@ -146,9 +149,9 @@ class WindowTests(unittest.TestCase):
             text = self.win.text
             seg, _, _ = app.analyze(src)
             self.assertEqual(text, app.make_art(seg, "격자.png", self.win.read_options()[0])[2])
-            self.assertEqual(text, app.render.render(seg, 120, grid="hide"))
+            self.assertEqual(text, app.render.render(seg, 120, grid="hide", eol=app.render.DEFAULT_EOL))
             lines = text.rsplit("\n\n", 1)[0].split("\n")
-            width = max(len(x) for x in lines)
+            width = max(len(x) for x in lines) - 1
             self.assertEqual(len([x for x in lines if x.count("-") >= 0.5 * width]), 2, "틀의 위 · 아래뿐 — 가로 격자줄이 없다")
             self.assertLessEqual(text.count("+"), 4)
             self.assertIn("격자 가로 17 · 세로 21 줄 생략", self.art())

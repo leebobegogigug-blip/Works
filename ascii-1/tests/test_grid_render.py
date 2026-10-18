@@ -539,13 +539,13 @@ class Command(unittest.TestCase):
         seg = seg_of("B0")
         opts = tc.cli.parse(["a.png"])[1]
         _, _, text, shape = tc.cli.make_art(seg, "a.png", opts)
-        self.assertEqual(text, rd.render(seg, 120))
-        self.assertEqual(shape, "%d열 %d행 · 점 추정 %d개" % (max(len(x) for x in art(text)), len(art(text)), seg.dots()))
+        self.assertEqual(text, rd.render(seg, rd.DEFAULT_WIDTH, eol=rd.DEFAULT_EOL))
+        self.assertEqual(shape, "%d열 %d행 · 점 추정 %d개" % (max(len(x) for x in art(text)) - 1, len(art(text)), seg.dots()))      # 열 수는 줄 끝 기호를 뺀 폭
         opts = tc.cli.parse(["a.png", "--grid", "show"])[1]
-        self.assertEqual(tc.cli.make_art(seg, "a.png", opts)[2], rd.render(seg, 120, grid="show"))
+        self.assertEqual(tc.cli.make_art(seg, "a.png", opts)[2], rd.render(seg, rd.DEFAULT_WIDTH, grid="show", eol=rd.DEFAULT_EOL))
         no_grid = dict(opts)
         del no_grid["grid"]
-        self.assertEqual(tc.cli.make_art(seg, "a.png", no_grid)[2], rd.render(seg, 120), "창이 넘기는 옵션에는 grid 가 없다 → hide")
+        self.assertEqual(tc.cli.make_art(seg, "a.png", no_grid)[2], rd.render(seg, rd.DEFAULT_WIDTH, eol=rd.DEFAULT_EOL), "창이 넘기는 옵션에는 grid 가 없다 → hide")
 
     def test_shape_uses_the_range_with_a_field(self):
         seg = seg_of("Z")

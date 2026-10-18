@@ -1015,7 +1015,9 @@ def _work(app, results, path, seg, name, opts):
             info.update(w=seg.width, h=seg.height, dots=seg.dots(), lines=len(seg.of("hline")) + len(seg.of("vline")), kind=seg.guess_kind())
             if text is not None:
                 rows = text.rsplit("\n\n", 1)[0].split("\n")
-                info.update(cols=max(len(x) for x in rows), rows=len(rows))
+                eol = opts.get("eol", app.render.DEFAULT_EOL)
+                mark = 0 if eol in (None, "none") else len(eol)                     # 열 수는 줄 끝 기호를 뺀 폭
+                info.update(cols=max(len(x) for x in rows) - mark, rows=len(rows))
         results.put((seg, code, line, text, shape, info))
     except Exception as e:                                    # 어떤 예외든 창에 보여 주고 끝낸다 (스레드가 조용히 죽으면 창이 영영 "읽는 중")
         results.put((None, app.FAIL, "실패  %s: %s: %s" % (name, e.__class__.__name__, e), None, "", {}))

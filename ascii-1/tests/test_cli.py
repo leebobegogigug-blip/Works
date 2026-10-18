@@ -132,7 +132,7 @@ class Converting(Folder):
     def test_output_is_what_the_modules_produce(self):
         src = self.put("a.png", sample("chart"))
         run(src)
-        want = rd.render(sg.segment(ap.load(src)), rd.DEFAULT_WIDTH)
+        want = rd.render(sg.segment(ap.load(src)), rd.DEFAULT_WIDTH, eol=rd.DEFAULT_EOL)
         self.assertEqual(self.read("a.txt").replace("\r\n", "\n"), want)
 
     def test_output_is_utf8_with_the_legend(self):
@@ -174,11 +174,11 @@ class Converting(Folder):
         src = self.put("w.png", sample("wafer"))
         for args, limit in ((("--width", "40"), 40), (("--width=60",), 60)):
             run(src, *args)
-        art40 = self.read("w.txt").replace("\r\n", "\n").rsplit("\n\n", 1)[0].split("\n")
-        art60 = self.read("w (2).txt").replace("\r\n", "\n").rsplit("\n\n", 1)[0].split("\n")
-        self.assertLessEqual(max(len(x) for x in art40), 40)
-        self.assertLessEqual(max(len(x) for x in art60), 60)
-        self.assertGreater(max(len(x) for x in art60), max(len(x) for x in art40))
+        art40 = self.read("w.txt").replace("\r\n", "\n").rsplit("\n\n", 1)[0].rstrip("\n").split("\n")
+        art60 = self.read("w (2).txt").replace("\r\n", "\n").rsplit("\n\n", 1)[0].rstrip("\n").split("\n")
+        self.assertEqual({len(x) for x in art40}, {41})                  # 40 열 + 줄 끝 기호 한 칸
+        self.assertEqual({len(x) for x in art60}, {61})
+        self.assertTrue(all(x.endswith("$") for x in art40 + art60))
 
     def test_box_option(self):
         src = self.put("c.png", sample("chart"))
