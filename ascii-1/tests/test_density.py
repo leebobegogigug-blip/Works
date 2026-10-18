@@ -2,7 +2,6 @@
 """빽빽한 산점 — 겹침 보정 질량법 · 개수 범위 · 크기 불변 · 문이 닫힌 그림은 그대로 (설계서 14-9 · 14-11 · 14-13 · 14-15 의
 AC3 · AC4 · AC5 · AC6 · AC9 · AC0). 식의 상수마다 경계 양쪽을 두고, 빽빽 판정의 문(상자 · 링 없음 · 색 군집 · 개수 · 큰 덩어리 몫 ·
 곡선 빼기)마다 문이 닫혀 지금 경로로 가는 반례를 둔다. 그림은 전부 코드로 만든 것 (W-12)."""
-import importlib.util
 import os
 import sys
 import unittest
@@ -16,9 +15,7 @@ import ascii1_render as rd  # noqa: E402
 import ascii1_seg as sg  # noqa: E402
 import synth  # noqa: E402
 
-spec = importlib.util.spec_from_file_location("measure_hard", os.path.join(ROOT, "tools", "measure_hard.py"))
-mh = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mh)
+from shared import case, mh, seg_of, stats_of  # noqa: E402     # 읽기 전용 캐시
 
 DENSE = ("H", "I", "Z")
 COUNTED = tuple(n for n in synth.HARD if synth.HARD_SPECS[n].get("n", 300))       # 정답 개수가 있는 변형
@@ -74,31 +71,9 @@ def blue(seg):
     return [c.index for c in seg.clusters if c.name == "파랑"]
 
 
-_STATS = {}
-_SEGS = {}
-_CASES = {}
-
-
 def hard(name):
-    """HARD 변형의 (정답, 요소 찾기). 처음 부를 때 density_stats 를 엿들어 군집 이름별 통계도 모은다"""
-    if name not in _SEGS:
-        c = synth.hard_case(name)
-        seen = []
-        real = sg.density_stats
-
-        def spy(*args):
-            st = real(*args)
-            seen.append(st)
-            return st
-
-        sg.density_stats = spy
-        try:
-            seg = sg.segment(c.image)
-        finally:
-            sg.density_stats = real
-        _CASES[name], _SEGS[name] = c, seg
-        _STATS[name] = seen
-    return _CASES[name], _SEGS[name]
+    """HARD 변형의 (정답, 요소 찾기) — 시험 파일끼리 나눠 쓰는 읽기 전용 캐시 (shared). 군집별 통계는 shared.stats_of"""
+    return case(name), seg_of(name)
 
 
 # ─────────────────────────────────────────────────────────────── 식 (설계서 14-9)
@@ -310,7 +285,7 @@ class DenseHard(unittest.TestCase):
         for name in COUNTED:
             with self.subTest(name=name):
                 c, seg = hard(name)
-                st = [s for s in _STATS[name] if s is not None]
+                st = [s for s in stats_of(name) if s is not None]
                 self.assertTrue(st, "%s: 파랑 외톨이가 있어 통계를 낸다" % name)
                 first = max(st, key=lambda s: s["mass"])      # 정답 계열은 질량이 가장 큰 군집
                 self.assertTrue(first["lo"] <= c.n <= first["hi"], "%s 범위 %.0f–%.0f · 정답 %d" % (name, first["lo"], first["hi"], c.n))
@@ -320,7 +295,7 @@ class DenseHard(unittest.TestCase):
         정답을 품는다. 주황의 범위는 품지 못한다 — 빨강 추세선이 주황 군집에 합쳐져(Q6 의 알려진 한계) 그 칸이 질량에 든다"""
         c, seg = hard("L")
         names = {k.index: k.name for k in seg.clusters}
-        by = {names[s["cluster"]]: s for s in _STATS["L"] if s is not None}
+        by = {names[s["cluster"]]: s for s in stats_of("L") if s is not None}
         self.assertTrue(by["파랑"]["lo"] <= c.n <= by["파랑"]["hi"])
         self.assertGreater(by["주황"]["lo"], len(c.pts2), "추세선 질량이 든 범위 (알려진 한계 — 고쳐지면 이 줄을 뒤집는다)")
         self.assertEqual(seg.of("field"), [])

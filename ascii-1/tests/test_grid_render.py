@@ -13,21 +13,13 @@ sys.path.insert(0, HERE)
 import ascii1_render as rd  # noqa: E402
 import ascii1_seg as sg  # noqa: E402
 import synth  # noqa: E402
+from shared import case as hard_case, seg_of  # noqa: E402     # 읽기 전용 캐시
 import test_cli as tc  # noqa: E402
 
 MODES = ("hide", "dots", "ticks", "show")
 GRIDDED = ("B0", "C", "D", "Z")
 WIDTHS = (40, 120, 300)
 TREND_GLYPHS = set("_-/\\|")
-
-_SEGS = {}
-
-
-def seg_of(name):
-    if name not in _SEGS:
-        _SEGS[name] = sg.segment(synth.hard_case(name).image)
-    return _SEGS[name]
-
 
 def art(text):
     return text.rsplit("\n\n", 1)[0].split("\n") if "\n\n" in text else []
@@ -223,7 +215,7 @@ class EveryOutput(unittest.TestCase):
                         self.assertIn("→ %d열 %d행" % (max(len(x) for x in lines), len(lines)), legend(text))
 
     def test_fresh_segmentation_gives_the_same_bytes(self):
-        self.assertEqual(rd.render(sg.segment(synth.hard_case("B0").image), 120), rd.render(seg_of("B0"), 120))
+        self.assertEqual(rd.render(sg.segment(hard_case("B0").image), 120), rd.render(seg_of("B0"), 120))
 
 
 class WithoutGrid(unittest.TestCase):
@@ -510,7 +502,7 @@ class AC6Render(unittest.TestCase):
 
     def test_dense_variants(self):
         for name in ("H", "I", "Z"):
-            case, seg = synth.hard_case(name), seg_of(name)
+            case, seg = hard_case(name), seg_of(name)
             ks = {c.index for c in seg.clusters if c.name == "파랑"}
             for width in (120, 200, 300):
                 with self.subTest(name=name, width=width):
@@ -567,7 +559,7 @@ class Command(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             src = os.path.join(d, "b0.png")
             with open(src, "wb") as f:
-                f.write(tc.png_of(synth.hard_case("B0").image))
+                f.write(tc.png_of(hard_case("B0").image))
             code, out, _ = tc.run(src, "--stdout", "--grid", "ticks")
             self.assertEqual(code, 0)
             self.assertIn("+ 틀 위의 격자 자리 (가로 17 · 세로 21 줄)", out)

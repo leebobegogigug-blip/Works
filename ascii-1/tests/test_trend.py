@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """추세선 복원 (설계서 14-10 · 14-11 · AC8) — 실선 · 점선 · 굵기, 범례 견본 · 제목 번짐 제외, 마커 곡선은 그대로,
 그림 상자가 없는 차트의 굵은 선은 덩어리 자신의 두께로 마커를 가른다. 그림은 전부 코드로 만든 것 (W-12)."""
-import importlib.util
 import os
 import sys
 import unittest
@@ -14,29 +13,11 @@ import ascii1_render as rd  # noqa: E402
 import ascii1_seg as sg  # noqa: E402
 import synth  # noqa: E402
 
-spec = importlib.util.spec_from_file_location("measure_hard", os.path.join(ROOT, "tools", "measure_hard.py"))
-mh = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mh)
+from shared import case, measured, mh, seg_of  # noqa: E402     # 읽기 전용 캐시
 
 FRAME = (40, 40, 40)
 TRENDED = ("J", "J0", "J1", "J2", "A_base", "C", "D", "K", "Z")      # 추세선이 있는 HARD 변형 (L 은 빨강이 주황에 합쳐진다 — Q6)
 COL = 8                                                            # AC8 을 재는 열 너비 (px)
-
-_SEGS = {}
-_CASES = {}
-
-
-def case(name):
-    if name not in _CASES:
-        _CASES[name] = synth.hard_case(name)
-    return _CASES[name]
-
-
-def seg_of(name):
-    if name not in _SEGS:
-        _SEGS[name] = sg.segment(case(name).image)
-    return _SEGS[name]
-
 
 def red(seg):
     return {c.index for c in seg.clusters if c.name == "빨강"}
@@ -111,7 +92,7 @@ class TrendHard(unittest.TestCase):
         """measure_hard 의 추세덮음% (8 px 열 · 정답 y ± 4 px) ≥ 90"""
         for name in TRENDED:
             with self.subTest(name=name):
-                self.assertGreaterEqual(mh.measure(case(name))["trend"], 90.0)
+                self.assertGreaterEqual(measured(name)["trend"], 90.0)
 
     def test_path_within_one_cell(self):
         """8 px 열마다 path 의 y 가 정답에서 ±1 셀(120 열로 그릴 때의 셀 높이) 안 — 90% 이상의 열"""
@@ -138,7 +119,7 @@ class TrendHard(unittest.TestCase):
         """파랑 산점은 그대로 — 추세선은 빨강 군집만 묶는다"""
         for name in ("A0", "A1", "E0", "H", "I", "B0", "F0", "F1", "E"):
             with self.subTest(name=name):
-                self.assertEqual(sg.segment(case(name).image).of("trend"), [], "추세선이 없는 변형")
+                self.assertEqual(seg_of(name).of("trend"), [], "추세선이 없는 변형")
 
 
 class TrendRender(unittest.TestCase):

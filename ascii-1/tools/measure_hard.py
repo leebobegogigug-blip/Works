@@ -3,7 +3,8 @@
 
   python tools/measure_hard.py                      HARD 변형 전부 (시험용 그림은 tests/synth.py 가 코드로 그린다)
   python tools/measure_hard.py A0 E0 Z              이름으로 고른 변형만
-  python tools/measure_hard.py --real 그림.png ...  내 PC 의 그림도 잰다 (설계서 08 의 기준값과 비교). 사용자 그림은 저장소에 넣지 않는다 (W-12)
+  python tools/measure_hard.py --real 그림.png ...  내 PC 의 그림도 잰다 — 웨이퍼 · 관리도 원본이면 AC0 의 숫자와 맞는지 판정까지 한다
+                                                    (맞으면 종료 코드 0, 하나라도 어긋나면 1). 사용자 그림은 저장소에 넣지 않는다 (W-12)
 
 열: 시간 · 정답 개수 · 파랑 점 추정과 오차% · 빽빽한 군집(field)의 개수 범위 · 파랑 글자 · 파랑 곡선 · 밀도 상관 R(16×8 / 60×25) ·
     추세선 덮음(%) · 빨강 점 · 빨강 글자 · 선 찾은 수(가로 · 세로선 + 격자 줄)/정답(격자가 없으면 틀 4) · 검정 · 회색 군집의 점 · 글자 · 격자 칸 누수%(색 있는 군집으로 간 비율) · 격자 위 요소 칸%.
@@ -14,7 +15,7 @@ import sys
 import time
 from collections import Counter
 from math import isnan, sqrt
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.dirname(TOOLS)
@@ -29,6 +30,9 @@ TREND_COL = 8            # 추세선 덮음을 재는 열 너비(px)
 TREND_TOL = 4            # 정답 y 와 이만큼(px) 이내면 맞게 놓인 것
 # 설계서 08 의 사용자 그림 기준값 (로컬 확인용). 웨이퍼 · 관리도
 BASE_WAFER = {"파랑": 165, "주황": 26, "회색": 17}
+# 설계서 14-15 AC0 — 원본 두 장이 지켜야 하는 숫자 (허용폭은 거기 적힌 것: 노치 ±3° · 글자 ±2, 나머지는 정확히)
+REAL_WAFER = {"dots": BASE_WAFER, "closed": 100.0, "notch": 87.8, "notch_tol": 3.0}
+REAL_CHART = {"dots": {"파랑": 20}, "hline": 7, "vline": 2, "curve": 3, "text": 64, "text_tol": 2, "colored_text": 18}
 
 
 def pearson(a: List[float], b: List[float]) -> float:
@@ -95,12 +99,12 @@ def trend_cover(seg, case) -> Optional[float]:
     return 100.0 * hit / total if total else None
 
 
-def grid_leak(case, img, bg, seg) -> Optional[List[float]]:
+def grid_leak(case, img, bg, seg, cls_clusters=None) -> Optional[List[float]]:
     """격자 칸(데이터가 덮지 않고 남은 칸) 중 색 있는 군집으로 간 %, 그리고 점 · 글자 · 곡선 · 원 요소가 된 %.
-    군집은 segment() 와 같은 classify 결과 (격자가 있으면 격자 칸을 뺀 뒤)"""
+    군집은 segment() 와 같은 classify 결과 (격자가 있으면 격자 칸을 뺀 뒤). cls_clusters 에 이미 구한 classify 결과를 넘기면 다시 안 구한다"""
     if not case.grid_cells:
         return None
-    cls, clusters, _ = sg.classify(img, bg)
+    cls, clusters, _ = cls_clusters or sg.classify(img, bg)
     chroma = {c.index for c in clusters if not c.neutral}
     leak = sum(1 for i in case.grid_cells if cls[i] in chroma)
     covered = set()
@@ -112,12 +116,15 @@ def grid_leak(case, img, bg, seg) -> Optional[List[float]]:
     return [100.0 * leak / n, 100.0 * on / n]
 
 
-def measure(case) -> dict:
-    """변형 하나를 재서 값 사전으로 돌려준다 (표의 열과 같은 이름)"""
+def measure(case, seg=None, cls=None) -> dict:
+    """변형 하나를 재서 값 사전으로 돌려준다 (표의 열과 같은 이름). seg · cls(classify 결과)에 이미 구한 것을 넘기면 다시 분석하지 않는다
+    (시험이 같은 그림을 여러 번 분석하지 않으려고 — 이때 time 은 0 이고 부르는 쪽이 채운다)"""
     img = case.image
-    t = time.time()
-    seg = sg.segment(img)
-    dt = time.time() - t
+    dt = 0.0
+    if seg is None:
+        t = time.time()
+        seg = sg.segment(img)
+        dt = time.time() - t
     blue = named(seg, "파랑")
     red = set(named(seg, "빨강"))
     est = sum(seg.dots(k) for k in blue)
@@ -137,7 +144,7 @@ def measure(case) -> dict:
         "lines": len(seg.of("hline")) + len(seg.of("vline"))
         + (len(seg.grid.horizontal) + len(seg.grid.vertical) if seg.grid else 0),   # 격자 줄은 seg.grid 에 있다
         "lines_true": case.grid_lines or 4,                     # 격자가 없는 변형은 1 픽셀 틀 네 줄
-        "leak": grid_leak(case, img, seg.bg, seg),
+        "leak": grid_leak(case, img, seg.bg, seg, cls),
         "clusters": ",".join(c.name for c in seg.clusters),
     }
     if case.series_color and case.pts2:
@@ -174,8 +181,58 @@ def table(rows: List[List[str]]) -> str:
                      for r in cells)
 
 
-def real(path: str) -> List[str]:
-    """내 PC 의 그림 하나를 재서 설계서 08 의 기준값과 견준다 (참고용 — 판정하지 않는다)"""
+def real_facts(seg) -> dict:
+    """사용자 그림 하나의 분석 결과에서 AC0 이 보는 숫자만 뽑는다 (판정은 judge_real)"""
+    names = {c.index: c.name for c in seg.clusters}
+    neutral = {c.index for c in seg.clusters if c.neutral}
+    dots, texts = Counter(), Counter()
+    for e in seg.elements:
+        if e.kind in ("dot", "field"):
+            dots[names[e.cluster]] += e.count
+        elif e.kind == "text":
+            texts[names[e.cluster]] += 1
+    return {
+        "kind": seg.guess_kind(), "dots": dict(dots), "texts": dict(texts),
+        "colored_text": sum(1 for e in seg.elements if e.kind == "text" and e.cluster not in neutral),
+        "hline": len(seg.of("hline")), "vline": len(seg.of("vline")), "curve": len(seg.of("curve")),
+        "field": len(seg.of("field")), "reason": seg.reason,
+        "closed": None if seg.ring is None else 100.0 * seg.ring.closed,
+        "notch": None if seg.ring is None else seg.ring.notch,
+    }
+
+
+def judge_real(f: dict) -> List[tuple]:
+    """AC0 의 숫자와 견준다 → [(항목, 맞는가, '잰 값 (기준)')]. 웨이퍼 · 관리도가 아닌 그림은 []"""
+    out: List[tuple] = []
+
+    def check(what: str, ok: bool, got, want) -> None:
+        out.append((what, bool(ok), "%s (기준 %s)" % (got, want)))
+
+    check("분석", not f["reason"], "예" if not f["reason"] else f["reason"], "예")
+    if f["kind"] == "wafer":
+        for name, want in REAL_WAFER["dots"].items():
+            got = f["dots"].get(name, 0)
+            check("점 " + name, got == want, got, want)
+        check("점 군집 수", set(f["dots"]) == set(REAL_WAFER["dots"]), len(f["dots"]), len(REAL_WAFER["dots"]))
+        check("링 닫힘%", f["closed"] is not None and f["closed"] >= REAL_WAFER["closed"], fmt(f["closed"], ".0f"), "100")
+        check("노치°", f["notch"] is not None and abs(f["notch"] - REAL_WAFER["notch"]) <= REAL_WAFER["notch_tol"],
+              fmt(f["notch"], ".1f"), "%.1f±%.0f" % (REAL_WAFER["notch"], REAL_WAFER["notch_tol"]))
+        check("빽빽한 군집", f["field"] == 0, f["field"], 0)
+    elif f["kind"] == "chart":
+        for name, want in REAL_CHART["dots"].items():
+            got = f["dots"].get(name, 0)
+            check("마커 " + name, got == want, got, want)
+        for key, label in (("hline", "가로선"), ("vline", "세로선"), ("curve", "곡선")):
+            check(label, f[key] == REAL_CHART[key], f[key], REAL_CHART[key])
+        n = sum(f["texts"].values())
+        check("글자", abs(n - REAL_CHART["text"]) <= REAL_CHART["text_tol"], n, "%d±%d" % (REAL_CHART["text"], REAL_CHART["text_tol"]))
+        check("색 있는 글자", f["colored_text"] == REAL_CHART["colored_text"], f["colored_text"], REAL_CHART["colored_text"])
+        check("빽빽한 군집", f["field"] == 0, f["field"], 0)
+    return out
+
+
+def real(path: str) -> Tuple[List[str], int]:
+    """내 PC 의 그림 하나를 재서 설계서 08 · AC0 의 기준값과 견준다 → (찍을 줄, 어긋난 항목 수)"""
     img = ascii1_png.load(path)
     t = time.time()
     seg = sg.segment(img)
@@ -183,28 +240,24 @@ def real(path: str) -> List[str]:
     names = {c.index: c.name for c in seg.clusters}
     lines = ["%s: %dx%d %.2fs 분석=%s 종류=%s" % (os.path.basename(path), img.width, img.height, dt,
                                                "예" if not seg.reason else "아니오(" + seg.reason + ")", seg.guess_kind())]
-    dots = Counter()
-    texts = Counter()
-    for e in seg.elements:
-        if e.kind in ("dot", "field"):
-            dots[names[e.cluster]] += e.count
-        elif e.kind == "text":
-            texts[names[e.cluster]] += 1
-    lines.append("  점 " + (" ".join("%s %d" % kv for kv in sorted(dots.items())) or "-")
+    f = real_facts(seg)
+    lines.append("  점 " + (" ".join("%s %d" % kv for kv in sorted(f["dots"].items())) or "-")
                  + " · 글자 %d (%s) · 가로선 %d · 세로선 %d · 곡선 %d"
-                 % (sum(texts.values()), " ".join("%s %d" % kv for kv in sorted(texts.items())) or "-",
-                    len(seg.of("hline")), len(seg.of("vline")), len(seg.of("curve"))))
+                 % (sum(f["texts"].values()), " ".join("%s %d" % kv for kv in sorted(f["texts"].items())) or "-",
+                    f["hline"], f["vline"], f["curve"]))
     for e in seg.of("field"):
         d = e.density
         lines.append("  빽빽함 %s: 가운데 %d · 범위 %d–%d · 낱점 면적 %.1f · 지름 %.1f · 칸 %d px"
                      % (names[e.cluster], d.count, d.count_lo, d.count_hi, d.unit, d.diameter, d.cell))
-    if seg.ring is not None:
-        lines.append("  링 닫힘 %.0f%% 노치 %s° (기준: 닫힘 100%% · 노치 87.8°±3° · 점 %s)"
-                     % (100 * seg.ring.closed, fmt(seg.ring.notch, ".1f"),
-                        " ".join("%s %d" % kv for kv in BASE_WAFER.items())))
-    elif seg.guess_kind() == "chart":
-        lines.append("  기준(관리도): 마커 20 · 가로선 7 · 세로선 2 · 글자 64±2")
-    return lines
+    verdict = judge_real(f)
+    bad = [v for v in verdict if not v[1]]
+    if verdict:
+        lines.append("  AC0 판정: " + ("모두 맞음" if not bad else "어긋남 %d" % len(bad)))
+        for what, ok, detail in verdict:
+            lines.append("    %s %s: %s" % ("맞음  " if ok else "어긋남", what, detail))
+    else:
+        lines.append("  AC0 판정: 웨이퍼 · 관리도가 아니라 견줄 기준이 없다")
+    return lines, len(bad)
 
 
 def main(argv: List[str]) -> int:
@@ -220,13 +273,17 @@ def main(argv: List[str]) -> int:
     names = args or ([] if paths else list(synth.HARD))
     if names:
         print(table([row(measure(synth.hard_case(n))) for n in names]))
+    bad = 0
     for p in paths:
         try:
-            print("\n".join(real(p)))
+            lines, n = real(p)
+            print("\n".join(lines))
+            bad += n
         except (OSError, ValueError) as e:
             print("%s: 읽지 못했습니다 (%s)" % (os.path.basename(p), e))
-    print("결과: 측정 끝")
-    return 0
+            bad += 1
+    print("결과: 측정 끝" if not bad else "결과: 기준과 어긋남 %d" % bad)
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":

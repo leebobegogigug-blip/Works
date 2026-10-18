@@ -10,6 +10,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 import ascii1_seg as sg  # noqa: E402
+import shared  # noqa: E402     # 시험 파일끼리 나눠 쓰는 읽기 전용 캐시
 import synth  # noqa: E402
 
 W = 40           # 모양 시험용 작은 그림의 폭
@@ -190,14 +191,9 @@ class TextGate(unittest.TestCase):
                 self.assertEqual(len(texts(seg, "빨강")), 3, "UCL 세 글자")
 
 
-_CASES = {}
-
-
 def case(name):
-    if name not in _CASES:
-        c = synth.hard_case(name)
-        _CASES[name] = (c, sg.segment(c.image))
-    return _CASES[name]
+    """(정답, 요소 찾기) — 시험 파일끼리 나눠 쓰는 읽기 전용 캐시"""
+    return shared.case(name), shared.seg_of(name)
 
 
 class SparseCountAC3(unittest.TestCase):

@@ -4,7 +4,10 @@
 실제 그림에서 잰 모양(선 두께 2–3 · 마커 지름 약 10 · 웨이퍼 점 3×3 · 1칸 외곽선 · 노치)을 따라 그렸다.
 soften() 은 JPEG 처럼 가장자리가 번지고 잡티가 낀 모습을 흉내 낸다.
 """
+import copy
+import functools
 import random
+from itertools import chain
 from math import cos, exp, hypot, pi, sin
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -42,6 +45,24 @@ FONT_HARD = {
 }
 
 
+def _memo(f):
+    """같은 인자면 같은 그림 — 시험이 같은 합성 그림을 수십 번 다시 그리지 않게 한다. 돌려줄 때마다 복사본을 줘서(바이트열은 불변이라 같이 쓴다)
+    받은 쪽이 고쳐도 다음 시험에 영향이 없다. 원래 함수는 f.__wrapped__ 로 부른다"""
+    cache = {}
+
+    @functools.wraps(f)
+    def inner(*args, **kw):
+        try:
+            key = (tuple((a.width, a.height, a.rgb) if isinstance(a, Image) else a for a in args), tuple(sorted(kw.items())))
+            hash(key)
+        except TypeError:
+            return f(*args, **kw)
+        if key not in cache:
+            cache[key] = f(*args, **kw)
+        return copy.deepcopy(cache[key])
+    return inner
+
+
 class Canvas:
     def __init__(self, w: int, h: int, bg: Color = (255, 255, 255)):
         self.w, self.h = w, h
@@ -52,9 +73,12 @@ class Canvas:
             self.px[y * self.w + x] = c
 
     def rect(self, x0: int, y0: int, x1: int, y1: int, c: Color) -> None:
-        for y in range(y0, y1 + 1):
-            for x in range(x0, x1 + 1):
-                self.set(x, y, c)
+        xa, xb = max(x0, 0), min(x1, self.w - 1)          # 그림 밖은 자른다 (set 과 같다) — 행마다 한 번에 채운다
+        if xa > xb:
+            return
+        fill = [c] * (xb - xa + 1)
+        for y in range(max(y0, 0), min(y1, self.h - 1) + 1):
+            self.px[y * self.w + xa:y * self.w + xb + 1] = fill
 
     def disc(self, cx: float, cy: float, r: float, c: Color) -> None:
         for y in range(int(cy - r) - 1, int(cy + r) + 2):
@@ -106,9 +130,10 @@ class Canvas:
                         self.set(x + n * 7 + i, y + j, c)
 
     def image(self) -> Image:
-        return Image(self.w, self.h, bytes(v for p in self.px for v in p))
+        return Image(self.w, self.h, bytes(chain.from_iterable(self.px)))
 
 
+@_memo
 def zoom(img: Image, f: int) -> Image:
     """f 배로 키운다 (가장 가까운 칸 복사)"""
     w, h, src = img.width, img.height, img.rgb
@@ -119,6 +144,7 @@ def zoom(img: Image, f: int) -> Image:
     return Image(w * f, h * f, bytes(out))
 
 
+@_memo
 def zoom_smooth(img: Image, f: int) -> Image:
     """f 배로 부드럽게 키운다 (칸 중심을 맞춘 쌍선형 보간) — 그림 편집기 · 브라우저가 키운 그림처럼 가장자리가 섞인다"""
     w, h, src = img.width, img.height, img.rgb
@@ -146,21 +172,49 @@ def zoom_smooth(img: Image, f: int) -> Image:
     return Image(w * f, h * f, bytes(res))
 
 
+@_memo
 def soften(img: Image, a: float = 0.7, noise: int = 4, seed: int = 1) -> Image:
-    """가장자리를 번지게 하고(이웃 네 칸과 섞음) 칸마다 ±noise 의 잡티를 더한다 — JPEG 흉내"""
+    """가장자리를 번지게 하고(이웃 네 칸과 섞음) 칸마다 ±noise 의 잡티를 더한다 — JPEG 흉내.
+    값은 칸마다 `a·자기 + (1−a)·이웃 평균 + 잡티` 를 반올림한 것이다 (속도를 위해 행 단위로 계산할 뿐, 결과는 칸마다 쓴 식과 같다 —
+    잡티 난수는 y · x · 색 순서로 뽑는다)"""
     w, h, src = img.width, img.height, img.rgb
     rng = random.Random(seed)
+    b = 1 - a
+    lo, hi = -noise, noise
+    randint = rng.randint
     out = bytearray(len(src))
+    planes = [src[k::3] for k in range(3)]
     for y in range(h):
-        for x in range(w):
-            for k in range(3):
-                nb = [src[3 * (yy * w + xx) + k] for xx, yy in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
-                      if 0 <= xx < w and 0 <= yy < h]
-                v = a * src[3 * (y * w + x) + k] + (1 - a) * sum(nb) / len(nb) + rng.randint(-noise, noise)
-                out[3 * (y * w + x) + k] = max(0, min(255, int(round(v))))
+        # 잡티: 이 행의 칸 · 색 순서대로
+        nz = [randint(lo, hi) for _ in range(3 * w)]
+        for k in range(3):
+            p = planes[k]
+            cur = p[y * w:(y + 1) * w]
+            up = p[(y - 1) * w:y * w] if y else None
+            dn = p[(y + 1) * w:(y + 2) * w] if y < h - 1 else None
+            row = []
+            push = row.append
+            for x in range(w):
+                s, n = 0, 0
+                if x:
+                    s += cur[x - 1]
+                    n += 1
+                if x < w - 1:
+                    s += cur[x + 1]
+                    n += 1
+                if up is not None:
+                    s += up[x]
+                    n += 1
+                if dn is not None:
+                    s += dn[x]
+                    n += 1
+                v = a * cur[x] + b * s / n + nz[3 * x + k]
+                push(0 if v < 0 else 255 if v > 255 else int(round(v)))
+            out[y * 3 * w + k:(y + 1) * 3 * w:3] = bytes(row)
     return Image(w, h, bytes(out))
 
 
+@_memo
 def control_chart(markers: int = 12, frame: bool = False) -> Tuple[Image, int]:
     """관리도: 한계선(빨강 2 · 노랑 2) · 중심선(검정) · 왼쪽 축 · 아래 축 · 파랑 꺾은선과 마커 · 글자. (그림, 마커 수)"""
     c = Canvas(420, 300)
@@ -185,6 +239,7 @@ def control_chart(markers: int = 12, frame: bool = False) -> Tuple[Image, int]:
     return c.image(), markers
 
 
+@_memo
 def line_chart(markers: int = 12) -> Tuple[Image, int]:
     """마커와 곡선뿐인 차트 — 가로 · 세로선도 글자도 없다 (선 두께를 곡선 자체에서 재야 마커를 가른다)"""
     c = Canvas(420, 300)
@@ -196,6 +251,7 @@ def line_chart(markers: int = 12) -> Tuple[Image, int]:
     return c.image(), markers
 
 
+@_memo
 def wafer_map(blue: int = 50, orange: int = 12, gray: int = 8, tile: int = 4, seed: int = 3, notch: bool = True,
               faint: bool = False, plus: int = 0, squash: float = 0.0, halo: int = 0, stripe: int = 0, ring: bool = True):
     """웨이퍼 맵: 회색 1칸 외곽(아래쪽에 노치) · 흩어진 3×3 점 · 빈틈없이 깐 점 덩어리. → (그림, 정보 dict)"""
@@ -380,9 +436,11 @@ HARD_SPECS: Dict[str, dict] = {
 HARD = tuple(HARD_SPECS)
 
 
-def hard_case(name: str) -> HardCase:
-    """HARD 변형 name 의 그림과 정답. 같은 이름이면 늘 같은 그림이다 (씨앗 고정)"""
-    cfg = dict(_BASE, **HARD_SPECS[name])
+def hard_case(name: str, **over) -> HardCase:
+    """HARD 변형 name 의 그림과 정답. 같은 이름이면 늘 같은 그림이다 (씨앗 고정).
+    over 로 변형의 설정 한두 개만 바꿔 본다 (예: trendw=4, dash=(4, 3)) — 이름은 그대로라 정답 비교만 쓴다"""
+    cfg = dict(_BASE, dash=(10, 6), **HARD_SPECS[name])
+    cfg.update(over)
     w, h = HARD_SIZE
     box = HARD_BOX
     x0, y0, x1, y1 = box
@@ -411,7 +469,7 @@ def hard_case(name: str) -> HardCase:
         if cfg["trend"] == "solid":
             c.polyline(trend, cfg["trendw"], TREND)
         else:
-            dashed(c, trend, 10, 6, cfg["trendw"], TREND)
+            dashed(c, trend, cfg["dash"][0], cfg["dash"][1], cfg["trendw"], TREND)
     gcells = {i for i in gcells if c.px[i] == cfg["grid"]}                 # 데이터가 덮은 칸은 뺀다
     img = c.image()
     if cfg["blur"]:

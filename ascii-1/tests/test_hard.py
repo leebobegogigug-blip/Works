@@ -2,7 +2,6 @@
 """HARD 합성 세트와 측정 도구(tools/measure_hard.py) — 이 단계는 세트의 정답이 서로 맞는지 · 결정적인지 · 도구가 도는지만 지킨다.
 '지금 값'(NOW)은 기준선 기록이다: 요소 찾기를 일부러 고치면 이 값이 바뀌고, 그때 사람이 보고 고친다.
 개선 기대값(AC)은 각 구현 작업이 자기 시험으로 넣는다. 그림은 전부 코드로 만든 것 (W-12)."""
-import importlib.util
 import os
 import sys
 import unittest
@@ -14,18 +13,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, HERE)
 import ascii1_seg as sg  # noqa: E402
 import synth  # noqa: E402
-
-spec = importlib.util.spec_from_file_location("measure_hard", os.path.join(ROOT, "tools", "measure_hard.py"))
-mh = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mh)
-
-_CASES = {}
-
-
-def case(name):
-    if name not in _CASES:
-        _CASES[name] = synth.hard_case(name)
-    return _CASES[name]
+from shared import case, classified, measured, mh, seg_of  # noqa: E402     # 시험 파일끼리 나눠 쓰는 캐시 (읽기 전용)
 
 
 # 지금 요소 찾기의 파랑 점 추정 — 기준선. 0.2.0 은 E0 229 · A_base 102 (속 빈 원을 4 배 세고 겹친 표식을 글자로 지웠다).
@@ -96,15 +84,6 @@ class HardSet(unittest.TestCase):
 
 GRIDDED = ("B0", "C", "Z", "D")
 NO_GRID = tuple(n for n in synth.HARD if n not in GRIDDED)
-_SEGS = {}
-
-
-def seg_of(name):
-    if name not in _SEGS:
-        _SEGS[name] = sg.segment(case(name).image)
-    return _SEGS[name]
-
-
 def true_lines(name):
     """정답 격자줄의 중심 (가로 y · 세로 x) — synth.grid 가 긋는 자리. 두께 2 면 반 칸 위 · 왼쪽"""
     x0, y0, x1, y1 = synth.HARD_BOX
@@ -153,14 +132,14 @@ class GridAC(unittest.TestCase):
         for name in GRIDDED:
             with self.subTest(name=name):
                 c, seg = case(name), seg_of(name)
-                cls, clusters, grid = sg.classify(c.image, seg.bg)
+                cls, clusters, grid = classified(name)
                 if name == "D":         # 진한 격자는 중립 군집 그대로 두고 선 단계에서 뗀다 — 색 있는 군집으로 가면 안 된다
                     chroma = {k.index for k in clusters if not k.neutral}
                     leak = sum(1 for i in c.grid_cells if cls[i] in chroma)
                 else:
                     leak = sum(1 for i in c.grid_cells if cls[i])
                 self.assertLessEqual(100.0 * leak / len(c.grid_cells), 2.0)
-                m = mh.measure(c)
+                m = measured(name)
                 self.assertLessEqual(m["leak"][0], 2.0)
                 self.assertLessEqual(m["leak"][1], 2.0, "격자 칸 중 점 · 글자 · 곡선이 된 비율")
 
@@ -183,16 +162,16 @@ class GridAC(unittest.TestCase):
     def test_measure_counts_grid_lines(self):
         for name in ("B0", "D"):
             with self.subTest(name=name):
-                m = mh.measure(case(name))
+                m = measured(name)
                 self.assertEqual((m["lines"], m["lines_true"]), (38, 38))
-        self.assertEqual(mh.measure(case("A0"))["lines"], 4)
+        self.assertEqual(measured("A0")["lines"], 4)
 
 
 class MeasureTool(unittest.TestCase):
     def test_measure_keys_and_now_values(self):
         for name, est in NOW.items():
             with self.subTest(name=name):
-                m = mh.measure(case(name))
+                m = measured(name)
                 self.assertEqual(m["n"], case(name).n)
                 self.assertEqual(m["est"], est, "기준선(NOW)이 바뀌었다 — 의도한 변경이면 값을 고친다")
                 self.assertEqual(len(m["R"]), 2)
@@ -200,16 +179,16 @@ class MeasureTool(unittest.TestCase):
                 self.assertEqual(len(mh.row(m)), len(mh.HEAD))
 
     def test_grid_leak_and_trend_measured(self):
-        m = mh.measure(case("B0"))
+        m = measured("B0")
         self.assertIsNotNone(m["leak"])
         self.assertTrue(all(0.0 <= v <= 100.0 for v in m["leak"]))
         self.assertEqual(m["lines_true"], 38)
-        t = mh.measure(case("J1"))
+        t = measured("J1")
         self.assertIsNotNone(t["trend"])
-        self.assertIsNone(mh.measure(case("A0"))["trend"])
+        self.assertIsNone(measured("A0")["trend"])
 
     def test_table_shape(self):
-        out = mh.table([mh.row(mh.measure(case("A0")))])
+        out = mh.table([mh.row(measured("A0"))])
         lines = out.splitlines()
         self.assertEqual(len(lines), 2)
         self.assertTrue(lines[0].startswith("이름"))

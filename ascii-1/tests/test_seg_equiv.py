@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 import ascii1_seg as sg  # noqa: E402
 import synth  # noqa: E402
+from shared import case as hard_case, seg_of  # noqa: E402     # HARD 변형은 다른 시험 파일과 나눠 쓰는 읽기 전용 분석 결과
 
 
 def _f(v):
@@ -69,7 +70,7 @@ CASES = {
     "wafer_stripe": lambda: synth.wafer_map(stripe=40, ring=False)[0],
     "wafer_tile6_x2": lambda: synth.zoom(synth.wafer_map(tile=6)[0], 2),
 }
-CASES.update({"hard_" + n: (lambda n=n: synth.hard_case(n).image) for n in synth.HARD})
+CASES.update({"hard_" + n: (lambda n=n: hard_case(n).image) for n in synth.HARD})
 
 
 def dense_rings():
@@ -209,7 +210,8 @@ class SameAsBefore(unittest.TestCase):
     def test_segment_unchanged(self):
         for name in CASES:
             with self.subTest(name=name):
-                self.assertEqual(summary(sg.segment(image(name))), SNAPSHOT[name])
+                seg = seg_of(name[5:]) if name.startswith("hard_") else sg.segment(image(name))
+                self.assertEqual(summary(seg), SNAPSHOT[name])
 
 
 class Speed(unittest.TestCase):
