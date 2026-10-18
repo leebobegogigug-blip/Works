@@ -208,10 +208,9 @@ class SparseCountAC3(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertSparse(name)
 
-    @unittest.expectedFailure
     def test_a3_overlapping_discs_within_10_percent(self):
-        """A3 (채운 r 4 120 개) 는 -14% — 겹친 원판 쌍이 split_markers 로 가서 쌍마다 1 개로 센다 (마커 분리 호출부 · T6 · T7 의 몫).
-        고쳐져 통과하면 이 표시(expectedFailure)를 지운다"""
+        """A3 (채운 r 4 120 개) — 겹친 원판 쌍이 split_markers 로 가서 쌍마다 1 개로 세던 것(-14%). T7 부터 상자 안 표식 무리의
+        곡선 아닌 덩어리는 마커 분리로 가지 않고 면적으로 센다"""
         self.assertSparse("A3")
 
     def assertSparse(self, name):

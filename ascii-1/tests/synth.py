@@ -119,6 +119,33 @@ def zoom(img: Image, f: int) -> Image:
     return Image(w * f, h * f, bytes(out))
 
 
+def zoom_smooth(img: Image, f: int) -> Image:
+    """f 배로 부드럽게 키운다 (칸 중심을 맞춘 쌍선형 보간) — 그림 편집기 · 브라우저가 키운 그림처럼 가장자리가 섞인다"""
+    w, h, src = img.width, img.height, img.rgb
+
+    def taps(n: int):
+        out = []
+        for X in range(n * f):
+            s = (X + 0.5) / f - 0.5
+            a = max(0, min(n - 1, int(s // 1)))
+            out.append((a, min(n - 1, a + 1), min(1.0, max(0.0, s - a))))
+        return out
+
+    xs = taps(w)
+    rows = []
+    for y in range(h):
+        r = src[3 * y * w:3 * (y + 1) * w]
+        out = bytearray(3 * w * f)
+        for X, (a, b, t) in enumerate(xs):
+            for k in range(3):
+                out[3 * X + k] = int(r[3 * a + k] * (1 - t) + r[3 * b + k] * t + 0.5)
+        rows.append(out)
+    res = bytearray()
+    for a, b, t in taps(h):
+        res += bytes(int(p * (1 - t) + q * t + 0.5) for p, q in zip(rows[a], rows[b]))
+    return Image(w * f, h * f, bytes(res))
+
+
 def soften(img: Image, a: float = 0.7, noise: int = 4, seed: int = 1) -> Image:
     """가장자리를 번지게 하고(이웃 네 칸과 섞음) 칸마다 ±noise 의 잡티를 더한다 — JPEG 흉내"""
     w, h, src = img.width, img.height, img.rgb

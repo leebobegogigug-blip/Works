@@ -6,9 +6,10 @@ Image(RGB) → Segmentation: 바탕을 빼고, 색(군집)마다 따로 연결�
 어떤 Image 를 줘도 예외 없이 끝난다 (전경이 없으면 요소가 빈 목록).
 """
 import colorsys
+from array import array
 from collections import Counter
 from dataclasses import dataclass, field
-from math import atan2, cos, hypot, pi, sin, sqrt
+from math import atan2, cos, hypot, log, pi, sin, sqrt
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 FG_DIST = 60              # 바탕과 RGB 거리가 이보다 커야 전경
@@ -77,6 +78,19 @@ TREND_SPAN = 0.40         # 줄의 가로 길이 ≥ 상자 폭의 이 비율
 TREND_FILL = 0.90         # 줄 안의 구간 중 칸이 있는 것 ≥ 이 비율
 TREND_NARROW = 0.80       # 줄 안의 구간 중 좁은 것 ≥ 이 비율
 MARKER_MIN = (2.0, 2.0)   # 쪼갠 마커의 몸통 지름 중앙값이 선 두께의 2 배 + 2 px 보다 작으면 마커가 아니라 선 조각
+# 빽빽한 산점 · 개수 범위 (설계서 14-9). 문턱은 개수 · 비율 · 낱점 지름의 배수 · 그림 짧은 변의 비율 — px 고정은 바닥값뿐 (크기 불변)
+POISSON_CELL = 3          # 겹침 보정 칸 한 변 = 낱점 지름의 이 배수
+POISSON_CAP = 0.9         # 칸의 덮음 비율을 이 값에서 자른다 (꽉 찬 칸이 무한대가 되지 않게)
+DENSE_MIN_N = 500         # 빽빽: 겹침 보정 개수 ≥
+DENSE_BIG_UNIT = 3        # …낱점 면적의 이 배수보다 큰 덩어리에 든 질량의 몫이
+DENSE_BIG = 0.5           # …이 값 이상
+DENSE_ISO_SHARE = 0.01    # …그리고 낱점 면적을 잰 외톨이(typical_areas)가 추정 개수의 이 비율 이상 — 번짐 잡티 몇 개로 잰 낱점 면적이
+                          #    선 조각 질량을 수천 개로 부풀리지 않게 (실제 빽빽한 산점 3.6% 이상 · 부드럽게 키운 그림의 빨강 추세선 0.2%)
+DENSE_PATH_BIN = 8        # 곡선 빼기: 긴 축을 이 폭(px) 구간으로 나눠 짧은 축으로 퍼진 폭을 잰다
+DENSE_PATH_SPREAD = (8, 0.08)   # …퍼짐 중앙값 ≤ max(8 px, 0.08 × 그림 짧은 변) 이면 곡선 (큰 덩어리 몫에서 뺀다)
+RANGE_Q = (0.25, 0.75)    # 개수 범위: 외톨이 면적의 이 분위수로 다시 센 값 (큰 면적 → 아래)
+RANGE_MIN = 0.10          # …범위는 적어도 가운데의 ±이 비율
+FIELD_COLS = 300          # 밀도 지도 블록 한 변 = max(1, 상자 폭 // 이 값) — 렌더의 가장 넓은 열 수 (MAX_WIDTH)
 
 HUE_NAMES = ((15, "빨강"), (40, "주황"), (70, "노랑"), (165, "초록"), (190, "청록"), (260, "파랑"), (290, "보라"),
              (340, "자홍"), (361, "빨강"))
@@ -92,17 +106,34 @@ class Cluster:
 
 
 @dataclass
+class DensityMap:                  # kind "field" 의 본체. 칸 목록을 들지 않는다 (메모리)
+    x0: int                        # 지도의 왼쪽 위 (px) — 그림 상자의 왼쪽 위
+    y0: int
+    block: int                     # 블록 한 변 (px) = max(1, 상자 폭 // FIELD_COLS)
+    cols: int
+    rows: int
+    mass: "array"                  # typecode "I", 길이 cols * rows, 행 우선. 블록마다 그 군집의 칸 수 (px²)
+    unit: float                    # 낱점 면적 (px²)
+    diameter: float                # 낱점 지름 = 외톨이 경계상자 긴 변의 중앙값 (px)
+    count: int                     # 추정 개수의 가운데 값 (개) — Element.count 와 같다
+    count_lo: int                  # 범위 아래 (개)
+    count_hi: int                  # 범위 위 (개)
+    cell: int = 0                  # 겹침 보정 칸 한 변 (px) = round(POISSON_CELL × diameter)
+
+
+@dataclass
 class Element:
-    kind: str                      # hline vline ring text dot curve trend
+    kind: str                      # hline vline ring text dot curve trend field
     cluster: int
     bbox: Tuple[int, int, int, int]  # x0 y0 x1 y1 (끝 포함)
-    area: int
-    pixels: List[int]              # 그림 위 칸 번호 y * width + x
+    area: int                      # field 는 질량 합 (px²)
+    pixels: List[int]              # 그림 위 칸 번호 y * width + x. field 는 빈 목록 (칸은 density.mass 에)
     cx: float = 0.0
     cy: float = 0.0
-    count: int = 1                 # dot 의 추정 개수 (추정치다). trend 는 0
+    count: int = 1                 # dot · field 의 추정 개수 (추정치다). trend 는 0
     thickness: float = 0.0         # hline · vline · trend 의 두께 (px)
     path: Optional[List[Tuple[float, float]]] = None   # trend: x 순 구간 중심점 (px, 칸 중심은 +0.5)
+    density: Optional[DensityMap] = None               # field: 블록별 질량 지도 · 낱점 면적 · 개수 범위
 
 
 @dataclass
@@ -153,7 +184,14 @@ class Segmentation:
         return [e for e in self.elements if e.kind == kind]
 
     def dots(self, cluster: Optional[int] = None) -> int:
-        return sum(e.count for e in self.elements if e.kind == "dot" and cluster in (None, e.cluster))
+        """점의 추정 개수 — dot 과 field(가운데 값)의 count 를 더한다"""
+        return sum(e.count for e in self.elements if e.kind in ("dot", "field") and cluster in (None, e.cluster))
+
+    def dots_range(self, cluster: Optional[int] = None) -> Tuple[int, int]:
+        """점의 추정 범위 — dot 합에 field 의 범위 아래 · 위를 더한다 (field 가 없으면 (n, n))"""
+        n = sum(e.count for e in self.elements if e.kind == "dot" and cluster in (None, e.cluster))
+        fs = [e.density for e in self.elements if e.kind == "field" and cluster in (None, e.cluster)]
+        return n + sum(d.count_lo for d in fs), n + sum(d.count_hi for d in fs)
 
     def guess_kind(self) -> str:
         if self.ring is not None:
@@ -995,6 +1033,119 @@ def marker_curve(pix: Sequence[int], w: int, h: int, line_thickness: Optional[fl
     return res is not None and len(res[0]) >= 2 and marker_diameter(res[0]) >= MARKER_MIN[0] * t_own + MARKER_MIN[1]
 
 
+# ─────────────────────────────────────────────────────────────── 빽빽한 산점 · 개수 범위 (설계서 14-9)
+
+def typical_areas(areas: Sequence[float]) -> List[float]:
+    """외톨이 면적 중 중앙값 m 의 1/3 – 3 배 안의 것. 위는 겹친 쌍이 외톨이처럼 보인 것, 아래는 번짐 잡티 —
+    잡티는 1 · 2 칸이라 '면적 ≥ 4' 에 걸리지만 그림을 키우면 4 칸을 넘어 들어온다 (크기 불변)"""
+    m = median(areas)
+    return [a for a in areas if m / 3 <= a <= 3 * m]
+
+
+def unit_of(areas: Sequence[float]) -> float:
+    """외톨이 면적들 → 낱점 면적: typical_areas 의 중앙값"""
+    return median(typical_areas(areas))
+
+
+def quantile(vals: Sequence[float], p: float) -> float:
+    """정렬한 값에서 p 분위 자리(가장 가까운 순위)의 값"""
+    s = sorted(vals)
+    return s[min(len(s) - 1, int(p * (len(s) - 1) + 0.5))]
+
+
+def poisson_count(masses: Sequence[int], cell: int, unit: float) -> float:
+    """겹침 보정 개수 — 칸(한 변 cell)마다 n = -(c² / unit) × ln(1 - min(POISSON_CAP, m / c²)) 를 더한다.
+    무작위로 놓인 표식이 덮는 비율 1 - exp(-밀도 × 표식 면적) 을 거꾸로 풀어 겹친 만큼을 되돌린다 (표식 모양과 상관없다)"""
+    a = cell * cell
+    return sum(-(a / unit) * log(1 - min(POISSON_CAP, m / a)) for m in masses if m)
+
+
+def count_range(masses: Sequence[int], cell: int, areas: Sequence[float]) -> Tuple[float, float, float]:
+    """(가운데, 아래, 위). 가운데는 낱점 면적으로, 아래 · 위는 외톨이 면적(typical_areas)의 75% · 25% 분위수로 다시 센 값.
+    크기가 고른 표식은 분위수 범위가 거의 0 이라 적어도 가운데의 ±RANGE_MIN 으로 넓힌다"""
+    keep = typical_areas(areas)
+    mid = poisson_count(masses, cell, median(keep))
+    lo = min(poisson_count(masses, cell, quantile(keep, RANGE_Q[1])), mid * (1 - RANGE_MIN))
+    hi = max(poisson_count(masses, cell, quantile(keep, RANGE_Q[0])), mid * (1 + RANGE_MIN))
+    return mid, lo, hi
+
+
+def curve_like(pix: Sequence[int], box: Tuple[int, int, int, int], w: int, h: int) -> bool:
+    """곡선처럼 생긴 덩어리 — is_path 이면서 긴 축 DENSE_PATH_BIN px 구간마다 짧은 축으로 퍼진 폭의 중앙값이
+    max(8 px, 0.08 × 그림 짧은 변) 이하. 마커가 붙은 곡선은 16–17 px, 한 덩어리로 이어진 빽빽한 산점은 100 px 넘게 퍼진다"""
+    if not is_path(pix, box, w, h):
+        return False
+    along_x = box[2] - box[0] >= box[3] - box[1]
+    span: Dict[int, List[int]] = {}
+    for i in pix:
+        a, o = (i % w, i // w) if along_x else (i // w, i % w)
+        b = span.get(a // DENSE_PATH_BIN)
+        if b is None:
+            span[a // DENSE_PATH_BIN] = [o, o]
+        elif o < b[0]:
+            b[0] = o
+        elif o > b[1]:
+            b[1] = o
+    return median([hi - lo + 1 for lo, hi in span.values()]) <= max(DENSE_PATH_SPREAD[0], DENSE_PATH_SPREAD[1] * min(w, h))
+
+
+def big_share(items, unit: float, w: int, h: int) -> float:
+    """덩어리들(칸, 상자)의 질량 중 낱점 면적의 DENSE_BIG_UNIT 배보다 큰 덩어리에 든 몫. 곡선처럼 생긴 덩어리는 몫에서 뺀다 (분모에는 든다)"""
+    total = sum(len(p) for p, _ in items)
+    big = sum(len(p) for p, b in items if len(p) > DENSE_BIG_UNIT * unit and not curve_like(p, b, w, h))
+    return big / total if total else 0.0
+
+
+def density_stats(k: int, items, plot_box: Tuple[int, int, int, int], w: int, h: int) -> Optional[dict]:
+    """상자 안 군집 k 의 덩어리들(칸, 상자) → 빽빽 판정 값. 외톨이(원판 · 둥근 덩어리 · 속 빈 원, 면적 ≥ 4, 긴 변 ≤ 그림 긴 변의 10%)가
+    없으면 None (지금 경로). 낱점 지름 = 외톨이 긴 변의 중앙값, 칸 한 변 = round(POISSON_CELL × 지름) 을 상자 왼쪽 위에서 깐다"""
+    areas, sides = [], []
+    for pix, box in items:
+        bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
+        if len(pix) >= 4 and max(bw, bh) <= 0.1 * max(w, h) \
+                and (is_round(bw, bh, len(pix)) or is_disc(pix, box, w) or is_hollow(pix, box, w)):
+            areas.append(len(pix))
+            sides.append(max(bw, bh))
+    if not areas:
+        return None
+    diameter = median(sides)
+    cell = max(1, int(round(POISSON_CELL * diameter)))
+    x0, y0 = plot_box[0], plot_box[1]
+    masses = Counter(((i // w - y0) // cell, (i % w - x0) // cell) for pix, _ in items for i in pix)
+    mid, lo, hi = count_range(list(masses.values()), cell, areas)
+    unit = unit_of(areas)
+    return {"cluster": k, "unit": unit, "diameter": diameter, "cell": cell, "count": mid, "lo": lo, "hi": hi,
+            "big": big_share(items, unit, w, h), "mass": sum(masses.values()), "iso": len(typical_areas(areas))}
+
+
+def is_dense(st: dict) -> bool:
+    """빽빽함: 겹침 보정 개수 ≥ DENSE_MIN_N 이고 큰 덩어리 몫 ≥ DENSE_BIG 이고 외톨이 ≥ DENSE_ISO_SHARE × 개수
+    (상자 · 링 없음 · 색 군집 · 외톨이가 있는지는 부르는 쪽이 본다)"""
+    return st["count"] >= DENSE_MIN_N and st["big"] >= DENSE_BIG and st["iso"] >= DENSE_ISO_SHARE * st["count"]
+
+
+def density_field(k: int, items, plot_box: Tuple[int, int, int, int], st: dict, w: int) -> Element:
+    """빽빽한 군집 k 의 상자 안 덩어리들 → Element("field"). 칸 목록 대신 블록(한 변 max(1, 상자 폭 // FIELD_COLS))마다 칸 수를
+    array("I") 에 센다. 상자 밖으로 삐져나온 칸은 가장자리 블록에. bbox 는 덩어리 상자들의 합, cx · cy 는 질량 중심"""
+    x0, y0, x1, y1 = plot_box
+    block = max(1, (x1 - x0 + 1) // FIELD_COLS)
+    cols, rows = (x1 - x0) // block + 1, (y1 - y0) // block + 1
+    mass = array("I", [0]) * (cols * rows)
+    sx = sy = 0
+    for pix, _ in items:
+        for i in pix:
+            x, y = i % w, i // w
+            sx += x
+            sy += y
+            mass[min(rows - 1, max(0, (y - y0) // block)) * cols + min(cols - 1, max(0, (x - x0) // block))] += 1
+    total = sum(len(p) for p, _ in items)
+    box = (min(b[0] for _, b in items), min(b[1] for _, b in items), max(b[2] for _, b in items), max(b[3] for _, b in items))
+    n = int(round(st["count"]))
+    dm = DensityMap(x0, y0, block, cols, rows, mass, float(st["unit"]), float(st["diameter"]), n,
+                    min(n, int(st["lo"])), max(n, int(-(-st["hi"] // 1))), st["cell"])
+    return Element("field", k, box, total, [], sx / total, sy / total, n, density=dm)
+
+
 def segment(img) -> Segmentation:
     w, h = img.width, img.height
     bg = find_bg(img)
@@ -1063,6 +1214,23 @@ def segment(img) -> Segmentation:
     for k, idx in per.items():
         for pix in components_of(idx, w):
             comps.append((k, pix, bbox_of(pix, w)))
+    # ── 빽빽한 산점: 상자 안 색 군집마다 겹침 보정 개수 · 큰 덩어리 몫을 재서, 빽빽하면 상자 안 덩어리를 모두 field 하나로
+    #    (글자 · 마커 분리 · 점으로 가지 않는다). 링이 있거나 상자가 없거나 외톨이가 없으면 지금 경로 (설계서 14-9 · 14-13)
+    field_k: Set[int] = set()
+    if pb is not None and ring is None:
+        mine: Dict[int, list] = {}
+        for k, pix, box in comps:
+            if not clusters[k - 1].neutral and in_plot(pb, box):
+                mine.setdefault(k, []).append((pix, box))
+        for k in sorted(mine):
+            st = density_stats(k, mine[k], pb, w, h)
+            if st is None or not is_dense(st):
+                continue
+            seg.elements.append(density_field(k, mine[k], pb, st, w))
+            seg.unit[k] = float(st["unit"])
+            field_k.add(k)
+        if field_k:
+            comps = [c for c in comps if not (c[0] in field_k and in_plot(pb, c[2]))]
     # ── 글자: 높이가 글자만 한 덩어리 중 줄을 이루는 것 (링 안은 데이터).
     #    상자 안에서 표식이 되풀이되는 색 군집의 상자 안 덩어리는 후보가 아니다 — 겹친 표식 쌍이 줄 묶기를 켜지 않게
     marked = marker_clusters(comps, clusters, seg.plot_box, ring, w, h)
@@ -1087,8 +1255,9 @@ def segment(img) -> Segmentation:
         if n not in text and not rnd and bw >= 1.3 * bh and GLYPH_MIN_H <= bh <= max_h \
                 and 0.3 <= area / (bw * bh) <= 0.85:
             text.add(n)
-    for n, (k, pix, box) in enumerate(comps):        # 추세선이 생긴 군집의 상자 밖 조각 = 범례 견본 · 제목 번짐 → 글자 (잡티는 지금처럼 버린다)
-        if k in trend_k and len(pix) >= MIN_DOT_AREA and not xy_in_plot(sum(i % w for i in pix) / len(pix), sum(i // w for i in pix) / len(pix)):
+    for n, (k, pix, box) in enumerate(comps):        # 추세선 · field 가 생긴 군집의 상자 밖 조각 = 범례 견본 · 제목 번짐 → 글자 (잡티는 지금처럼 버린다)
+        if len(pix) >= MIN_DOT_AREA and (k in field_k or k in trend_k and not xy_in_plot(sum(i % w for i in pix) / len(pix),
+                                                                                         sum(i // w for i in pix) / len(pix))):
             text.add(n)
     text_boxes = []
     keep = []
@@ -1114,7 +1283,7 @@ def segment(img) -> Segmentation:
     keep = [c for c in keep if not (max(c[2][2] - c[2][0], c[2][3] - c[2][1]) + 1 <= max_h
                                     and (on_text(c[2]) or on_line(c[0], c[2], len(c[1]))))]
     # ── 낱점 면적: 군집마다 외톨이 둥근 덩어리(원판 · 속 빈 원 포함)의 중앙값
-    unit: Dict[int, float] = {}
+    unit: Dict[int, float] = {k: seg.unit[k] for k in field_k}
 
     def estimate(k: int, comps_) -> None:
         areas = []
@@ -1138,7 +1307,10 @@ def segment(img) -> Segmentation:
     for k, pix, box in keep:
         bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
         cx, cy = sum(i % w for i in pix) / len(pix), sum(i // w for i in pix) / len(pix)
-        if rc is not None and max(bw, bh) >= 4 * rc:          # 선에 붙은 마커가 있을 수 있는 큰 덩어리
+        # 선에 붙은 마커가 있을 수 있는 큰 덩어리. 상자 안에서 표식이 되풀이되는 군집의 곡선 아닌 덩어리는 겹친 표식 무리라
+        # 마커 분리(쌍을 코어 하나로 세고 나머지를 곡선으로 낸다)로 보내지 않고 면적으로 센다
+        if rc is not None and max(bw, bh) >= 4 * rc \
+                and not (k in marked and in_plot(seg.plot_box, box) and not is_path(pix, box, w, h)):
             res = split_own(pix, box, w, h, rc)
             if res is not None:
                 marks, rest = res

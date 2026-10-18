@@ -61,7 +61,8 @@ class Geometry:
 
 def allocate_dots(seg: Segmentation, geo: Geometry) -> Dict[Cell, Dict[int, int]]:
     """점의 추정 개수를 셀에 나눠 담는다 → {셀: {군집: 개수}}. 합은 seg 의 개수와 같다 (가장 큰 나머지 순으로 올림).
-    낱점은 중심이 놓인 셀 하나에, 뭉친 덩어리는 칸 수에 비례해 걸친 셀들에"""
+    낱점은 중심이 놓인 셀 하나에, 뭉친 덩어리는 칸 수에 비례해 걸친 셀들에, 빽빽한 군집(field)은 블록 질량을 블록 중심이 놓인
+    셀에 모아 질량에 비례해 — 겹침 보정을 군집 전체 비율로 고르게 나눈다 (설계서 14-11)"""
     out: Dict[Cell, Dict[int, int]] = {}
 
     def add(cell: Cell, k: int, n: int) -> None:
@@ -69,16 +70,25 @@ def allocate_dots(seg: Segmentation, geo: Geometry) -> Dict[Cell, Dict[int, int]
             out.setdefault(cell, {})[k] = out.get(cell, {}).get(k, 0) + n
 
     for e in seg.elements:
-        if e.kind != "dot":
+        share: Dict[Cell, int] = {}
+        if e.kind == "field":
+            d = e.density
+            for n, m in enumerate(d.mass):
+                if m:
+                    c = geo.cell_xy(d.x0 + (n % d.cols + 0.5) * d.block, d.y0 + (n // d.cols + 0.5) * d.block)
+                    share[c] = share.get(c, 0) + m
+        elif e.kind != "dot":
             continue
-        if e.count == 1:
+        elif e.count == 1:
             add(geo.cell_xy(e.cx + 0.5, e.cy + 0.5), e.cluster, 1)
             continue
-        share: Dict[Cell, int] = {}
-        for i in e.pixels:
-            c = geo.cell(i)
-            share[c] = share.get(c, 0) + 1
-        total = len(e.pixels)
+        else:
+            for i in e.pixels:
+                c = geo.cell(i)
+                share[c] = share.get(c, 0) + 1
+        total = sum(share.values())
+        if not total:
+            continue
         exact = {c: e.count * n / total for c, n in share.items()}
         got = {c: int(v) for c, v in exact.items()}
         left = e.count - sum(got.values())
@@ -457,13 +467,26 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> 
     return art + "\n" + "\n".join(legend(seg, size, glyphs, names, nc is not None, box)) + "\n"
 
 
+def about(lo: int, hi: int) -> str:
+    """개수 범위의 글: 100 이상이면 아래는 내림 · 위는 올림으로 유효 숫자 두 자리 (2047–2957 → 약 2000–3000개)"""
+    def two(v: int, up: bool) -> int:
+        if v < 100:
+            return v
+        p = 10 ** (len(str(v)) - 2)
+        return -(-v // p) * p if up else v // p * p
+    return "약 %d–%d개" % (two(lo, False), two(hi, True))
+
+
 def legend(seg: Segmentation, size: Tuple[int, int], glyphs: Dict[int, dict], names: Dict[int, str], has_notch: bool,
            box: bool) -> List[str]:
     parts = []
+    dense = {e.cluster for e in seg.of("field")}
     for c in seg.clusters:
         g = glyphs[c.index]
         n = seg.dots(c.index)
-        if n:
+        if c.index in dense:
+            parts.append("%s %s 점 %s (빽빽함 · 밀도로 그림)" % (" ".join(g["point"]), names[c.index], about(*seg.dots_range(c.index))))
+        elif n:
             parts.append("%s %s 점 %d개" % (" ".join(g["point"]), names[c.index], n))
     for c in seg.clusters:
         kinds = {e.kind for e in seg.elements if e.cluster == c.index}
@@ -478,7 +501,9 @@ def legend(seg: Segmentation, size: Tuple[int, int], glyphs: Dict[int, dict], na
         parts.append("%s 노치" % next(g for lim, g in NOTCH_GLYPHS if seg.ring.notch % 360 < lim))
     lines = [" · ".join(parts) if parts else "그릴 것을 찾지 못했습니다"]
     foot = []
-    if seg.dots():
+    if dense:
+        foot.append("점은 추정 %s (빽빽한 곳은 겹침을 보정한 범위)" % about(*seg.dots_range()))
+    elif seg.dots():
         foot.append("점은 추정 %d개 (뭉친 곳은 면적으로 센 값)" % seg.dots())
     texts = len(seg.of("text"))
     if texts:

@@ -39,6 +39,10 @@ def fingerprint(seg) -> str:
     for e in seg.elements:
         put(e.kind, e.cluster, e.bbox, e.area, _f(e.cx), _f(e.cy), e.count, _f(e.thickness))
         h.update(",".join(map(str, e.pixels)).encode("ascii"))
+        d = e.density                                # field 만 — 없는 요소는 해시가 그대로다
+        if d is not None:
+            put(d.x0, d.y0, d.block, d.cols, d.rows, _f(d.unit), _f(d.diameter), d.count, d.count_lo, d.count_hi, d.cell)
+            h.update(",".join(map(str, d.mass)).encode("ascii"))
     return h.hexdigest()[:16]
 
 
@@ -77,6 +81,14 @@ def dense_rings():
 
 CASES["dense_rings"] = dense_rings
 
+
+def open_markers():
+    """채운 r 4 표식 300 개 + 아래쪽 가로선 하나 (그림 상자 없음) — 선 두께로 문턱(rc 2)이 생겨 겹친 표식이 마커 분리로 간다"""
+    c = synth.Canvas(*synth.HARD_SIZE)
+    c.hline(580, 20, 780, 1, (40, 40, 40))
+    synth.scatter(c, synth.HARD_BOX, 300, (4, 4), False, 1)
+    return c.image()
+
 # 마커 분리를 빠르게 고치기 전(0.2.0)의 코드에서 뜬 값 — (해시, 요소 수, 점 개수 합)
 SNAPSHOT = {
     'chart': ('8c9e995238601789', 37, 12),
@@ -95,27 +107,27 @@ SNAPSHOT = {
     'wafer_squash': ('0588d87e9a73b0bb', 72, 86),
     'wafer_stripe': ('769b603b631ec5e0', 72, 126),
     'wafer_tile6_x2': ('08b2bf01b7a36b93', 72, 106),
-    'hard_A_base': ('f70a07fe94d43c7b', 284, 217),    # 상자 안 표식이 되풀이되는 변형은 T5(속 빈 원 · 글자 제외)가 일부러 바꾼 값
-    'hard_A0': ('c54e8cd836b57f03', 64, 56),
-    'hard_A1': ('27ae320eeee2762d', 263, 213),
+    'hard_A_base': ('3f747fc17ade6381', 205, 275),    # 상자 안 표식이 되풀이되는 변형은 T5(속 빈 원 · 글자)와 T7(겹친 표식 · field)이 일부러 바꾼 값
+    'hard_A0': ('970872637906f480', 59, 59),
+    'hard_A1': ('bf1f6a4b41236b9a', 197, 282),
     'hard_E0': ('8c7bdeeed66cab55', 59, 60),
     'hard_E': ('54b0bd940cc857f3', 197, 297),
     'hard_F0': ('1cdbbcee64afe60e', 61, 59),
     'hard_F1': ('839f64de1e6ea754', 63, 60),
-    'hard_H': ('5839448b50e0f6c2', 754, 1091),
-    'hard_I': ('b980b9a56f96b86a', 449, 891),
+    'hard_H': ('97f08e6ba93dd9fb', 6, 2016),
+    'hard_I': ('4cbeef073114490c', 6, 1906),
     'hard_B0': ('b413fa453ad72af1', 55, 59),          # B0 · C · D · Z 는 격자 층(T4)이 일부러 바꾼 값
     'hard_C': ('4c6ed1336fdc0bdd', 198, 275),
-    'hard_D': ('b031f9244b9bb1bc', 273, 214),
-    'hard_J': ('14a61c1f9d550d3d', 281, 220),
+    'hard_D': ('61733ab84910d043', 196, 272),
+    'hard_J': ('c21617e4103d1c0c', 199, 273),
     'hard_J0': ('8ac089024a41e4d8', 5, 0),
     'hard_J1': ('069f3a3dfe1c244f', 5, 0),
-    'hard_J2': ('8e232b56c37ca28e', 284, 220),
-    'hard_K': ('ab5ddcc9b5618eca', 348, 248),
-    'hard_L': ('e4ce411963b1fa0a', 437, 348),
-    'hard_Z': ('aabb18dd132eacac', 623, 1260),
+    'hard_J2': ('19ec381f0876df52', 203, 278),
+    'hard_K': ('5d3a6c0e2893658a', 269, 306),
+    'hard_L': ('900fe7823c10ab3f', 323, 409),
+    'hard_Z': ('4ae1e92254354a3e', 68, 2164),
     'hard_G': ('88e6ae749694b1aa', 237, 298),
-    'hard_A3': ('735bcbe3a0282cdd', 119, 103),
+    'hard_A3': ('d5ccfaab00f0ae80', 104, 115),
     'dense_rings': ('cf2a806f20758882', 934, 3579),
 }
 # 시간 예산 (Linux · Python 3.13 에서 dense_rings 의 segment: 고치기 전 10.9 s → 1.1 s). 느린 CI 를 위해 3 배 넘게 두되 고치기 전보다는 한참 아래
@@ -163,8 +175,9 @@ class SplitMarkers(unittest.TestCase):
 
         sg.split_markers = spy
         try:
-            for name in ("chart_soft", "line_x2", "hard_A_base", "hard_H", "hard_J1"):
+            for name in ("chart_soft", "line_x2", "hard_A_base", "hard_J1"):
                 sg.segment(image(name))
+            sg.segment(open_markers())      # 상자가 있는 겹친 표식(hard_H 등)은 이제 마커 분리로 가지 않는다 — 상자 없는 그림으로 덮는다
         finally:
             sg.split_markers = real
         self.assertGreater(len(seen), 100)

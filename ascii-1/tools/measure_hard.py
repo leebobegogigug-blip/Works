@@ -5,7 +5,7 @@
   python tools/measure_hard.py A0 E0 Z              이름으로 고른 변형만
   python tools/measure_hard.py --real 그림.png ...  내 PC 의 그림도 잰다 (설계서 08 의 기준값과 비교). 사용자 그림은 저장소에 넣지 않는다 (W-12)
 
-열: 시간 · 정답 개수 · 파랑 점 추정과 오차% · 파랑 글자 · 파랑 곡선 · 밀도 상관 R(16×8 / 60×25) ·
+열: 시간 · 정답 개수 · 파랑 점 추정과 오차% · 빽빽한 군집(field)의 개수 범위 · 파랑 글자 · 파랑 곡선 · 밀도 상관 R(16×8 / 60×25) ·
     추세선 덮음(%) · 빨강 점 · 빨강 글자 · 선 찾은 수(가로 · 세로선 + 격자 줄)/정답(격자가 없으면 틀 4) · 검정 · 회색 군집의 점 · 글자 · 격자 칸 누수%(색 있는 군집으로 간 비율) · 격자 위 요소 칸%.
 마지막 줄은 결과: 측정 끝 (S-03).
 """
@@ -45,16 +45,31 @@ def named(seg, name: str) -> List[int]:
     return [c.index for c in seg.clusters if c.name == name]
 
 
-def density(seg, case, series: List[int], gx: int, gy: int) -> float:
-    """그림 상자를 gx × gy 로 나눠 정답 개수와 점 추정(중심이 놓인 칸에 더함)의 Pearson 상관"""
+def estimates(seg, case, series: List[int], gx: int, gy: int) -> List[float]:
+    """그림 상자를 gx × gy 로 나눈 칸마다 점 추정 — 점은 중심이 놓인 칸에, field 는 블록 질량에 비례해 블록 중심이 놓인 칸에"""
     x0, y0, x1, y1 = case.box
-    est = [0] * (gx * gy)
+    est = [0.0] * (gx * gy)
+
+    def add(x: float, y: float, v: float) -> None:
+        i = min(gx - 1, max(0, int((x - x0) / (x1 - x0) * gx)))
+        j = min(gy - 1, max(0, int((y - y0) / (y1 - y0) * gy)))
+        est[j * gx + i] += v
+
     for e in seg.elements:
         if e.kind == "dot" and e.cluster in series:
-            i = min(gx - 1, max(0, int((e.cx - x0) / (x1 - x0) * gx)))
-            j = min(gy - 1, max(0, int((e.cy - y0) / (y1 - y0) * gy)))
-            est[j * gx + i] += e.count
-    return pearson([float(v) for v in case.cell_counts(gx, gy)], [float(v) for v in est])
+            add(e.cx, e.cy, e.count)
+        elif e.kind == "field" and e.cluster in series:
+            d = e.density
+            total = sum(d.mass)
+            for n, m in enumerate(d.mass):
+                if m:
+                    add(d.x0 + (n % d.cols + 0.5) * d.block, d.y0 + (n // d.cols + 0.5) * d.block, e.count * m / total)
+    return est
+
+
+def density(seg, case, series: List[int], gx: int, gy: int) -> float:
+    """그림 상자를 gx × gy 로 나눠 정답 개수와 점 추정의 Pearson 상관"""
+    return pearson([float(v) for v in case.cell_counts(gx, gy)], estimates(seg, case, series, gx, gy))
 
 
 def trend_cover(seg, case) -> Optional[float]:
@@ -105,9 +120,11 @@ def measure(case) -> dict:
     dt = time.time() - t
     blue = named(seg, "파랑")
     red = set(named(seg, "빨강"))
-    est = sum(e.count for e in seg.elements if e.kind == "dot" and e.cluster in blue)
+    est = sum(seg.dots(k) for k in blue)
+    fields = [e.density for e in seg.of("field") if e.cluster in blue]
     out = {
         "name": case.name, "time": dt, "n": case.n, "est": est,
+        "range": (sum(d.count_lo for d in fields), sum(d.count_hi for d in fields)) if fields else None,
         "err": (100.0 * (est - case.n) / case.n) if case.n else None,
         "blue_text": sum(1 for e in seg.elements if e.kind == "text" and e.cluster in blue),
         "blue_curve": sum(1 for e in seg.elements if e.kind == "curve" and e.cluster in blue),
@@ -125,7 +142,7 @@ def measure(case) -> dict:
     }
     if case.series_color and case.pts2:
         orange = named(seg, "주황")
-        out["orange_est"] = sum(e.count for e in seg.elements if e.kind == "dot" and e.cluster in orange)
+        out["orange_est"] = sum(seg.dots(k) for k in orange)
         out["n2"] = len(case.pts2)
     return out
 
@@ -136,13 +153,14 @@ def fmt(v, spec: str, none: str = "-") -> str:
     return format(v, spec)
 
 
-HEAD = ("이름", "시간", "정답", "추정", "오차%", "파랑글자", "파랑곡선", "R16x8", "R60x25", "추세덮음%", "빨강점", "빨강글자",
+HEAD = ("이름", "시간", "정답", "추정", "오차%", "범위", "파랑글자", "파랑곡선", "R16x8", "R60x25", "추세덮음%", "빨강점", "빨강글자",
         "선수/정답", "중립점", "중립글자", "격자누수%", "격자위요소%", "군집")
 
 
 def row(m: dict) -> List[str]:
     leak = m["leak"]
     return [m["name"], fmt(m["time"], ".1f") + "s", str(m["n"]), str(m["est"]), fmt(m["err"], "+.0f"),
+            "%d-%d" % m["range"] if m["range"] else "-",
             str(m["blue_text"]), str(m["blue_curve"]), fmt(m["R"][0], ".2f"), fmt(m["R"][1], ".2f"),
             fmt(m["trend"], ".0f"), str(m["red_dot"]), str(m["red_text"]),
             "%d/%d" % (m["lines"], m["lines_true"]), str(m["neutral"][0]), str(m["neutral"][1]),
@@ -152,7 +170,7 @@ def row(m: dict) -> List[str]:
 def table(rows: List[List[str]]) -> str:
     cells = [list(HEAD)] + rows
     widths = [max(len(r[k]) for r in cells) for k in range(len(HEAD))]
-    return "\n".join(" | ".join(v.ljust(widths[k]) if k in (0, 17) else v.rjust(widths[k]) for k, v in enumerate(r)).rstrip()
+    return "\n".join(" | ".join(v.ljust(widths[k]) if k in (0, len(HEAD) - 1) else v.rjust(widths[k]) for k, v in enumerate(r)).rstrip()
                      for r in cells)
 
 
@@ -168,7 +186,7 @@ def real(path: str) -> List[str]:
     dots = Counter()
     texts = Counter()
     for e in seg.elements:
-        if e.kind == "dot":
+        if e.kind in ("dot", "field"):
             dots[names[e.cluster]] += e.count
         elif e.kind == "text":
             texts[names[e.cluster]] += 1
@@ -176,6 +194,10 @@ def real(path: str) -> List[str]:
                  + " · 글자 %d (%s) · 가로선 %d · 세로선 %d · 곡선 %d"
                  % (sum(texts.values()), " ".join("%s %d" % kv for kv in sorted(texts.items())) or "-",
                     len(seg.of("hline")), len(seg.of("vline")), len(seg.of("curve"))))
+    for e in seg.of("field"):
+        d = e.density
+        lines.append("  빽빽함 %s: 가운데 %d · 범위 %d–%d · 낱점 면적 %.1f · 지름 %.1f · 칸 %d px"
+                     % (names[e.cluster], d.count, d.count_lo, d.count_hi, d.unit, d.diameter, d.cell))
     if seg.ring is not None:
         lines.append("  링 닫힘 %.0f%% 노치 %s° (기준: 닫힘 100%% · 노치 87.8°±3° · 점 %s)"
                      % (100 * seg.ring.closed, fmt(seg.ring.notch, ".1f"),
