@@ -3,7 +3,7 @@
 
   pip install pyinstaller==6.10.0
   python tools/build_exe.py                          dist/ascii-1.exe (Windows 밖에서는 확장자 없이) + ascii-1.exe.sha256
-  python tools/build_exe.py --tag ascii-1-v0.2.0     태그가 ascii-1.py 의 VERSION 과 맞는지만 본다 (릴리스 워크플로가 먼저 부른다)
+  python tools/build_exe.py --tag ascii-1-v0.3.0     태그가 ascii-1.py 의 VERSION 과 맞는지만 본다 (릴리스 워크플로가 먼저 부른다)
   python tools/build_exe.py --smoke [--window] dist/ascii-1.exe   만든 파일로 version · check · 변환 · 이름 충돌 · 확인 필요를 시험한다.
                                                      --window 는 창도 실제로 열어 그림 하나를 읽고 그려 본다 (화면이 있는 곳에서만)
 

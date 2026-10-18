@@ -54,7 +54,7 @@ FLOW–1 · 파이썬 데이터 쿼리를 흐름도 한 장으로<br>
 <tr><td><a href="terminal-1/README.md"><code>terminal-1/</code></a></td><td>opencode 멀티플렉서 + TOKEN QUEST · <code>terminal-1</code> 명령 · Windows Terminal</td></tr>
 <tr><td><a href="report-1/README.md"><code>report-1/</code></a></td><td>근거 달린 보고서 · <code>report-1.py</code> 한 파일 · 메일 · 메신저 · 메모 · 표를 붙여 넣기 · Python 3.8+</td></tr>
 <tr><td><a href="flow-1/README.md"><code>flow-1/</code></a></td><td>쿼리 흐름도 · <code>flow-1.py</code> + 분석 모듈 넷 · 파이썬 · 노트북 · 사내 쿼리 패키지 · 사내 LLM 가공 가이드 · Python 3.8+</td></tr>
-<tr><td><a href="ascii-1/README.md"><code>ascii-1/</code></a></td><td>PNG 를 ASCII 아트로 · 선 차트 · 웨이퍼 파티클 맵 · <code>ascii-1.py</code> + 모듈 셋 또는 <code>ascii-1.exe</code> · 끌어다 놓기 · Python 3.8+</td></tr>
+<tr><td><a href="ascii-1/README.md"><code>ascii-1/</code></a></td><td>PNG · JPEG 를 ASCII 아트로 · 선 차트 · 웨이퍼 파티클 맵 · <code>ascii-1.py</code> + 모듈 셋 또는 <code>ascii-1.exe</code> · 끌어다 놓기 · Python 3.8+</td></tr>
 </table>
 
 <p align="center"><sub>폴더는 모양이 모두 같습니다: <code>README.md</code> 소개 · <code>INSTALL.md</code> 에이전트용 설치 절차 · <code>docs/MANUAL.md</code> 매뉴얼 · <code>tests/</code><br>

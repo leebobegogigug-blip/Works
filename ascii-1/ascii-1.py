@@ -24,7 +24,7 @@ import ascii1_seg as seg_mod      # noqa: E402
 
 NAME = "Ascii-1"
 APP = "ascii-1"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 OK, FAIL, USAGE, CONFIRM = 0, 1, 2, 3
 RESULT = {OK: "결과: OK", CONFIRM: "결과: 확인 필요", FAIL: "결과: 점검 실패"}

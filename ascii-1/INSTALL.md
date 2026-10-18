@@ -76,7 +76,7 @@ Ascii–1 설치 완료
 - 점검     : (3단계 결과 — 마지막 줄)
 - exe      : 쓰지 않음 | (4단계 결과 — 해시 확인 · check 마지막 줄)
 - 멈춘 곳  : 없음 | n단계 — 이유와 사용자에게 필요한 조치
-- 쓰는 법  : python "D:\OPENCODE\ascii-1\ascii-1.py" "<그림.png>" — 그림 옆에 .txt 가 생긴다 (--width 40–300)
+- 쓰는 법  : python "D:\OPENCODE\ascii-1\ascii-1.py" "<그림.png 또는 그림.jpg>" — 그림 옆에 .txt 가 생긴다 (--width 40–300)
 ```
 
 ---
@@ -111,6 +111,6 @@ works 전체를 지울 때만 **[질문]** "다른 works 도구도 함께 지워
 
 | 명령 | 하는 일 |
 |---|---|
-| `<그림.png> …` | 그림 옆에 `.txt` 를 만든다 |
+| `<그림.png 또는 그림.jpg> …` | 그림 옆에 `.txt` 를 만든다 (`--width 40–300` · `--grid hide\|dots\|ticks\|show`) |
 | `check` | 자가 점검 (마지막 줄 `결과: …`) |
 | `version` · `help` | 버전 · 도움말 |
