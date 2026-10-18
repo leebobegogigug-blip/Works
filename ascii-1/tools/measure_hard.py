@@ -58,14 +58,14 @@ def density(seg, case, series: List[int], gx: int, gy: int) -> float:
 
 
 def trend_cover(seg, case) -> Optional[float]:
-    """추세선이 있는 x 범위를 TREND_COL 폭 열로 나눠, 빨강 선(곡선 · 가로 · 세로선)이 정답 y 에서 TREND_TOL 이내에 있는 열의 %"""
+    """추세선이 있는 x 범위를 TREND_COL 폭 열로 나눠, 빨강 선(추세선 · 곡선 · 가로 · 세로선)이 정답 y 에서 TREND_TOL 이내에 있는 열의 %"""
     if not case.trend:
         return None
     red = set(named(seg, "빨강"))
     w = seg.width
     cols: Dict[int, List[int]] = {}
     for e in seg.elements:
-        if e.cluster in red and e.kind in ("curve", "hline", "vline"):
+        if e.cluster in red and e.kind in ("trend", "curve", "hline", "vline"):
             for p in e.pixels:
                 cols.setdefault((p % w) // TREND_COL, []).append(p // w)
     xs = [p[0] for p in case.trend]

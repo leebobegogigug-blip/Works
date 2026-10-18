@@ -68,6 +68,15 @@ HOLLOW_CENTER = 0.25      # …둘러싸인 바탕(구멍)의 무게중심이 �
 HOLLOW_BINS = 12          # …중심 둘레를 이만큼(30°)으로 나눠
 HOLLOW_COVER = 10         # …그중 이만큼 이상에 획이 있다
 MARKER_REPEAT = 5         # 상자 안에 표식 외톨이가 이만큼 이상인 색 군집은 상자 안 덩어리를 글자 후보에서 뺀다
+# 추세선 (설계서 14-10). 길이는 px, t = 군집 칸의 세로 연속 길이의 중앙값
+TREND_BIN = (8, 2.0)      # 구간 폭 B = max(8, 2 × t)
+TREND_GAP = 4             # 칸이 있는 이웃 구간의 번호 차가 이 이하면 한 줄로 잇는다 — 가장 긴 줄만 쓴다
+TREND_BAND = (8, 3.0)     # 좁은 구간 = 띠(TREND_SPLIT 넘는 틈으로 나눔) 중 칸 2 개 이상인 것이 하나이고 높이 ≤ max(8, 3t) + B
+TREND_SPLIT = 2           # 한 구간 안에서 이 행 수보다 넓게 빈 곳이 띠를 나눈다
+TREND_SPAN = 0.40         # 줄의 가로 길이 ≥ 상자 폭의 이 비율
+TREND_FILL = 0.90         # 줄 안의 구간 중 칸이 있는 것 ≥ 이 비율
+TREND_NARROW = 0.80       # 줄 안의 구간 중 좁은 것 ≥ 이 비율
+MARKER_MIN = (2.0, 2.0)   # 쪼갠 마커의 몸통 지름 중앙값이 선 두께의 2 배 + 2 px 보다 작으면 마커가 아니라 선 조각
 
 HUE_NAMES = ((15, "빨강"), (40, "주황"), (70, "노랑"), (165, "초록"), (190, "청록"), (260, "파랑"), (290, "보라"),
              (340, "자홍"), (361, "빨강"))
@@ -84,15 +93,16 @@ class Cluster:
 
 @dataclass
 class Element:
-    kind: str                      # hline vline ring text dot curve
+    kind: str                      # hline vline ring text dot curve trend
     cluster: int
     bbox: Tuple[int, int, int, int]  # x0 y0 x1 y1 (끝 포함)
     area: int
     pixels: List[int]              # 그림 위 칸 번호 y * width + x
     cx: float = 0.0
     cy: float = 0.0
-    count: int = 1                 # dot 의 추정 개수 (추정치다)
-    thickness: float = 0.0         # hline · vline 의 두께
+    count: int = 1                 # dot 의 추정 개수 (추정치다). trend 는 0
+    thickness: float = 0.0         # hline · vline · trend 의 두께 (px)
+    path: Optional[List[Tuple[float, float]]] = None   # trend: x 순 구간 중심점 (px, 칸 중심은 +0.5)
 
 
 @dataclass
@@ -895,6 +905,96 @@ def aligned_rows(cands, vertical: bool) -> Set[int]:
     return out
 
 
+# ─────────────────────────────────────────────────────────────── 추세선 (설계서 14-10)
+
+def trend_bin(t: float) -> int:
+    """두께 t 의 추세선을 나누는 구간 폭 B (px)"""
+    return int(max(TREND_BIN[0], TREND_BIN[1] * t))
+
+
+def trend_stats(pix: Sequence[int], box: Tuple[int, int, int, int], w: int) -> dict:
+    """상자 안 한 군집의 칸 → 추세선 판정 값: 두께 t · 구간 폭 B · 줄의 길이 비율 span · 채움 fill · 좁은 구간 비율 narrow ·
+    path (좁은 구간마다 구간 중심 x · 띠 중심 y, 칸 중심은 +0.5). 칸을 x 구간으로 나눠 구간마다 세로 띠가 하나로 좁게 몰렸는지 본다"""
+    cells = set(pix)
+    runs = []
+    for i in pix:
+        if i - w in cells:
+            continue
+        j = i
+        while j + w in cells:
+            j += w
+        runs.append((j - i) // w + 1)
+    t = median(runs)
+    b = trend_bin(t)
+    lim = max(TREND_BAND[0], TREND_BAND[1] * t) + b         # 기울기 몫으로 B 를 더한다
+    bins: Dict[int, List[int]] = {}
+    for i in pix:
+        bins.setdefault((i % w - box[0]) // b, []).append(i // w)
+    keys = sorted(bins)
+    lines = [[keys[0]]]
+    for q in keys[1:]:
+        if q - lines[-1][-1] <= TREND_GAP:
+            lines[-1].append(q)
+        else:
+            lines.append([q])
+    line = max(lines, key=len)
+    path = []
+    for q in line:
+        ys = sorted(bins[q])
+        bands = [[ys[0], ys[0], 1]]
+        for y in ys[1:]:
+            if y - bands[-1][1] <= TREND_SPLIT:
+                bands[-1][1] = y
+                bands[-1][2] += 1
+            else:
+                bands.append([y, y, 1])
+        main = [bd for bd in bands if bd[2] >= 2]
+        if len(main) == 1 and main[0][1] - main[0][0] + 1 <= lim:
+            path.append((box[0] + q * b + b / 2, (main[0][0] + main[0][1] + 1) / 2))
+    reach = line[-1] - line[0] + 1
+    return {"t": t, "B": b, "span": reach * b / (box[2] - box[0] + 1), "fill": len(line) / reach,
+            "narrow": len(path) / len(line), "path": path}
+
+
+def find_trend(pix: Sequence[int], box: Tuple[int, int, int, int], w: int) -> Optional[Tuple[List[Tuple[float, float]], float]]:
+    """상자 안 한 군집의 칸이 추세선 하나면 (path, 두께 t), 아니면 None — 길이 · 채움 · 좁은 구간 세 비율이 모두 문턱 이상"""
+    if not pix:
+        return None
+    st = trend_stats(pix, box, w)
+    if st["span"] >= TREND_SPAN and st["fill"] >= TREND_FILL and st["narrow"] >= TREND_NARROW:
+        return st["path"], float(st["t"])
+    return None
+
+
+def marker_diameter(marks) -> float:
+    """split_markers 가 쪼갠 마커들의 몸통 지름(같은 면적의 원) 중앙값 (px)"""
+    return median([2 * sqrt(len(m[2]) / pi) for m in marks])
+
+
+def split_own(pix: List[int], box: Tuple[int, int, int, int], w: int, h: int, rc: float):
+    """split_markers(pix, w, rc). 곡선 덩어리인데 쪼갠 "마커" 의 지름이 선 조각만 하면(2 × 덩어리 두께 + 2 px 미만)
+    덩어리 자신의 두께로 다시 가른다 — 대개 None (마커 없음 → 곡선). 늘 다시 가르면 골든 관리도가 한 글자 달라진다"""
+    res = split_markers(pix, w, rc)
+    if res is not None and is_path(pix, box, w, h):
+        t_own = path_thickness(pix, w)
+        if marker_diameter(res[0]) < MARKER_MIN[0] * t_own + MARKER_MIN[1]:
+            res = split_markers(pix, w, max(rc, t_own + 1.0))
+    return res
+
+
+def marker_curve(pix: Sequence[int], w: int, h: int, line_thickness: Optional[float]) -> bool:
+    """마커가 붙은 곡선인가 — 가장 큰 덩어리를 지금의 rc 로(요소 분류와 같이 split_own) 갈랐을 때 마커가 2 개 이상이고
+    몸통 지름 중앙값이 그 덩어리 두께의 2 배 + 2 px 이상이면 (추세선 후보에서 뺀다)"""
+    big = max(components_of(pix, w), key=len)
+    box = bbox_of(big, w)
+    t_own = path_thickness(big, w)
+    rc = line_thickness + 1.0 if line_thickness else t_own + 1.0
+    if max(box[2] - box[0] + 1, box[3] - box[1] + 1) < 4 * rc:
+        return False
+    res = split_own(big, box, w, h, rc)
+    return res is not None and len(res[0]) >= 2 and marker_diameter(res[0]) >= MARKER_MIN[0] * t_own + MARKER_MIN[1]
+
+
 def segment(img) -> Segmentation:
     w, h = img.width, img.height
     bg = find_bg(img)
@@ -936,6 +1036,28 @@ def segment(img) -> Segmentation:
     def in_ring(box) -> bool:
         return ring is not None and hypot((box[0] + box[2]) / 2 - ring.cx, (box[1] + box[3]) / 2 - ring.cy) < 1.05 * ring.r + 1          # 외곽선 위의 점도 데이터
 
+    # ── 추세선: 상자 안 색 있는 군집마다 하나. 묶인 칸은 글자 · 점 · 마커 분리로 가지 않는다 (링이 있거나 상자가 없으면 묶지 않는다)
+    trend_k: Set[int] = set()
+    pb = seg.plot_box
+
+    def xy_in_plot(x: float, y: float) -> bool:
+        return pb[0] + PLOT_INSET <= x <= pb[2] - PLOT_INSET and pb[1] + PLOT_INSET <= y <= pb[3] - PLOT_INSET
+
+    if pb is not None and ring is None:
+        for k in sorted(per):
+            if clusters[k - 1].neutral:
+                continue
+            inside = [i for i in per[k] if xy_in_plot(i % w, i // w)]
+            found = find_trend(inside, pb, w)
+            if found is None or marker_curve(inside, w, h, seg.line_thickness):
+                continue
+            path, t = found
+            seg.elements.append(Element("trend", k, bbox_of(inside, w), len(inside), inside, sum(i % w for i in inside) / len(inside),
+                                        sum(i // w for i in inside) / len(inside), 0, t, path))
+            gone = set(inside)
+            per[k] = [i for i in per[k] if i not in gone]
+            trend_k.add(k)
+
     # ── 연결요소
     comps = []                                   # (군집, 칸 목록, 상자)
     for k, idx in per.items():
@@ -964,6 +1086,9 @@ def segment(img) -> Segmentation:
         bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
         if n not in text and not rnd and bw >= 1.3 * bh and GLYPH_MIN_H <= bh <= max_h \
                 and 0.3 <= area / (bw * bh) <= 0.85:
+            text.add(n)
+    for n, (k, pix, box) in enumerate(comps):        # 추세선이 생긴 군집의 상자 밖 조각 = 범례 견본 · 제목 번짐 → 글자 (잡티는 지금처럼 버린다)
+        if k in trend_k and len(pix) >= MIN_DOT_AREA and not xy_in_plot(sum(i % w for i in pix) / len(pix), sum(i // w for i in pix) / len(pix)):
             text.add(n)
     text_boxes = []
     keep = []
@@ -1014,7 +1139,7 @@ def segment(img) -> Segmentation:
         bw, bh = box[2] - box[0] + 1, box[3] - box[1] + 1
         cx, cy = sum(i % w for i in pix) / len(pix), sum(i // w for i in pix) / len(pix)
         if rc is not None and max(bw, bh) >= 4 * rc:          # 선에 붙은 마커가 있을 수 있는 큰 덩어리
-            res = split_markers(pix, w, rc)
+            res = split_own(pix, box, w, h, rc)
             if res is not None:
                 marks, rest = res
                 base = median([m[3] for m in marks])

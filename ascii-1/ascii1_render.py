@@ -8,7 +8,7 @@
 from math import atan2, ceil, cos, hypot, pi, sin
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from ascii1_seg import Element, Segmentation, components_of
+from ascii1_seg import TREND_GAP, Element, Segmentation, components_of, trend_bin
 
 DEFAULT_WIDTH = 120
 MIN_WIDTH, MAX_WIDTH = 40, 300
@@ -268,6 +268,21 @@ def curve_cells(e: Element, seg: Segmentation, geo: Geometry) -> Optional[Dict[C
     return out
 
 
+def trend_cells(e: Element, geo: Geometry) -> Dict[Cell, str]:
+    """추세선 요소 → {셀: 글자}. path 의 이웃한 점을 segment_cells 로 잇는다. 사이가 TREND_GAP 구간보다 멀면 잇지 않는다"""
+    pts = e.path or []
+    if len(pts) == 1:
+        pts = pts * 2
+    far = TREND_GAP * trend_bin(e.thickness)
+    out: Dict[Cell, str] = {}
+    for a, b in zip(pts, pts[1:]):
+        if b[0] - a[0] > far:
+            continue
+        for cell, ch in segment_cells(a, b, geo):
+            out[cell] = ch
+    return out
+
+
 def attach_to_dots(line: List[Tuple[float, float]], dots: Sequence[Tuple[float, float, float]]) -> int:
     """조각의 양 끝이 점 몸통 곁(DOT_REACH 안)이면 그 점의 중심을 끝에 덧붙인다. 붙인 끝의 수.
     한 점으로 짧은 조각의 두 끝이 다 붙지 않게, 두 끝은 서로 다른 점을 고른다"""
@@ -389,6 +404,9 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> 
             if kind == "ring" and seg.ring is not None:
                 for cell in close_ring(list(kept), geo, seg.ring):
                     put(cell, prio, RING_GLYPH)
+    for e in seg.of("trend"):                        # 추세선은 곡선과 같은 층
+        for cell, ch in trend_cells(e, geo).items():
+            put(cell, 2, ch)
     # 가로 · 세로 선 — 한 셀에 둘이 겹치면 `+`
     hv: Dict[Cell, set] = {}
     verticals = seg.of("vline")
