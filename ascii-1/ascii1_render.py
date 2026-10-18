@@ -2,13 +2,15 @@
 """ascii1_render - 요소 목록(ascii1_seg.Segmentation)을 글자 격자로 옮긴다. 설계서 docs/plans/ascii-1-design.md › ⑤⑥⑦
 
 격자: 열 수 width(그림 폭보다 넓지 않게) · 셀 세로 = 가로의 2 배 (터미널 글자 종횡비). 한 셀에는 글자 하나.
-우선순위: 점 > 가로 · 세로 선 > 곡선 > 원 외곽. 같은 입력은 같은 글자를 낸다.
+우선순위(PRIO): 노치 > 점 · 밀도 > 가로 · 세로 선 · 그림 상자 틀 > 곡선 · 추세선 > 원 외곽 > 그림의 격자. 같은 입력은 같은 글자를 낸다.
+단 추세선이 지나는 셀에서는 밀도(field) 글자가 추세선에 양보한다 — 빽빽한 띠에 묻히지 않게 (낱점은 그대로 이긴다).
+그림의 격자(seg.grid)는 grid 모드로 그린다: hide 틀만 · dots 교차점 · ticks 틀 위 눈금 · show 줄 전부 (설계서 14-11).
 글자(텍스트)는 읽지 않고 비운다. 범례는 맨 아래에 군집마다 어떤 글자를 줬는지 적는다.
 """
 from math import atan2, ceil, cos, hypot, pi, sin
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from ascii1_seg import TREND_GAP, Element, Segmentation, components_of, trend_bin
+from ascii1_seg import TREND_GAP, Element, Grid, Segmentation, components_of, trend_bin
 
 DEFAULT_WIDTH = 120
 MIN_WIDTH, MAX_WIDTH = 40, 300
@@ -27,13 +29,29 @@ VLINE_SETS = ("!", ":", ";", "'", ".", "i")          # 색 있는 세로선 (중
 RING_GLYPH = "."
 NOTCH_GLYPHS = ((45, ">"), (135, "v"), (225, "<"), (315, "^"), (361, ">"))   # 3시 방향이 0° · 아래쪽이 90°
 BOX = {"-": "─", "|": "│", "+": "┼"}
+GRID_MODES = ("hide", "dots", "ticks", "show")      # --grid 의 값. 첫째가 기본 (창은 늘 기본)
+GRID_DOT = "."                                      # dots: 격자 교차점
+PRIO = {"grid": 0, "ring": 1, "curve": 2, "trend": 2, "line": 3, "frame": 3, "tick": 3, "dot": 4, "field": 4, "notch": 5}
+NEUTRAL = {"h": "-", "v": "|"}                      # 그림 상자 틀 · 격자의 글자 (군집이 없다)
 
 Cell = Tuple[int, int]             # (행, 열)
 
 
+def grid_frame(g: Grid) -> Tuple[float, float, float, float]:
+    """격자의 바깥 줄 넷 → 틀 x0 y0 x1 y1 (칸 중심 px). 한 방향만 있으면 다른 방향은 그 줄들의 시작 · 끝 (find_plot_box 와 같다)"""
+    span_h = (min(ln.start for ln in g.horizontal), max(ln.end for ln in g.horizontal)) if g.horizontal else None
+    span_v = (min(ln.start for ln in g.vertical), max(ln.end for ln in g.vertical)) if g.vertical else None
+    xs = (g.vertical[0].pos, g.vertical[-1].pos) if g.vertical else span_h
+    ys = (g.horizontal[0].pos, g.horizontal[-1].pos) if g.horizontal else span_v
+    return xs[0] + 0.5, ys[0] + 0.5, xs[1] + 0.5, ys[1] + 0.5
+
+
 def content_box(seg: Segmentation) -> Tuple[int, int, int, int]:
-    """그려질 요소(글자 제외)가 차지하는 영역 x0 y0 x1 y1. 아무것도 없으면 그림 전체"""
+    """그려질 요소(글자 제외)가 차지하는 영역 x0 y0 x1 y1. 격자가 있으면 틀도 넣는다 — 틀이 잘리지 않게. 아무것도 없으면 그림 전체"""
     boxes = [e.bbox for e in seg.elements if e.kind != "text"]
+    if seg.grid is not None:
+        x0, y0, x1, y1 = grid_frame(seg.grid)
+        boxes.append((int(x0), int(y0), int(x1), int(y1)))
     if not boxes:
         return 0, 0, seg.width - 1, seg.height - 1
     return min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)
@@ -59,10 +77,27 @@ class Geometry:
         return self.cell_xy(i % self.w + 0.5, i // self.w + 0.5)
 
 
+def spans(start: float, size: float, origin: float, step: float, count: int) -> List[Tuple[int, float]]:
+    """[start, start + size) 구간이 걸친 셀 번호와 그 셀에 든 몫 (합 1). 격자 밖은 가장자리 셀로"""
+    out: Dict[int, float] = {}
+    lo, hi = start, start + size
+    k = int((lo - origin) // step)
+    while True:
+        a, b = max(lo, origin + k * step), min(hi, origin + (k + 1) * step)
+        if b > a:
+            cell = min(count - 1, max(0, k))
+            out[cell] = out.get(cell, 0.0) + (b - a) / size
+        if origin + (k + 1) * step >= hi:
+            break
+        k += 1
+    return sorted(out.items())
+
+
 def allocate_dots(seg: Segmentation, geo: Geometry) -> Dict[Cell, Dict[int, int]]:
     """점의 추정 개수를 셀에 나눠 담는다 → {셀: {군집: 개수}}. 합은 seg 의 개수와 같다 (가장 큰 나머지 순으로 올림).
-    낱점은 중심이 놓인 셀 하나에, 뭉친 덩어리는 칸 수에 비례해 걸친 셀들에, 빽빽한 군집(field)은 블록 질량을 블록 중심이 놓인
-    셀에 모아 질량에 비례해 — 겹침 보정을 군집 전체 비율로 고르게 나눈다 (설계서 14-11)"""
+    낱점은 중심이 놓인 셀 하나에, 뭉친 덩어리는 칸 수에 비례해 걸친 셀들에, 빽빽한 군집(field)은 블록 질량을 블록이 걸친 셀들에
+    겹친 넓이대로 나눠 모아 질량에 비례해 — 겹침 보정을 군집 전체 비율로 고르게 나눈다 (설계서 14-11. 블록 중심 한 셀에만 모으면
+    셀이 블록보다 조금 클 때(300 열) 블록 둘을 받는 셀이 줄무늬로 남는다)"""
     out: Dict[Cell, Dict[int, int]] = {}
 
     def add(cell: Cell, k: int, n: int) -> None:
@@ -73,10 +108,13 @@ def allocate_dots(seg: Segmentation, geo: Geometry) -> Dict[Cell, Dict[int, int]
         share: Dict[Cell, int] = {}
         if e.kind == "field":
             d = e.density
+            along_x = [spans(d.x0 + j * d.block, d.block, geo.x0, geo.cw, geo.cols) for j in range(d.cols)]
+            along_y = [spans(d.y0 + i * d.block, d.block, geo.y0, geo.ch, geo.rows) for i in range(d.rows)]
             for n, m in enumerate(d.mass):
                 if m:
-                    c = geo.cell_xy(d.x0 + (n % d.cols + 0.5) * d.block, d.y0 + (n // d.cols + 0.5) * d.block)
-                    share[c] = share.get(c, 0) + m
+                    for r, fy in along_y[n // d.cols]:
+                        for c, fx in along_x[n % d.cols]:
+                            share[(r, c)] = share.get((r, c), 0) + m * fy * fx
         elif e.kind != "dot":
             continue
         elif e.count == 1:
@@ -384,20 +422,68 @@ def notch_cell(seg: Segmentation, geo: Geometry) -> Optional[Tuple[Cell, str]]:
     return geo.cell_xy(x, y), glyph
 
 
-def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> str:
-    """그림 → 글자 아트 + 범례. 격자 줄은 순수 ASCII (box 면 선 글자만 ─ │ ┼), 범례는 한국어"""
+def grid_mode(seg: Segmentation, grid: str) -> Optional[str]:
+    """실제로 쓸 격자 모드. 격자가 없으면 None. 링이 있으면 dots 의 `.` 이 외곽 글자와 겹치므로 hide"""
+    if grid not in GRID_MODES:
+        raise ValueError("grid 는 %s 중 하나입니다 (%s)" % (" · ".join(GRID_MODES), grid))
+    if seg.grid is None:
+        return None
+    return "hide" if grid == "dots" and seg.ring is not None else grid
+
+
+def grid_cells(seg: Segmentation, geo: Geometry, mode: str) -> Tuple[Dict[Cell, str], Dict[Cell, set]]:
+    """격자 모드 → ({셀: 우선순위 0 글자}, {셀: 틀 · 눈금의 선 종류}). 틀 · 눈금은 가로 · 세로선과 같은 층(3)에서 만나면 `+`"""
+    g = seg.grid
+    low: Dict[Cell, str] = {}
+    hv: Dict[Cell, set] = {}
+    rows = [geo.cell_xy(0, ln.pos + 0.5)[0] for ln in g.horizontal]
+    cols = [geo.cell_xy(ln.pos + 0.5, 0)[1] for ln in g.vertical]
+    x0, y0, x1, y1 = grid_frame(g)
+    (rt, cl), (rb, cr) = geo.cell_xy(x0, y0), geo.cell_xy(x1, y1)
+    if mode == "show":                               # 줄은 틀에서 틀까지 (줄 끝이 한두 칸 짧아도 교차가 `+` 로 맞게)
+        kinds: Dict[Cell, set] = {}
+        for r in rows:
+            for c in range(cl, cr + 1):
+                kinds.setdefault((r, c), set()).add("h")
+        for c in cols:
+            for r in range(rt, rb + 1):
+                kinds.setdefault((r, c), set()).add("v")
+        low = {cell: "+" if len(ks) == 2 else NEUTRAL[next(iter(ks))] for cell, ks in kinds.items()}
+        return low, hv
+    for c in range(cl, cr + 1):
+        for r in (rt, rb):
+            hv.setdefault((r, c), set()).add(("hline", 0))
+    for r in range(rt, rb + 1):
+        for c in (cl, cr):
+            hv.setdefault((r, c), set()).add(("vline", 0))
+    if mode == "ticks":
+        marks = [(r, c) for c in cols for r in (rt, rb)] + [(r, c) for r in rows for c in (cl, cr)]
+        for cell in marks:
+            hv[cell] |= {("hline", 0), ("vline", 0)}
+    elif mode == "dots":
+        low = {(r, c): GRID_DOT for r in rows for c in cols}
+    return low, hv
+
+
+def layout(seg: Segmentation, width: int = DEFAULT_WIDTH, grid: str = "hide") -> Tuple[Dict[Cell, Tuple[int, str]], Geometry]:
+    """요소 → ({셀: (우선순위, 글자)}, 격자). 우선순위는 PRIO. 셀 번호는 자르기 전의 것이다"""
     width = max(MIN_WIDTH, min(MAX_WIDTH, width))
+    mode = grid_mode(seg, grid)
     geo = Geometry(seg, width)
     glyphs = assign_glyphs(seg)
-    names = {c.index: c.name for c in seg.clusters}
     cells: Dict[Cell, Tuple[int, str]] = {}          # 셀 → (우선순위, 글자)
 
     def put(cell: Cell, prio: int, ch: str) -> None:
         if cell not in cells or cells[cell][0] < prio:
             cells[cell] = (prio, ch)
 
-    # 외곽 · 곡선 (가장 낮음)
-    for kind, prio in (("ring", 1), ("curve", 2)):
+    frame_hv: Dict[Cell, set] = {}
+    if mode is not None:                             # 그림의 격자 (가장 낮음)
+        low, frame_hv = grid_cells(seg, geo, mode)
+        for cell, ch in low.items():
+            put(cell, PRIO["grid"], ch)
+    # 외곽 · 곡선
+    for kind, prio in (("ring", PRIO["ring"]), ("curve", PRIO["curve"])):
         for e in seg.of(kind):
             if kind == "curve":
                 drawn = curve_cells(e, seg, geo)
@@ -414,11 +500,13 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> 
             if kind == "ring" and seg.ring is not None:
                 for cell in close_ring(list(kept), geo, seg.ring):
                     put(cell, prio, RING_GLYPH)
+    trended = set()
     for e in seg.of("trend"):                        # 추세선은 곡선과 같은 층
         for cell, ch in trend_cells(e, geo).items():
-            put(cell, 2, ch)
-    # 가로 · 세로 선 — 한 셀에 둘이 겹치면 `+`
-    hv: Dict[Cell, set] = {}
+            put(cell, PRIO["trend"], ch)
+            trended.add(cell)
+    # 가로 · 세로 선 · 그림 상자 틀 · 눈금 — 한 셀에 가로 · 세로가 겹치면 `+`
+    hv: Dict[Cell, set] = {cell: set(ks) for cell, ks in frame_hv.items()}
     verticals = seg.of("vline")
     frame = None
     if len(verticals) >= 2:                          # 가장 바깥 세로선 둘이 틀 — 가로선은 틀 칸 안에서만
@@ -437,19 +525,32 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> 
     for cell, ks in hv.items():
         kinds = {k for k, _ in ks}
         if kinds == {"hline", "vline"}:
-            put(cell, 3, "+")
+            put(cell, PRIO["line"], "+")
         else:
             kind, cl = sorted(ks)[0]
-            put(cell, 3, glyphs[cl]["h" if kind == "hline" else "v"])
-    # 점 (가장 높음): 셀 안에서 개수가 많은 색이 이긴다
+            put(cell, PRIO["line"], glyphs.get(cl, NEUTRAL)["h" if kind == "hline" else "v"])
+    # 점 · 밀도: 셀 안에서 개수가 많은 색이 이긴다. 추세선이 지나는 셀에서는 밀도(field) 글자가 양보한다
+    dense = {e.cluster for e in seg.of("field")}
     dots = allocate_dots(seg, geo)
     for cell, per in dots.items():
         k = max(sorted(per), key=lambda k: per[k])
+        if k in dense and cell in trended:
+            continue
         cap = geo.cw * geo.ch / max(1.0, seg.unit.get(k, 4.0))
-        put(cell, 4, glyphs[k]["point"][ladder(per[k], cap)])
+        put(cell, PRIO["field" if k in dense else "dot"], glyphs[k]["point"][ladder(per[k], cap)])
     nc = notch_cell(seg, geo)
     if nc is not None:
-        put(nc[0], 5, nc[1])
+        put(nc[0], PRIO["notch"], nc[1])
+    return cells, geo
+
+
+def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False, grid: str = "hide") -> str:
+    """그림 → 글자 아트 + 범례. 격자 줄은 순수 ASCII (box 면 선 글자만 ─ │ ┼), 범례는 한국어.
+    grid 는 그림의 격자를 어떻게 그릴지 (GRID_MODES). 격자가 없는 그림에서는 아무것도 바꾸지 않는다"""
+    cells, geo = layout(seg, width, grid)
+    glyphs = assign_glyphs(seg)
+    names = {c.index: c.name for c in seg.clusters}
+    nc = notch_cell(seg, geo)
     # 자르기: 비어 있는 가장자리를 걷어 낸다
     if cells:
         r0, r1 = min(r for r, _ in cells), max(r for r, _ in cells)
@@ -464,7 +565,7 @@ def render(seg: Segmentation, width: int = DEFAULT_WIDTH, box: bool = False) -> 
     else:
         art = ""
         size = (geo.cols, geo.rows)
-    return art + "\n" + "\n".join(legend(seg, size, glyphs, names, nc is not None, box)) + "\n"
+    return art + "\n" + "\n".join(legend(seg, size, glyphs, names, nc is not None, box, grid_mode(seg, grid))) + "\n"
 
 
 def about(lo: int, hi: int) -> str:
@@ -477,8 +578,16 @@ def about(lo: int, hi: int) -> str:
     return "약 %d–%d개" % (two(lo, False), two(hi, True))
 
 
+GRID_WORDS = {
+    "hide": "%(h)s %(v)s 그림 상자 · 격자 가로 %(nh)d · 세로 %(nv)d 줄 생략",
+    "dots": "%(h)s %(v)s 그림 상자 · . 격자 교차점 (가로 %(nh)d · 세로 %(nv)d 줄)",
+    "ticks": "%(h)s %(v)s 그림 상자 · %(x)s 틀 위의 격자 자리 (가로 %(nh)d · 세로 %(nv)d 줄)",
+    "show": "%(h)s %(v)s %(x)s 격자 (가로 %(nh)d · 세로 %(nv)d 줄)",
+}
+
+
 def legend(seg: Segmentation, size: Tuple[int, int], glyphs: Dict[int, dict], names: Dict[int, str], has_notch: bool,
-           box: bool) -> List[str]:
+           box: bool, grid: Optional[str] = None) -> List[str]:
     parts = []
     dense = {e.cluster for e in seg.of("field")}
     for c in seg.clusters:
@@ -493,8 +602,15 @@ def legend(seg: Segmentation, size: Tuple[int, int], glyphs: Dict[int, dict], na
         shown = [glyphs[c.index][key] for key, kind in (("h", "hline"), ("v", "vline")) if kind in kinds]
         if shown:
             parts.append("%s %s 선" % (" ".join(BOX.get(g, g) if box else g for g in shown), names[c.index]))
+    if grid is not None:
+        h, v, x = (BOX.get(g, g) if box else g for g in "-|+")
+        parts.append(GRID_WORDS[grid] % dict(h=h, v=v, x=x, nh=len(seg.grid.horizontal), nv=len(seg.grid.vertical)))
     if seg.of("curve"):
         parts.append("_ - / \\ | 곡선")
+    over = " (빽빽한 점 위에 그림)" if dense else ""
+    for c in seg.clusters:
+        if any(e.cluster == c.index for e in seg.of("trend")):
+            parts.append("_ - / \\ | %s 추세선%s" % (names[c.index], over))
     if seg.ring is not None:
         parts.append("%s 웨이퍼 외곽" % RING_GLYPH)
     if has_notch:

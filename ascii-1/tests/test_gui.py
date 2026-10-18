@@ -20,6 +20,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 sys.path.insert(0, HERE)
 import ascii1_gui as gui  # noqa: E402
+import synth  # noqa: E402
 import test_cli as tc  # noqa: E402
 
 spec = importlib.util.spec_from_file_location("ascii_1_gui_test", os.path.join(ROOT, "ascii-1.py"))
@@ -136,6 +137,22 @@ class WindowTests(unittest.TestCase):
             self.assertEqual(self.win.text, text)
             self.assertEqual(self.art(), text.rstrip("\n"))
             self.assertEqual(self.win.info_kind.cget("text"), "KIND  wafer")
+
+    def test_grid_picture_is_drawn_as_a_frame_like_the_command_line(self):
+        """창은 --grid 노브가 없다 — 늘 hide: 격자줄 없이 그림 상자 틀과 범례 한 줄 (설계서 14-11 · DESIGN.md 의 노브 네 개)"""
+        with Folder() as f:
+            src = f.put("격자.png", tc.png_of(synth.hard_case("B0").image))
+            self.open(src)
+            text = self.win.text
+            seg, _, _ = app.analyze(src)
+            self.assertEqual(text, app.make_art(seg, "격자.png", self.win.read_options()[0])[2])
+            self.assertEqual(text, app.render.render(seg, 120, grid="hide"))
+            lines = text.rsplit("\n\n", 1)[0].split("\n")
+            width = max(len(x) for x in lines)
+            self.assertEqual(len([x for x in lines if x.count("-") >= 0.5 * width]), 2, "틀의 위 · 아래뿐 — 가로 격자줄이 없다")
+            self.assertLessEqual(text.count("+"), 4)
+            self.assertIn("격자 가로 17 · 세로 21 줄 생략", self.art())
+            self.assertEqual(len(self.win.knobs), 4)
 
     def test_leds_follow_the_state(self):
         w, t = self.win, self.win.theme

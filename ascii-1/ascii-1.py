@@ -43,6 +43,7 @@ HELP = """Ascii–1 — PNG · JPEG 를 ASCII 아트로
 옵션
   --width N       열 수 (%d–%d, 기본 %d). 그려질 내용의 폭에 걸리고, 클수록 촘촘합니다
   --kind K        auto(기본) · chart · wafer — 그림이 그 종류가 아니면 만들지 않고 확인을 요청합니다
+  --grid G        그림의 격자: hide(기본 — 그림 상자 틀만, 범례에 줄 수) · dots(교차점) · ticks(틀 위 눈금) · show(줄 전부)
   --box           가로 · 세로선을 ─ │ ┼ 로 (그 밖의 격자 글자는 그대로 ASCII)
   --stdout        파일 대신 화면에 찍습니다
   --no-wait       끝나도 Enter 를 기다리지 않습니다 (끌어다 놓아 연 콘솔에서만 기다립니다)
@@ -58,7 +59,8 @@ class UsageError(Exception):
 
 def parse(argv):
     """argv → (명령 또는 None, 옵션 dict). 틀리면 UsageError"""
-    opts = {"files": [], "width": render.DEFAULT_WIDTH, "kind": "auto", "box": False, "stdout": False, "wait": True}
+    opts = {"files": [], "width": render.DEFAULT_WIDTH, "kind": "auto", "grid": render.GRID_MODES[0], "box": False, "stdout": False,
+            "wait": True}
     if len(argv) == 1 and argv[0] in ("version", "--version", "help", "--help", "-h", "check"):
         return {"--version": "version", "--help": "help", "-h": "help"}.get(argv[0], argv[0]), opts
     i = 0
@@ -66,7 +68,7 @@ def parse(argv):
         a = argv[i]
         if a in ("--box", "--stdout", "--no-wait"):
             opts[{"--box": "box", "--stdout": "stdout", "--no-wait": "wait"}[a]] = a != "--no-wait"
-        elif a in ("--width", "--kind") or a.startswith(("--width=", "--kind=")):
+        elif a in ("--width", "--kind", "--grid") or a.startswith(("--width=", "--kind=", "--grid=")):
             name = a.split("=", 1)[0][2:]
             if "=" in a:
                 value = a.split("=", 1)[1]
@@ -82,6 +84,10 @@ def parse(argv):
                     raise UsageError("--width 는 숫자여야 합니다 (%s)" % value)
                 if not render.MIN_WIDTH <= opts["width"] <= render.MAX_WIDTH:
                     raise UsageError("--width 는 %d–%d 사이여야 합니다 (%d)" % (render.MIN_WIDTH, render.MAX_WIDTH, opts["width"]))
+            elif name == "grid":
+                if value not in render.GRID_MODES:
+                    raise UsageError("--grid 는 %s 중 하나입니다 (%s)" % (" · ".join(render.GRID_MODES), value))
+                opts["grid"] = value
             else:
                 if value not in KINDS:
                     raise UsageError("--kind 는 %s 중 하나입니다 (%s)" % (" · ".join(KINDS), value))
@@ -119,20 +125,22 @@ def analyze(src):
     seg = seg_mod.segment(image)
     if seg.reason:
         return None, CONFIRM, "확인 필요  %s: %s" % (name, seg.reason)
-    if not [e for e in seg.elements if e.kind != "text"]:
+    if not [e for e in seg.elements if e.kind != "text"] and seg.grid is None:      # 격자만 있는 그림은 틀과 범례를 그린다
         return None, CONFIRM, "확인 필요  %s: 그릴 것(선 · 점 · 외곽)을 찾지 못했습니다" % name
     return seg, OK, ""
 
 
 def make_art(seg, name, opts):
-    """찾은 요소 → (상태, 한 줄, 글자 아트 또는 None, 모양). --kind 가 그림과 맞지 않으면 만들지 않고 확인을 요청한다"""
+    """찾은 요소 → (상태, 한 줄, 글자 아트 또는 None, 모양). --kind 가 그림과 맞지 않으면 만들지 않고 확인을 요청한다.
+    창은 grid 를 넘기지 않는다 — 늘 기본(hide). 빽빽한 군집(field)이 있으면 점 추정은 범위로 적는다"""
     if opts["kind"] == "wafer" and seg.ring is None:
         return CONFIRM, "확인 필요  %s: 웨이퍼 외곽(원)을 찾지 못했습니다 — --kind auto 로 해 보세요" % name, None, ""
     if opts["kind"] == "chart" and seg.ring is not None:
         return CONFIRM, "확인 필요  %s: 웨이퍼 맵처럼 보입니다 — --kind wafer 나 auto 로 해 보세요" % name, None, ""
-    text = render.render(seg, opts["width"], opts["box"])
+    text = render.render(seg, opts["width"], opts["box"], opts.get("grid", render.GRID_MODES[0]))
     lines = text.rsplit("\n\n", 1)[0].split("\n")
-    return OK, "", text, "%d열 %d행 · 점 추정 %d개" % (max(len(x) for x in lines), len(lines), seg.dots())
+    dots = render.about(*seg.dots_range()) if seg.of("field") else "%d개" % seg.dots()
+    return OK, "", text, "%d열 %d행 · 점 추정 %s" % (max(len(x) for x in lines), len(lines), dots)
 
 
 def convert(src, opts, out):
