@@ -1,6 +1,6 @@
-# Deck–1 기획서 (초안 2판 · 가칭)
+# Subordinate–1 기획서 (초안 3판)
 
-- 상태: 기획 초안 2판 · 2026-11-03 · 앱 코드 0줄. 1판의 질문 Q1–Q5 에 대한 사용자 답을 반영했다 — **별도 저장소 · 호스트 둘 (opencode + Claude Code) · 회사 템플릿 있음 (바뀔 수 있음) · Analysis–1 과 아예 별개 · 사내 PC pip 설치 가능 · 사내 LLM 은 그림을 본다**. 1판과 갈린 결정은 부록 E. 남은 것은 이름 · 설치 자리 · Claude Code 실데이터 규정 · 저장소 공개 여부 (10 › Q6–Q9) 와 M0 결과다. works 대장 ([REGISTRY.md](../REGISTRY.md)) 에는 올리지 않는다 (works 밖 · S-06 해당 없음). 새 저장소가 생기면 이 파일은 그 저장소의 첫 커밋 `docs/PLAN.md` 로 옮긴다 ([Analysis–1 기획서](analysis-1-plan-draft.md) 와 같은 길).
+- 상태: 기획 초안 3판 · 2026-11-03 · 앱 코드 0줄. 사용자 답 두 묶음을 반영했다 — 첫째 (Q1–Q5): **별도 저장소 · 호스트 둘 (opencode + Claude Code) · 회사 템플릿 있음 (바뀔 수 있음) · Analysis–1 과 아예 별개 · 사내 PC pip 설치 가능 · 사내 LLM 은 그림을 본다**. 둘째 (Q6–Q9): **이름 `subordinate-1` · 설치 자리 `D:\OPENCODE\subordinate-1` · Claude Code 실데이터는 지금 회사가 막음 (엔터프라이즈 판으로 풀릴 예정) · 공개 저장소**. 갈린 결정은 부록 E · F. 남은 질문은 없고, 남은 것은 M0 결과다. works 대장 ([REGISTRY.md](../REGISTRY.md)) 에는 올리지 않는다 (works 밖 · S-06 해당 없음). 공개 저장소 `subordinate-1` 이 생기면 이 파일은 그 저장소의 첫 커밋 `docs/PLAN.md` 로 옮긴다 ([Analysis–1 기획서](analysis-1-plan-draft.md) 와 같은 길).
 - 무엇: 원자료 (CSV · XLSX) 와 차트 그림 (PNG — 분석 도구 캡처 등) 을 받아, 사용자 인터뷰로 **현상 › 분석 › 의견** 을 채우고, 회사 PPT 템플릿에 맞춘 편집 가능한 PPTX 초안을 만드는 에이전트 플러그인.
 - 표기: [실험] 이 세션에서 직접 잰 값 (GitHub 별 수 · 라이선스 · 최근 push 는 2026-11-03 GitHub 검색 API 조회) · [문헌] 저장소 문서 · README · 라이선스 파일 · 공개 문헌에서 읽은 것 · [추정] 계산하거나 늘린 값 · [미확인] 확인하지 못한 사실 · [제안] 근거 없이 정한 문턱 (M0 결과로 고친다).
 - 번호: 목표 G1–G6 · 보고 문법 P-01–P-08 · 인터뷰 규칙 I-01–I-11 · 검사 V-01–V-10 · 정찰 KIT-1–KIT-6 · 리스크 대장 1–21 · 질문 Q1–Q9 · 마일스톤 M0–M4 · 작업 T1–T15. [DEVELOP.md](../DEVELOP.md) 의 D-01–D-11 과 겹치지 않게 골랐다.
@@ -9,11 +9,11 @@
 
 - **누구**: 데이터와 그림은 이미 있는데, 그것을 상사 · 유관 부서가 납득하는 보고 장표로 옮기는 데 시간이 드는 공정 · 설비 · 연구 엔지니어. Analysis–1 과 같은 사람이다.
 - **핵심 결정 셋 (2026-11-03 사용자 답으로 확정)**
-  1. **모양은 공용 스킬 + 호스트 어댑터 둘 + 파이썬 도구.** 인터뷰 · 보고 문법 · 질문 은행은 `SKILL.md` 한 벌이고, opencode 와 Claude Code 가 같은 형식을 읽는다 [문헌: opencode docs › skills]. 호스트마다 얇은 어댑터만 다르다 — opencode 는 전용 에이전트 (`agents/deck-1.md` · 권한) + 명령 (`/deck`), Claude Code 는 플러그인 (`.claude-plugin/plugin.json`) + 명령 (`/deck`). 질문은 두 호스트 모두 선택지 질문 도구 (opencode `question` · Claude Code 질문 도구) 로 하고, 그림은 두 호스트의 모델이 본다 (사내 LLM 도 본다 — 사용자 답). 결정적 파이썬 도구가 데이터 사실 · 그림 보관 · 조립 · 검사를 맡고, LLM 은 좌표를 쓰지 않는다. opencode 의 JS 플러그인 (이벤트 훅) 은 쓰지 않는다 — 필요한 것이 없고 npm 경로만 는다.
+  1. **모양은 공용 스킬 + 호스트 어댑터 둘 + 파이썬 도구.** 인터뷰 · 보고 문법 · 질문 은행은 `SKILL.md` 한 벌이고, opencode 와 Claude Code 가 같은 형식을 읽는다 [문헌: opencode docs › skills]. 호스트마다 얇은 어댑터만 다르다 — opencode 는 전용 에이전트 (`agents/subordinate-1.md` · 권한) + 명령 (`/subordinate`), Claude Code 는 플러그인 (`.claude-plugin/plugin.json`) + 명령 (`/subordinate`). 질문은 두 호스트 모두 선택지 질문 도구 (opencode `question` · Claude Code 질문 도구) 로 하고, 그림은 두 호스트의 모델이 본다 (사내 LLM 도 본다 — 사용자 답). 결정적 파이썬 도구가 데이터 사실 · 그림 보관 · 조립 · 검사를 맡고, LLM 은 좌표를 쓰지 않는다. opencode 의 JS 플러그인 (이벤트 훅) 은 쓰지 않는다 — 필요한 것이 없고 npm 경로만 는다. Claude Code 쪽은 지금 합성 · 공개 자료로만 쓴다 — 회사가 막고 있고 엔터프라이즈 판 도입 때 풀린다 (Q8 · I-11 · M5).
   2. **자리는 works 밖 별도 저장소 (Q1).** works 규칙을 채택하되 W-02 를 '고정 의존 목록' 으로 바꾼다 (02). 사내 PC 에서 pip 설치가 되므로 (Q5) python-pptx · pandas · openpyxl · matplotlib · scipy 를 실행 의존으로 쓴다. Analysis–1 과는 코드 · 형식 · 일정을 아예 나누지 않는다 (Q4).
   3. **보고 문법이 제품이다.** 장마다 제목 = 한 문장 주장, 몸통 = 증거 하나. 문장마다 종류 (사실 · 해석 · 의견 · 미확인) 와 근거 id 가 붙는다. 의견은 사용자 입에서만 나온다. 근거에 묶이지 않은 숫자는 장표에 들어가지 못한다 (Report–1 의 근거 칩 개념 — 코드 공유 아님).
 - **가져다 쓰는 것** (03 판정): 실행 = python-pptx · pandas (+ openpyxl) · matplotlib · scipy. 설계 차용 = SciencePlots (스타일 파일을 고지와 함께 옮겨 회사 팔레트로 튜닝) · ppt-master (닫힌 중간 언어 + 검사 게이트) · superpowers brainstorming (보기 전에 묻지 않기 · 한 번에 한 질문) · academic-pptx-skill (행동 제목 · ghost deck test) · CyberPPT (증거표 먼저 · 게이트 실패 시 납품 금지) · K-Dense scientific-slides (그림 원본 보존) · PPTAgent (참고 장표 분석 · 평가 축). **쓰지 않음** = Anthropic pptx 스킬 (2차 저작 · 재배포 금지 라이선스 [문헌]) · AGPL 묶음 (PPTist · WebPlotDigitizer · banana-slides …).
-- **가장 큰 위험 셋**: ① opencode 가 사내 모델에 그림을 실제로 넘기는가 (사용자 정의 provider 의 `modalities` 설정 [문헌: opencode 소스] · 그림 자동 축소) 와 사내 LLM 이 판독 · 도구 호출 · 질문 도구를 얼마나 해내는가 ② Claude Code 로 실데이터를 다룰 때 데이터가 회사 밖 모델로 간다 — 회사 규정 (Q8 · 리스크 8) ③ 엔지니어링 보고의 지어낸 원인 · 숫자 — 한 번 나오면 도구는 끝난다. 그래서 **M0 정찰 (앱 코드 0줄 · 1주 [추정] — pip 가능으로 줄었다)** 을 먼저 하고, 기성품 Presenton (사내 LLM 연결 가능 [문헌]) 을 같은 자료로 돌려 **만들지 않을 기준** (08) 부터 판정한다.
+- **가장 큰 위험 셋**: ① opencode 가 사내 모델에 그림을 실제로 넘기는가 (사용자 정의 provider 의 `modalities` 설정 [문헌: opencode 소스] · 그림 자동 축소) 와 사내 LLM 이 판독 · 도구 호출 · 질문 도구를 얼마나 해내는가 ② Claude Code 로 실데이터를 다루는 길 — 지금은 회사가 막아 도구가 기본으로 거부하지만 (I-11), 그 문턱은 과속방지턱이지 보안 경계가 아니다 (리스크 8) ③ 엔지니어링 보고의 지어낸 원인 · 숫자 — 한 번 나오면 도구는 끝난다. 그래서 **M0 정찰 (앱 코드 0줄 · 1주 [추정] — pip 가능으로 줄었다)** 을 먼저 하고, 기성품 Presenton (사내 LLM 연결 가능 [문헌]) 을 같은 자료로 돌려 **만들지 않을 기준** (08) 부터 판정한다.
 
 ## 01 문제 · 목표 · 비목표
 
@@ -48,18 +48,18 @@ works 밖 별도 저장소로 정했다 (Q1 · 2026-11-03). 그래서 1판의 W-
 |---|---|---|
 | W-01 | 저장소 하나 = 도구 하나. 모양은 공용 스킬 + 호스트 어댑터 둘 + 파이썬 패키지 (06) | 자리에 맞게 옮김 — README · INSTALL · MANUAL · tests · 워크플로 필수 |
 | W-02 | python-pptx (lxml) · pandas · openpyxl · matplotlib · scipy 를 실행에 쓴다. pip 설치 가능 (Q5) | **바꿈** — 고정 의존 목록 (버전 고정 · `requirements.txt` · 라이선스 허용 목록). 선택 기능은 렌더 검사 (PowerPoint COM `pywin32` · LibreOffice) 뿐 — 없으면 그 기능만 꺼진다 |
-| W-03 | 도구 (파이썬) 는 네트워크를 쓰지 않는다. LLM 통신은 호스트가 한다 | 채택. 호스트가 Claude Code 면 인터뷰 · 그림 · 데이터 요약이 회사 밖 모델로 간다 — 도구 규칙 위반은 아니지만 회사 규정 문제다. 시작할 때 데이터 등급을 묻고 (I-11), 규정은 Q8 로 확인한다 |
+| W-03 | 도구 (파이썬) 는 네트워크를 쓰지 않는다. LLM 통신은 호스트가 한다 | 채택. 호스트가 Claude Code 면 인터뷰 · 그림 · 데이터 요약이 회사 밖 모델로 간다 — 도구 규칙 위반은 아니지만 회사 규정 문제다. 지금은 회사가 막고 있다 (Q8) — 도구 설정 `policy.external_real_data` 기본 `false` 로 회사 밖 호스트의 실데이터 입력을 거부하고, 엔터프라이즈 판 도입 뒤 사용자가 연다 (I-11 · M5) |
 | W-04 | 도구는 키를 다루지 않는다 (호스트가 다룬다) | 채택 |
 | W-05 | 인터뷰 답 원문 · 그림 | 채택 — 도구 쪽은 확정한 `deck.json` 만 저장. 호스트는 대화를 남긴다: opencode `%USERPROFILE%\.local\share\opencode\opencode.db` [문헌: opencode docs › troubleshooting] · Claude Code `~/.claude/projects/` [실험: 이 세션의 기록 경로]. 알려진 한계로 적고 지우는 법을 MANUAL 에 둔다 (리스크 9) |
-| W-06 | 템플릿 · 매핑 · 설정은 `%LOCALAPPDATA%\deck-1\` · 형식 버전 · 원자적 쓰기 | 채택 |
+| W-06 | 템플릿 · 매핑 · 설정은 `%LOCALAPPDATA%\subordinate-1\` · 형식 버전 · 원자적 쓰기 · 테스트는 `SUBORDINATE_HOME` 으로 데이터 폴더를 바꾼다 | 채택 |
 | W-07 | 템플릿 등록 · PPTX 저장은 미리보기 › 확정. 결과 파일은 덮어쓰지 않는다 | 채택 |
 | W-08 | INSTALL 은 opencode 가 따라 하는 절차 — 두 호스트의 설치 · 업데이트 · 제거 | 채택 |
-| W-09 | 이름을 바꾸면 데려간다 | 채택 (이름은 Q6) |
+| W-09 | 이름을 바꾸면 데려간다 | 채택 — 이름은 `subordinate-1` (화면 Subordinate–1 · Q6). 공개 저장소에 올린 뒤에는 바꾸지 않는다 |
 | W-10 | 산출 PPTX 는 회사 템플릿의 색을 쓴다 (Q3) | 채택 + 해석 — 도구의 문서 · 그림은 works DESIGN, 산출물은 사용자 템플릿이 정한다 (Analysis–1 의 AN-09 와 같은 갈래) |
 | W-11 | CI · unittest · 검증 가능한 숫자만. 도구가 LLM 을 부르지 않아 가짜 서버는 거의 필요 없다 | 채택 |
-| W-12 | 회사 템플릿 · 로고 · 실데이터 · 실제 장표 금지 · 예시 · 테스트는 합성만 | 채택 (공개 여부 Q9 와 상관없이) |
+| W-12 | 회사 템플릿 · 로고 · 실데이터 · 실제 장표 금지 · 예시 · 테스트는 합성만 | 채택 — 공개 저장소다 (Q9) |
 
-- works 쪽에 바꿀 것: 설치 자리 (Q7) 를 `D:\OPENCODE\deck-1` 로 고르면 works `.gitignore` 에 `/deck-1/` 한 줄 (`/analysis-1/` 선례 — 검사기는 git 이 무시하는 폴더를 앱으로 세지 않는다). 그 밖에는 없다.
+- works 쪽에 바꾼 것: 설치 자리를 `D:\OPENCODE\subordinate-1` 로 골라 (Q7) works `.gitignore` 에 `/subordinate-1/` 한 줄을 넣었다 (`/analysis-1/` 선례 · works 커밋 따로). 그 자리에 표준 라이브러리 밖 import 를 둔 빈 뼈대를 만들어, works 검사기가 앱으로 세지 않고 (위반 0) `git status` 가 깨끗한 것을 확인했다 [실험]. 그 밖에는 없다.
 
 ## 03 자료조사 — GitHub 도구 지도
 
@@ -181,31 +181,31 @@ works 밖 별도 저장소로 정했다 (Q1 · 2026-11-03). 그래서 1판의 W-
 - **I-08** 이어 할 수 있다. `deck.json` 의 `open_items` 가 곧 남은 질문 목록이다.
 - **I-09** 독자에 따라 무게를 바꾼다. 경영진 = 요약 · 의견 · 요청, 팀 = 분석 · 근거.
 - **I-10** 질문은 **질문 은행** (부록 B) 이 기본이다. LLM 은 은행에서 고르고 빈칸을 채운다. 자유 생성은 은행에 없을 때만 — 약한 사내 LLM 에서도 인터뷰 품질의 바닥을 지키려는 것이다.
-- **I-11** 시작할 때 호스트를 확인한다. 이 세션의 모델이 회사 밖 모델 (Claude Code) 이면, 자료를 읽기 전에 "이 자료를 이 모델로 보내도 되는 등급입니까" 를 묻고 답을 `deck.json` 의 `meta.host_ack` 에 남긴다 (W-03 · W-07 · Q8). 사내 LLM 이면 묻지 않는다. 막는 장치가 아니라 확인하는 장치다 — 결정은 사용자가 한다.
+- **I-11** 시작할 때 호스트를 확인한다. 어댑터가 도구에 호스트를 알린다 (`--host opencode` · `--host claude-code`). 회사 밖 호스트 (Claude Code) 면 도구가 설정 `policy.external_real_data` 를 본다 — 기본 `false` (2026-11-03 사용자 답: 지금은 회사가 막음). `false` 면 `profile` · `images` 가 합성 · 공개 자료 표시 (`--sample`) 가 없는 입력을 거부하고, 스킬은 합성 예시로 안내한다. 회사가 엔터프라이즈 판으로 풀면 사용자가 `--set policy.external_real_data=true` 로 연다 (확인 한 번 · W-07). `deck.json` 의 `meta.host` · `meta.data_class` 에 남긴다. 이 문턱은 실수를 막는 과속방지턱이지 보안 경계가 아니다 — 모델이 파일 읽기 도구로 직접 여는 것까지는 막지 못한다 (리스크 8).
 
 ## 06 아키텍처
 
 ### 모양 (별도 저장소 · Q1)
 
 ```text
-deck-1/                               가칭 (Q6)
-├─ skills/deck-1/SKILL.md             공용 — 인터뷰 · 보고 문법 (04) · 줄거리 규칙. 두 호스트가 같은 파일을 읽는다
-├─ skills/deck-1/references/          공용 — 질문 은행 · 장표 유형 · 합성 예시
-├─ opencode/agents/deck-1.md          opencode 어댑터 — 전용 에이전트 · 권한 (bash 는 `deck-1` 명령만 · 편집은 작업 폴더만)
-├─ opencode/commands/deck.md          opencode 어댑터 — `/deck <자료 폴더>`
-├─ .claude-plugin/plugin.json         Claude Code 어댑터 — 플러그인
-├─ .claude-plugin/marketplace.json    Claude Code 에서 이 저장소를 마켓으로 더해 설치 (ppt-master 와 같은 방식 [문헌])
-├─ commands/deck.md                   Claude Code 어댑터 — `/deck <자료 폴더>`
-├─ deck1/                             결정적 도구 — 명령 하나 `deck-1`
+subordinate-1/                       공개 저장소 (Q6 · Q9)
+├─ skills/subordinate-1/SKILL.md     공용 — 인터뷰 · 보고 문법 (04) · 줄거리 규칙. 두 호스트가 같은 파일을 읽는다
+├─ skills/subordinate-1/references/  공용 — 질문 은행 · 장표 유형 · 합성 예시
+├─ opencode/agents/subordinate-1.md  opencode 어댑터 — 전용 에이전트 · 권한 (bash 는 `subordinate-1` 명령만 · 편집은 작업 폴더만)
+├─ opencode/commands/subordinate.md  opencode 어댑터 — `/subordinate <자료 폴더>`
+├─ .claude-plugin/plugin.json        Claude Code 어댑터 — 플러그인
+├─ .claude-plugin/marketplace.json   Claude Code 에서 이 저장소를 마켓으로 더해 설치 (ppt-master 와 같은 방식 [문헌])
+├─ commands/subordinate.md           Claude Code 어댑터 — `/subordinate <자료 폴더>`
+├─ subordinate1/                     결정적 도구 — 명령 하나 `subordinate-1`
 │   profile · images · template · build · validate · render · check · version
-├─ deck1/styles/                      SciencePlots 에서 옮겨 튜닝한 그림 스타일 (MIT 고지)
-├─ tests/                             unittest · 합성 데이터 · 합성 템플릿 둘 · 골든 구조
-├─ requirements.txt                   고정 의존 목록 (W-02 바꿈)
-├─ INSTALL.md                         opencode 가 따라 하는 설치 — 두 호스트 (W-08 채택)
+├─ subordinate1/styles/              SciencePlots 에서 옮겨 튜닝한 그림 스타일 (MIT 고지)
+├─ tests/                            unittest · 합성 데이터 · 합성 템플릿 둘 · 골든 구조
+├─ requirements.txt                  고정 의존 목록 (W-02 바꿈)
+├─ INSTALL.md                        opencode 가 따라 하는 설치 — 두 호스트 (W-08 채택)
 └─ docs/MANUAL.md · docs/PLAN.md · RULES.md (02 의 채택표)
 ```
 
-- opencode: INSTALL 이 `skills/deck-1/` 와 `opencode/agents` · `opencode/commands` 를 opencode 설정 폴더 (`%USERPROFILE%\.config\opencode\`) 의 `skills` · `agents` · `commands` 로 복사하고, 제거 절에서 그 파일만 지운다 (W-08 · 같은 이름이 있으면 덮어쓰지 않고 묻는다). 복사본이라 업데이트 절이 다시 복사한다. 전역에 둔다 [제안].
+- opencode: INSTALL 이 `skills/subordinate-1/` 와 `opencode/agents` · `opencode/commands` 를 opencode 설정 폴더 (`%USERPROFILE%\.config\opencode\`) 의 `skills` · `agents` · `commands` 로 복사하고, 제거 절에서 그 파일만 지운다 (W-08 · 같은 이름이 있으면 덮어쓰지 않고 묻는다). 복사본이라 업데이트 절이 다시 복사한다. 전역에 둔다 [제안].
 - Claude Code: 저장소를 플러그인 마켓으로 더해 설치하고 스킬 원본을 그대로 쓴다. opencode 가 Claude Code 플러그인 폴더 안의 스킬까지 찾는지는 [미확인] — 그래서 opencode 쪽은 복사로 간다.
 - **호스트 차이는 어댑터에만 둔다.** `SKILL.md` 에는 호스트 이름으로 갈리는 문장을 두지 않고, 능력으로 낮춘다 (질문 도구가 없으면 번호 목록 — I-02). 같은 합성 시나리오를 두 호스트에서 돌려 갈라짐을 잡는다 (T11 · 리스크 21).
 
@@ -235,7 +235,7 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 
 회사 템플릿이 있고, 바뀔 수 있다 (Q3). 그래서 템플릿을 **여러 벌 등록** 하고 **바뀜을 감지** 한다.
 
-- `template add <파일> --name <이름>`: 회사 `.pptx` · `.potx` 를 데이터 폴더 (`%LOCALAPPDATA%\deck-1\templates\<이름>\`) 로 복사하고, 레이아웃 · 자리표시자 목록과 `mapping.json` 초안을 만든다 (예: 장표 유형 `title_figure` → 레이아웃 '제목 및 내용' 의 자리표시자 idx 0 · 1). 사용자가 한 번 확인 · 고친다 (W-07).
+- `template add <파일> --name <이름>`: 회사 `.pptx` · `.potx` 를 데이터 폴더 (`%LOCALAPPDATA%\subordinate-1\templates\<이름>\`) 로 복사하고, 레이아웃 · 자리표시자 목록과 `mapping.json` 초안을 만든다 (예: 장표 유형 `title_figure` → 레이아웃 '제목 및 내용' 의 자리표시자 idx 0 · 1). 사용자가 한 번 확인 · 고친다 (W-07).
 - 바뀜 감지: 등록할 때 sha256 과 레이아웃 지문 (레이아웃 이름 · 자리표시자 종류 · idx) 을 적어 둔다. `build` 때 다르면 멈추고 `template diff` 로 무엇이 바뀌었는지 (사라진 레이아웃 · 바뀐 자리표시자) 보인다.
 - 새 판은 새 이름으로 등록하고 옛 판은 지우지 않는다 — 지난 보고를 같은 모양으로 다시 만들 수 있게.
 - `deck.json` 은 템플릿을 모른다 (장표 유형은 의미 단위). 템플릿을 바꿔도 같은 `deck.json` 으로 다시 빌드한다 — 바뀐 템플릿에서 할 일은 매핑 확인뿐이다.
@@ -245,7 +245,7 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 ### 그림
 
 - 받은 그림: 원본 복사 · sha256 · 픽셀 크기 → 자리표시자 안에 비율을 지켜 맞춘다 (늘리지 않음 · P-08).
-- 다시 그리기 (사용자가 고를 때만): `facts.json` 의 계열로 matplotlib · `deck1/styles/` (SciencePlots 에서 옮겨 튜닝) · 회사 팔레트 (등록한 템플릿의 테마 색에서 읽기 [제안]) · 라이트 · 2× [제안].
+- 다시 그리기 (사용자가 고를 때만): `facts.json` 의 계열로 matplotlib · `subordinate1/styles/` (SciencePlots 에서 옮겨 튜닝) · 회사 팔레트 (등록한 템플릿의 테마 색에서 읽기 [제안]) · 라이트 · 2× [제안].
 - 네이티브 차트 (M4 · 선택): python-pptx 차트 — PPT 안에서 고칠 수 있지만 모양이 PowerPoint 에 달린다.
 
 ### 렌더 · 검사
@@ -259,14 +259,14 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | 항목 | opencode + 사내 LLM | Claude Code |
 |---|---|---|
 | 설치 | `skills` · `agents` · `commands` 를 opencode 설정 폴더로 복사 (INSTALL) | 저장소를 플러그인 마켓으로 더해 설치 |
-| 시작 | `/deck <자료 폴더>` 또는 Tab 으로 `deck-1` 에이전트 | `/deck <자료 폴더>` |
+| 시작 | `/subordinate <자료 폴더>` 또는 Tab 으로 `subordinate-1` 에이전트 | `/subordinate <자료 폴더>` |
 | 질문 | `question` 도구 [문헌] · 도구 호출이 안 되면 번호 목록 | 질문 도구 |
 | 그림 보기 | 사내 LLM 비전 (사용자 답). 사용자 정의 provider 모델은 `modalities.input` 에 `image` 가 있어야 할 수 있다 [문헌: opencode 소스 `provider.ts` · 사용자 문서에는 없음 · 없을 때의 동작은 미확인] | 됨 |
 | 그림 크기 | 2000×2000 · base64 5,242,880 바이트를 넘으면 줄여 보낸다 [문헌] — 웨이퍼 맵의 작은 점 · 작은 축 글자가 사라질 수 있다. 도구가 잘라 (축 · 범례 · 본문) 보이는 것을 KIT-3 에서 비교한다 | 호스트의 제한 [미확인] — 같은 방법을 쓴다 |
-| 권한 | 에이전트 권한으로 bash 를 `deck-1` 명령에 묶는다 | 명령의 허용 도구로 묶는다 [제안] |
-| 데이터 | 실데이터 기본 | 회사 밖 모델 — 시작 때 등급 확인 (I-11) · 회사 규정 (Q8) |
+| 권한 | 에이전트 권한으로 bash 를 `subordinate-1` 명령에 묶는다 | 명령의 허용 도구로 묶는다 [제안] |
+| 데이터 | 실데이터 기본 | 지금은 합성 · 공개 자료만 — 회사가 막음 (Q8). `--host claude-code` 면 도구가 실데이터 입력을 거부하고, 엔터프라이즈 판 도입 뒤 설정 한 줄로 연다 (I-11 · M5) |
 | 대화 저장 | `opencode.db` (리스크 9) | `~/.claude/projects/` (리스크 9) |
-| 확인 | KIT-2 · KIT-3 | KIT-2 (같은 시험지) |
+| 확인 | KIT-2 · KIT-3 | KIT-2 (같은 시험지 · 합성 자료만) |
 
 ## 07 검사 V-01–V-10
 
@@ -308,9 +308,10 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 |---|---|---|
 | M1 뼈대 | `profile` · `images` · `template` · `build` · `validate` (V-01 · V-05 · V-06 · V-08 · V-10) · 합성 데이터 테스트. LLM 없이 손으로 쓴 `deck.json` 으로도 PPTX 가 나온다 | 합성 보고 3종이 열린다 (G5) |
 | M1 · 템플릿 | 템플릿 여러 벌 등록 · 바뀜 감지 · `template diff` (M1 에 넣는다 — Q3 '바뀔 수 있음') | 합성 템플릿 둘에서 같은 `deck.json` 이 빌드된다 |
-| M2 인터뷰 | 공용 스킬 · 호스트 어댑터 둘 · 질문 은행 · 그림 판독 메모 · I-11 · V-02 · V-03 · V-04 · ghost deck 확인 | 실제 보고 3건 — G1 · G2 · G4 · G6 (opencode 에서 · Claude Code 는 합성 시나리오 + Q8 답에 따라) |
+| M2 인터뷰 | 공용 스킬 · 호스트 어댑터 둘 · 질문 은행 · 그림 판독 메모 · I-11 · V-02 · V-03 · V-04 · ghost deck 확인 | 실제 보고 3건 — G1 · G2 · G4 · G6 (opencode 에서 · Claude Code 는 합성 시나리오만 — Q8) |
 | M3 그림 · 렌더 | 다시 그리기 · 근거 줄 · 렌더 검사 · 호스트 모델 시각 검토 · V-07 · V-09 | G3 |
 | M4 다듬기 | 보고 유형 셋 · 독자 노브 · 지난 보고서 학습 (markitdown) · 네이티브 차트 | — |
+| M5 (조건부) Claude Code 실데이터 | 회사가 엔터프라이즈 판을 들인 뒤: 데이터 보존 · 학습 사용 조건을 회사 계약에서 확인 [미확인] · `policy.external_real_data` 열기 · I-11 문구 고치기 · 실제 보고 1건 | 회사 확인 · G2 |
 
 ## 09 리스크 대장
 
@@ -323,7 +324,7 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | 5 | 그림 판독 숫자 오독 | 상 | 상 | KIT-3 오차 | 판독 숫자는 늘 `[추정]` · 장표 숫자는 facts 또는 사용자 답에서만 |
 | 6 | 라이선스 오염 (Anthropic 스킬 · AGPL 복사) | 낮음 | 상 (공개 저장소) | 리뷰 | 허용 목록 · 고지 파일 · CI 의존 라이선스 검사 |
 | 7 | 회사 템플릿 · 실데이터 커밋 (W-12) | 중 | 최상 | — | 템플릿은 데이터 폴더 · `.gitignore` · 합성 예시 · 사설 주소 검사 |
-| 8 | Claude Code 로 다룬 실데이터가 회사 밖 모델로 감 (Q2 에서 고른 길) | 상 (고른 길이라) | 최상 (규정 위반이면) | Q8 답 | 회사 규정 확인 (Q8) · 시작 때 등급 확인 (I-11) · 개발 · 테스트는 합성 데이터만 · 저장소에 실데이터 금지 (리스크 7) |
+| 8 | 회사가 막은 동안 (Q8) Claude Code 에 실데이터가 들어감 — 도구 문턱은 모델이 파일 읽기 도구로 직접 여는 것까지는 못 막는다 | 낮음 | 최상 (규정 위반) | — | 도구 기본 거부 (`policy.external_real_data=false` · I-11) · 스킬 첫 단계의 확인 · 개발 · 테스트는 합성 데이터만 · 저장소에 실데이터 금지 (리스크 7) · 엔터프라이즈 도입 뒤 M5 에서 다시 판정 |
 | 9 | 호스트가 대화 원문 · 그림을 디스크에 남김 — opencode `opencode.db` [문헌] · Claude Code `~/.claude/projects/` [실험] (W-05 밖) | 확실 | 중 | — | 알려진 한계로 적고 지우는 법을 MANUAL 에 · 도구 쪽 저장은 확정본만 · 쓰는 opencode 판에 세션을 밖으로 공유하는 기능이 있으면 끈다 [미확인 — 지금 문서에서 찾지 못함] |
 | 10 | 템플릿이 제각각 (자리표시자 이름 · 깨진 마스터) | 상 | 중 | KIT-4 | 매핑 1회 확인 · 실패 시 빈 레이아웃 + 도형 |
 | 11 | 한글 글자 넘침 | 상 | 중 | KIT-5 | 글자 예산 · 렌더 검사 · 자동 맞춤은 PowerPoint 가 열 때만 계산된다 [미확인] |
@@ -336,7 +337,7 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | 18 | 1인 유지 부담 | 상 | 중 | — | 범위 상한 · 스킬 한 벌 · 호스트 차이는 어댑터에만 |
 | 19 | 그림 판독과 원자료가 어긋남 (그림이 다른 필터 · 기간 · 집계로 그려짐) | 중 | 상 | 판독 메모 ↔ facts 차이 | 원자료가 이긴다 · 어긋남을 보이고 사용자 확인 (I-06) · 근거 줄에 그림의 출처를 따로 적음 |
 | 20 | 회사 템플릿이 바뀌어 매핑이 깨짐 (Q3 '바뀔 수 있음') | 상 | 중 | `build` 의 지문 불일치 | 바뀜 감지 › `template diff` › 새 이름으로 등록 · 옛 판 보존 · `deck.json` 은 템플릿을 모른다 |
-| 21 | 두 호스트가 갈라짐 (질문 도구 · 권한 · 명령 문법 차이로 한쪽만 고쳐짐) | 중 | 중 | 한쪽 시나리오만 통과 | 차이는 어댑터에만 · 같은 합성 시나리오를 두 호스트에서 돌린다 (T11 · T13) |
+| 21 | 두 호스트가 갈라짐 (질문 도구 · 권한 · 명령 문법 차이로 한쪽만 고쳐짐) | 중 | 중 | 한쪽 시나리오만 통과 | 차이는 어댑터에만 · 같은 합성 시나리오를 두 호스트에서 돌린다 (T11 · T13). 엔터프라이즈 전까지 Claude Code 쪽은 합성 시나리오로만 살아 있어 낡기 쉽다 — M5 시작 때 먼저 시나리오를 다시 돌린다 |
 
 ## 10 사용자에게 물을 것
 
@@ -351,14 +352,18 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | Q5 | 사내 PC pip 설치 | 된다 | KIT-1 을 확인으로 줄임 · M0 1주 · 리스크 1 낮춤 |
 | — | (질문 밖) 사내 LLM 의 그림 보기 | 본다 | 판독 메모 · 시각 검토 · Ascii–1 은 보조로 (03 · 05 · 06) |
 
+### 해결한 질문 (2026-11-03 사용자 답 · 둘째)
+
+| # | 질문 | 답 | 바뀐 것 |
+|---|---|---|---|
+| Q6 | 이름 | `subordinate-1` (화면 Subordinate–1) | 저장소 · 폴더 · 명령 `subordinate-1` · 데이터 폴더 `%LOCALAPPDATA%\subordinate-1` · 환경 변수 `SUBORDINATE_*` · 파이썬 패키지 `subordinate1` · 호스트 명령 `/subordinate` [제안] · 이 파일 이름 (`git mv`) |
+| Q7 | 설치 자리 | `D:\OPENCODE\subordinate-1` | works `.gitignore` 에 `/subordinate-1/` (works 커밋 따로 · 02) |
+| Q8 | Claude Code 로 실데이터 | 지금은 회사가 막음 · 엔터프라이즈 판으로 풀릴 예정 | 도구 문턱 `policy.external_real_data` 기본 `false` (I-11) · M5 (조건부) · 리스크 8 · 21 다시 씀 |
+| Q9 | 저장소 공개 여부 | 공개 | W-12 그대로 — 예시 · 테스트는 합성만 |
+
 ### 남은 질문
 
-| # | 질문 | 선택지 (추천 먼저) | 고르면 |
-|---|---|---|---|
-| Q6 | 이름 (저장소 · 폴더 · 명령 · 데이터 폴더 · 환경 변수 접두어). 정하면 바꾸기 어렵다 (W-09) | ① `deck-1` (Deck–1) ② `brief-1` (Brief–1) ③ 직접 | 저장소를 이 이름으로 만든다 — 새 저장소는 사용자가 GitHub 에서 만든다 (이 작업 세션은 저장소를 만들 수 없다) |
-| Q7 | 설치 자리 | ① `D:\OPENCODE\deck-1` (works 안 · Analysis–1 선례) ② works 밖 다른 폴더 | ① works `.gitignore` 에 `/deck-1/` 한 줄 (works 커밋 하나) ② works 는 그대로 |
-| Q8 | Claude Code 로 실데이터를 다뤄도 되는지 — 회사 규정 | ① 확인했다 · 된다 ② 아직 — 확인 전까지 시작 때 등급 질문 (I-11) 이 늘 뜬다 ③ 안 된다 | ③ 이면 Claude Code 는 개발 · 합성 데이터용으로 내린다 (Q2 를 사실상 ① 로) |
-| Q9 | 새 저장소 공개 여부 | ① 공개 (works 처럼 · W-12 그대로) ② 비공개 | 어느 쪽이든 회사 템플릿 · 실데이터는 넣지 않는다 [제안] |
+- 없음. 다음은 사용자 차례다: ① GitHub 에 공개 저장소 `subordinate-1` 을 만든다 (이 작업 세션은 저장소를 만들 수 없다) ② 저장소가 생기면 M0 키트 (T1–T3) 를 사내 PC 에서 돌린다 ③ 회사가 엔터프라이즈 판을 들이면 알린다 — M5 를 연다.
 
 ## 부록
 
@@ -367,7 +372,7 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 ```json
 {
   "format": 1,
-  "meta": {"type": "anomaly", "audience": "team", "title": "PRD_B 두께 상승 보고", "date": "2026-11-03"},
+  "meta": {"type": "anomaly", "audience": "team", "title": "PRD_B 두께 상승 보고", "date": "2026-11-03", "host": "opencode", "data_class": "real"},
   "sources": {"facts": "facts.json", "facts_sha256": "<앞 16자>", "images": "images.json"},
   "slides": [
     {
@@ -407,28 +412,28 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 
 ### C 작업표 (하위 에이전트용)
 
-이 세션의 사용자 설정 (4단 모델 배정) 에 따른 작업표다. T4 는 남은 질문 (Q6–Q9) 의 답과 M0 결과가 있어야 시작한다. T6 은 사용자가 새 저장소를 만든 뒤에 시작한다. 같은 내용을 이 기획을 낸 세션의 보고에도 실었다.
+이 세션의 사용자 설정 (4단 모델 배정) 에 따른 작업표다. 모든 작업은 사용자가 공개 저장소 `subordinate-1` 을 만든 뒤에 시작한다. T1–T3 의 키트는 그 저장소의 `kit/` 에 두고 M0 가 끝나면 지운다 [제안]. T4 는 M0 결과가 있어야 시작한다. 같은 내용을 이 기획을 낸 세션의 보고에도 실었다.
 
 ```json
 {
-  "project_title": "Deck–1 (가칭) — 원자료 · 차트 그림 + 인터뷰 → 현상 › 분석 › 의견 엔지니어링 보고 PPTX 플러그인",
-  "executive_summary": "공용 SKILL.md 한 벌과 호스트 어댑터 둘 (opencode · Claude Code) 로 붙는 인터뷰형 도구를 별도 저장소에 만들고, 그림을 보는 호스트 모델이 인터뷰 · 글을, 결정적 파이썬 도구 (python-pptx · pandas · matplotlib · scipy) 가 숫자 · 그림 보관 · 템플릿 배치 · 검사를 맡는다. 문장마다 종류 (사실 · 해석 · 의견) 와 근거 id 를 달아 지어낸 원인 · 숫자가 빌드를 통과하지 못하게 하고, 바뀔 수 있는 회사 템플릿은 여러 벌 등록 · 바뀜 감지로 다룬다. 사내 LLM 의 그림 · 도구 처리와 기성품 대비 가치를 1주 M0 정찰로 먼저 재고, 남은 답 (이름 · 설치 자리 · Claude Code 실데이터 규정 · 공개 여부) 과 함께 3판에서 확정한다.",
-  "total_estimated_effort": 110,
+  "project_title": "Subordinate–1 — 원자료 · 차트 그림 + 인터뷰 → 현상 › 분석 › 의견 엔지니어링 보고 PPTX 플러그인",
+  "executive_summary": "공용 SKILL.md 한 벌과 호스트 어댑터 둘 (opencode · Claude Code) 로 붙는 인터뷰형 도구를 공개 저장소 subordinate-1 에 만들고, 그림을 보는 호스트 모델이 인터뷰 · 글을, 결정적 파이썬 도구 (python-pptx · pandas · matplotlib · scipy) 가 숫자 · 그림 보관 · 템플릿 배치 · 검사를 맡는다. 문장마다 종류 (사실 · 해석 · 의견) 와 근거 id 를 달아 지어낸 원인 · 숫자가 빌드를 통과하지 못하게 하고, 바뀔 수 있는 회사 템플릿은 여러 벌 등록 · 바뀜 감지로 다룬다. 사내 LLM 의 그림 · 도구 처리와 기성품 대비 가치를 1주 M0 정찰로 먼저 재고 4판에서 확정한다. Claude Code 는 회사가 엔터프라이즈 판을 들이기 전까지 합성 자료로만 쓰고, 도구 설정 문턱으로 실데이터 입력을 거부한다.",
+  "total_estimated_effort": 111,
   "tasks": [
-    {"task_id": "T1", "task_name": "M0 사내 PC 확인 키트", "description": "pip 가 된다는 답 (Q5) 을 전제로 KIT-1 · KIT-4 · KIT-5 를 사용자가 사내 Windows PC 에서 그대로 돌릴 확인 스크립트와 점검표로 만든다. Python 판 확인 (최소 Python 결정용), 고정 의존 목록 설치 · import, PowerPoint COM (pywin32) 유무, 회사 템플릿 지금 판 · 이전 판의 레이아웃 · 자리표시자 목록과 지문 차이, python-pptx 로 만든 PPTX 가 복구 없이 열리는지를 확인한다. 판정 문턱은 결과를 보기 전에 적고, 출력에 회사 이름 · 경로 · 키가 찍히지 않게 한다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Environment_Probe_Engineer", "expected_output": "kit/ 폴더 (PowerShell 5.1 호환 진입 · Python 스크립트) · 점검표 · 결과를 붙여 넣을 표 양식", "dependencies": []},
+    {"task_id": "T1", "task_name": "M0 사내 PC 확인 키트", "description": "pip 가 된다는 답 (Q5) 을 전제로 KIT-1 · KIT-4 · KIT-5 를 사용자가 사내 Windows PC 에서 그대로 돌릴 확인 스크립트와 점검표로 만든다. Python 판 확인 (최소 Python 결정용), 고정 의존 목록 설치 · import, PowerPoint COM (pywin32) 유무, 회사 템플릿 지금 판 · 이전 판의 레이아웃 · 자리표시자 목록과 지문 차이, python-pptx 로 만든 PPTX 가 복구 없이 열리는지를 확인한다. 판정 문턱은 결과를 보기 전에 적고, 출력에 회사 이름 · 경로 · 키가 찍히지 않게 한다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Environment_Probe_Engineer", "expected_output": "새 저장소의 kit/ (M0 뒤 지움 · PowerShell 5.1 호환 진입 · Python 스크립트) · 점검표 · 결과를 붙여 넣을 표 양식", "dependencies": []},
     {"task_id": "T2", "task_name": "M0 사내 LLM · 그림 판독 시험지", "description": "KIT-2 를 두 호스트로 설계한다 — ① opencode + 사내 LLM: 그림이 모델에 실제로 닿는지 (provider 모델 설정의 modalities 있음 · 없음 두 번) ② Claude Code: 같은 시험지. 둘 다 도구 호출 · 질문 도구 · 그림 5장 + facts 의 맥락 길이 · 한국어 문장 · deck.json 스키마 통과율을 잰다. KIT-3 은 그림 10장의 호스트 모델 판독 vs 원자료 · 사용자 답 — 모양 서술 · 숫자 오차 · 웨이퍼 맵 작은 점 · 자동 축소 전후 · 잘라 보이기 전후. 합성 그림 · 합성 데이터만 쓰고, 점이 아니라 구간으로 판정하는 채점표를 만든다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Evaluation_Designer", "expected_output": "시험지 마크다운 · 합성 입력 묶음 · 채점 스크립트 · 사전 등록한 문턱 표", "dependencies": []},
     {"task_id": "T3", "task_name": "M0 기준선 비교 절차", "description": "KIT-6 — 같은 합성 자료로 손 작업 · Presenton + 사내 LLM · pandoc reference-doc 를 돌리는 절차와 G1–G6 채점표를 만든다. '만들지 않을 기준' (기성품이 G2 · G3 를 80% 채우면 중단) 의 판정 방법을 적는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Benchmark_Analyst", "expected_output": "기준선 절차서 · 채점표 양식", "dependencies": ["T2"]},
-    {"task_id": "T4", "task_name": "3판 확정 — M0 결과와 남은 답", "description": "정찰 결과 (T1–T3) 와 남은 사용자 답 (Q6 이름 · Q7 설치 자리 · Q8 Claude Code 실데이터 규정 · Q9 공개 여부) 으로 이름 · 최소 Python · 고정 의존 판 · 호스트별 권한 방식을 확정하고, 만들지 않을 기준을 판정한다. 기획서 3판을 새 저장소의 docs/PLAN.md 로 쓰고, 갈린 결정 표에 바뀐 것과 까닭을 남긴다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 9, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "새 저장소 docs/PLAN.md (3판) · 갈린 결정 표", "dependencies": ["T1", "T2", "T3"]},
+    {"task_id": "T4", "task_name": "4판 확정 — M0 결과", "description": "정찰 결과 (T1–T3) 로 최소 Python · 고정 의존 판 · 호스트별 권한 방식 · I-11 문턱의 동작을 확정하고, 만들지 않을 기준을 판정한다. 기획서 4판을 공개 저장소 subordinate-1 의 docs/PLAN.md 로 쓰고, 갈린 결정 표에 바뀐 것과 까닭을 남긴다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 9, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "subordinate-1 저장소 docs/PLAN.md (4판) · 갈린 결정 표", "dependencies": ["T1", "T2", "T3"]},
     {"task_id": "T5", "task_name": "deck.json · 보고 문법 · 검사 명세", "description": "부록 A 를 JSON Schema 로 확정하고, P-01–P-08 과 V-01–V-10 을 기계가 판정할 수 있는 규칙으로 쓴다. 특히 V-03 숫자 대조의 규칙 (단위 · 유효숫자 · 반올림 · % · σ · 범위 표기) 과 kind 별 refs 요구, 장표 유형 목록, format 올리는 규칙을 정한다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "schema/deck.schema.json · docs/SPEC-deck.md (규칙 · 예시 · 반례)", "dependencies": ["T4"]},
-    {"task_id": "T6", "task_name": "새 저장소 뼈대 · 규칙 채택표 · CI", "description": "사용자가 GitHub 에서 Q6 이름으로 만든 새 저장소에 뼈대를 만든다: README · INSTALL · docs/MANUAL.md · RULES.md (기획서 02 의 채택표) · AGENTS.md · requirements.txt (고정 판) · .claude-plugin/plugin.json · .claude-plugin/marketplace.json · opencode/ 어댑터 빈 틀 · .gitignore (데이터 · 템플릿 · 실데이터 막기). CI 는 Windows + Ubuntu × (최소 Python, 최신 Python) 이고 의존 라이선스 허용 목록 · 비밀처럼 보이는 문자열 · 사설 주소 검사를 넣는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Repo_Scaffolder", "expected_output": "뼈대 커밋 하나 · 통과하는 빈 CI", "dependencies": ["T4"]},
-    {"task_id": "T7", "task_name": "profile — 원자료 → facts.json", "description": "CSV · XLSX 를 읽어 열 요약 · 추세 · 변화점 후보 · 이상점 · 집단 비교 (Is / Is-Not 후보) 를 id 달린 사실로 낸다. 값마다 단위 · n · 집계 수준 · 계산 방법을 남겨 V-03 과 근거 줄이 쓸 수 있게 한다. 계산은 pandas · scipy (고정 의존) 로 하고, 판과 계산 방법을 facts.json 머리에 적는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Data_Logic_Developer", "expected_output": "deck1/profile.py · facts.json 형식 · 단위 테스트", "dependencies": ["T5", "T6"]},
-    {"task_id": "T8", "task_name": "images · 템플릿 등록부", "description": "그림 원본 보관 (sha256 · 픽셀 크기 · 형식) 과 images.json, 그리고 템플릿 등록부를 만든다: template add (데이터 폴더로 복사 · 레이아웃 · 자리표시자 목록 · mapping.json 초안 · 사용자 확정), 등록 때의 sha256 · 레이아웃 지문 기록, build 때 지문이 다르면 멈추기, template diff (사라진 레이아웃 · 바뀐 자리표시자), 새 판은 새 이름으로 · 옛 판 보존. 테스트는 자리표시자 배치가 다른 합성 템플릿 둘로 한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Template_Engineer", "expected_output": "deck1/images.py · deck1/template.py · 합성 템플릿 둘 · 테스트", "dependencies": ["T5", "T6"]},
-    {"task_id": "T9", "task_name": "build — deck.json → PPTX", "description": "python-pptx 로 deck.json · mapping.json · 그림을 등록한 템플릿에 조립한다. 그림은 비율을 지켜 자리표시자 안에 맞추고, 그림 장표마다 근거 줄을, 노트에 근거 id 와 추론을 넣는다. 결과 파일은 덮어쓰지 않는다. python-pptx 는 어댑터 한 겹 뒤에 둔다 (리스크 12 — 비상구는 미리 만들지 않는다). 같은 deck.json 이 합성 템플릿 둘에서 모두 빌드되어야 한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 9, "assigned_model": "claude-sonnet", "agent_role": "Renderer_Engineer", "expected_output": "deck1/build.py · 어댑터 · 합성 보고 3종 PPTX 생성 테스트", "dependencies": ["T5", "T8"]},
-    {"task_id": "T10", "task_name": "validate — V-01–V-10", "description": "T5 명세대로 검사기를 만든다. 막는 검사와 알리는 검사를 나누고, ERR · 숫자? · 직접 표시를 다룬다. 숫자 대조는 반례 묶음 (반올림 · 단위 환산 · 퍼센트 포인트 · σ) 으로 시험한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Verification_Developer", "expected_output": "deck1/validate.py · 반례 묶음 테스트", "dependencies": ["T5", "T7"]},
-    {"task_id": "T11", "task_name": "공용 스킬 + 호스트 어댑터 둘 (인터뷰)", "description": "skills/deck-1/SKILL.md 와 references (보고 문법 · 질문 은행 · 장표 유형 · 합성 예시) 를 한 벌로 쓰고, 어댑터를 둘 만든다: opencode — agents/deck-1.md (인터뷰 지침 · 권한: bash 는 deck-1 명령만 · 편집은 작업 폴더만) · commands/deck.md, Claude Code — commands/deck.md (허용 도구 제한). SKILL.md 에는 호스트 이름으로 갈리는 문장을 두지 않고 능력으로 낮춘다 (질문 도구가 없으면 번호 목록). I-01–I-11 을 지키고, 회사 밖 모델이면 시작 때 데이터 등급을 묻는다 (I-11). 그림마다 판독 메모 (숫자는 [추정]) 를 먼저 쓰고 사용자 확인을 받으며, 판독과 facts 가 어긋나면 원자료를 앞세운다. 같은 합성 시나리오를 두 호스트에서 돌려 질문 수 · 빈칸 처리 · 그림 판독 흐름이 같은지 확인한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Interview_Designer", "expected_output": "skills/deck-1/ · opencode/agents/deck-1.md · opencode/commands/deck.md · commands/deck.md · 두 호스트 합성 시나리오 기록", "dependencies": ["T5"]},
-    {"task_id": "T12", "task_name": "다시 그리기 · 렌더 검사", "description": "SciencePlots 의 공학 · 과학 스타일에서 필요한 부분을 MIT 고지와 함께 deck1/styles/ 로 옮겨 회사 팔레트 (등록 템플릿의 테마 색) · 글꼴로 튜닝하고, facts 계열로 matplotlib 그림을 결정적으로 그린다 (라이트 · 2×). PowerPoint COM 또는 LibreOffice 로 장마다 PNG 를 뽑는 render 명령을 만들고, 둘 다 없으면 건너뛰고 그 사실을 출력한다. 렌더 PNG 를 호스트 모델이 장마다 보고 넘침 · 겹침 · 잘림을 알리는 시각 검토 단계를 스킬에 붙인다 (알림만).", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Visualization_Engineer", "expected_output": "deck1/redraw.py · deck1/styles/ · deck1/render.py · 테스트 (COM 은 Windows CI 에서 있을 때만)", "dependencies": ["T7", "T9"]},
+    {"task_id": "T6", "task_name": "공개 저장소 뼈대 · 규칙 채택표 · 설정 · 호스트 문턱 · CI", "description": "사용자가 GitHub 에 만든 공개 저장소 subordinate-1 에 뼈대를 만든다: README (영감 고지문 포함) · INSTALL · docs/MANUAL.md · RULES.md (기획서 02 의 채택표) · AGENTS.md · requirements.txt (고정 판) · .claude-plugin/plugin.json · .claude-plugin/marketplace.json · opencode/ 어댑터 빈 틀 · .gitignore (데이터 · 템플릿 · 실데이터 막기). CLI 입구 subordinate1/cli.py 에 설정 (config.json · --set · SUBORDINATE_HOME) 과 호스트 문턱 (--host · policy.external_real_data 기본 false — 회사 밖 호스트면 --sample 표시 없는 입력 거부) 을 둔다. CI 는 Windows + Ubuntu × (최소 Python, 최신 Python) 이고 의존 라이선스 허용 목록 · 비밀처럼 보이는 문자열 · 사설 주소 검사를 넣는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 6, "assigned_model": "claude-sonnet", "agent_role": "Repo_Scaffolder", "expected_output": "뼈대 커밋 하나 · 호스트 문턱 단위 테스트 · 통과하는 빈 CI", "dependencies": ["T4"]},
+    {"task_id": "T7", "task_name": "profile — 원자료 → facts.json", "description": "CSV · XLSX 를 읽어 열 요약 · 추세 · 변화점 후보 · 이상점 · 집단 비교 (Is / Is-Not 후보) 를 id 달린 사실로 낸다. 값마다 단위 · n · 집계 수준 · 계산 방법을 남겨 V-03 과 근거 줄이 쓸 수 있게 한다. 계산은 pandas · scipy (고정 의존) 로 하고, 판과 계산 방법을 facts.json 머리에 적는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Data_Logic_Developer", "expected_output": "subordinate1/profile.py · facts.json 형식 · 단위 테스트", "dependencies": ["T5", "T6"]},
+    {"task_id": "T8", "task_name": "images · 템플릿 등록부", "description": "그림 원본 보관 (sha256 · 픽셀 크기 · 형식) 과 images.json, 그리고 템플릿 등록부를 만든다: template add (데이터 폴더로 복사 · 레이아웃 · 자리표시자 목록 · mapping.json 초안 · 사용자 확정), 등록 때의 sha256 · 레이아웃 지문 기록, build 때 지문이 다르면 멈추기, template diff (사라진 레이아웃 · 바뀐 자리표시자), 새 판은 새 이름으로 · 옛 판 보존. 테스트는 자리표시자 배치가 다른 합성 템플릿 둘로 한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Template_Engineer", "expected_output": "subordinate1/images.py · subordinate1/template.py · 합성 템플릿 둘 · 테스트", "dependencies": ["T5", "T6"]},
+    {"task_id": "T9", "task_name": "build — deck.json → PPTX", "description": "python-pptx 로 deck.json · mapping.json · 그림을 등록한 템플릿에 조립한다. 그림은 비율을 지켜 자리표시자 안에 맞추고, 그림 장표마다 근거 줄을, 노트에 근거 id 와 추론을 넣는다. 결과 파일은 덮어쓰지 않는다. python-pptx 는 어댑터 한 겹 뒤에 둔다 (리스크 12 — 비상구는 미리 만들지 않는다). 같은 deck.json 이 합성 템플릿 둘에서 모두 빌드되어야 한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 9, "assigned_model": "claude-sonnet", "agent_role": "Renderer_Engineer", "expected_output": "subordinate1/build.py · 어댑터 · 합성 보고 3종 PPTX 생성 테스트", "dependencies": ["T5", "T8"]},
+    {"task_id": "T10", "task_name": "validate — V-01–V-10", "description": "T5 명세대로 검사기를 만든다. 막는 검사와 알리는 검사를 나누고, ERR · 숫자? · 직접 표시를 다룬다. 숫자 대조는 반례 묶음 (반올림 · 단위 환산 · 퍼센트 포인트 · σ) 으로 시험한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Verification_Developer", "expected_output": "subordinate1/validate.py · 반례 묶음 테스트", "dependencies": ["T5", "T7"]},
+    {"task_id": "T11", "task_name": "공용 스킬 + 호스트 어댑터 둘 (인터뷰)", "description": "skills/subordinate-1/SKILL.md 와 references (보고 문법 · 질문 은행 · 장표 유형 · 합성 예시) 를 한 벌로 쓰고, 어댑터를 둘 만든다: opencode — agents/subordinate-1.md (인터뷰 지침 · 권한: bash 는 subordinate-1 명령만 · 편집은 작업 폴더만) · commands/subordinate.md, Claude Code — commands/subordinate.md (허용 도구 제한 · --host claude-code 를 넘김 · 회사가 막은 동안은 합성 예시로 안내). SKILL.md 에는 호스트 이름으로 갈리는 문장을 두지 않고 능력으로 낮춘다 (질문 도구가 없으면 번호 목록). I-01–I-11 을 지키고, 회사 밖 모델이면 시작 때 데이터 등급을 묻는다 (I-11). 그림마다 판독 메모 (숫자는 [추정]) 를 먼저 쓰고 사용자 확인을 받으며, 판독과 facts 가 어긋나면 원자료를 앞세운다. 같은 합성 시나리오를 두 호스트에서 돌려 질문 수 · 빈칸 처리 · 그림 판독 흐름이 같은지 확인한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Interview_Designer", "expected_output": "skills/subordinate-1/ · opencode/agents/subordinate-1.md · opencode/commands/subordinate.md · commands/subordinate.md · 두 호스트 합성 시나리오 기록", "dependencies": ["T5"]},
+    {"task_id": "T12", "task_name": "다시 그리기 · 렌더 검사", "description": "SciencePlots 의 공학 · 과학 스타일에서 필요한 부분을 MIT 고지와 함께 subordinate1/styles/ 로 옮겨 회사 팔레트 (등록 템플릿의 테마 색) · 글꼴로 튜닝하고, facts 계열로 matplotlib 그림을 결정적으로 그린다 (라이트 · 2×). PowerPoint COM 또는 LibreOffice 로 장마다 PNG 를 뽑는 render 명령을 만들고, 둘 다 없으면 건너뛰고 그 사실을 출력한다. 렌더 PNG 를 호스트 모델이 장마다 보고 넘침 · 겹침 · 잘림을 알리는 시각 검토 단계를 스킬에 붙인다 (알림만).", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Visualization_Engineer", "expected_output": "subordinate1/redraw.py · subordinate1/styles/ · subordinate1/render.py · 테스트 (COM 은 Windows CI 에서 있을 때만)", "dependencies": ["T7", "T9"]},
     {"task_id": "T13", "task_name": "테스트 · 합성 데이터 · CI", "description": "unittest 로 합성 데이터 · 합성 템플릿 둘 · 골든 구조 (장 수 · 자리표시자 · 근거 줄 · 노트) 테스트와 템플릿 바뀜 감지 테스트를 묶는다. 도구는 LLM 을 부르지 않으므로 LLM 이 쓴 deck.json 은 기록된 합성 예시로 대신한다. README 의 테스트 수는 CI 가 확인하는 값만 적는다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Test_Engineer", "expected_output": "tests/ · 합성 자료 · CI 통과 기록", "dependencies": ["T7", "T8", "T9", "T10"]},
-    {"task_id": "T14", "task_name": "통합 적대 검증", "description": "지어낸 숫자 · 근거 없는 원인 · LLM 의견을 deck.json 에 심어 V-02 · V-03 이 모두 막는지, 그림이 바뀌면 V-06 이, 템플릿이 바뀌면 지문 검사가 막는지 본다. 의존 라이선스 감사 (Anthropic 스킬 · AGPL 흔적 없음), 저장소의 회사 정보 · 사설 주소 · 키 흔적 검사, 두 호스트가 대화를 어디에 남기는지 (opencode.db · ~/.claude/projects/) 와 MANUAL 의 지우는 법, I-11 이 회사 밖 모델에서 빠짐없이 뜨는지, 사내 PowerPoint 실제 열기를 확인한다. 결함은 재현 테스트와 함께 보고한다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Integrity_Auditor", "expected_output": "검증 보고서 · 결함마다 실패하는 테스트", "dependencies": ["T9", "T10", "T11", "T12", "T13"]},
+    {"task_id": "T14", "task_name": "통합 적대 검증", "description": "지어낸 숫자 · 근거 없는 원인 · LLM 의견을 deck.json 에 심어 V-02 · V-03 이 모두 막는지, 그림이 바뀌면 V-06 이, 템플릿이 바뀌면 지문 검사가 막는지 본다. 의존 라이선스 감사 (Anthropic 스킬 · AGPL 흔적 없음), 저장소의 회사 정보 · 사설 주소 · 키 흔적 검사, 두 호스트가 대화를 어디에 남기는지 (opencode.db · ~/.claude/projects/) 와 MANUAL 의 지우는 법, I-11 문턱이 --host claude-code 에서 실데이터 입력을 빠짐없이 거부하는지 (그리고 문턱이 막지 못하는 경로를 보고서에 적는지), 사내 PowerPoint 실제 열기를 확인한다. 결함은 재현 테스트와 함께 보고한다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Integrity_Auditor", "expected_output": "검증 보고서 · 결함마다 실패하는 테스트", "dependencies": ["T9", "T10", "T11", "T12", "T13"]},
     {"task_id": "T15", "task_name": "문서 · 두 호스트 설치 절차", "description": "README · docs/MANUAL.md · INSTALL.md (opencode 가 따라 하는 절차 · 규칙 절 · 단계마다 확인과 실패 시 할 일 · [질문] · 업데이트 · 제거) 를 쓴다. opencode 는 설정 폴더로 skills · agents · commands 복사 (같은 이름이 있으면 덮어쓰지 않고 묻기) · 제거 때 그 파일만 지우기 · provider 모델의 modalities 확인 단계, Claude Code 는 마켓 추가 · 플러그인 설치 · 제거. MANUAL 에는 호스트가 대화를 남긴다는 한계와 지우는 법, 템플릿 등록 · 교체 절차를 적는다. 숫자는 돌려서 얻은 값만 적는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Documentation_Specialist", "expected_output": "문서 셋 · 깨진 링크 없음", "dependencies": ["T11", "T13"]}
   ]
 }
@@ -452,3 +457,14 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | Analysis–1 | `deck.json` 을 공용 계약으로 (제안) | 아예 별개 — 계약 · 코드 · 일정 공유 없음 · 겹침을 받아들임 | Q4 |
 | M0 | 2주 · 설치 정찰이 큰 몫 | 1주 · 설치는 확인만 · 호스트 둘의 시험지 | Q5 · Q2 |
 | 작업표 | 15 작업 · 노력도 합 112 | 15 작업 · 노력도 합 110 (T1 을 Tier 3 로 내리고 T2 를 올림) | 위의 결정들 |
+
+### F 갈린 결정 — 2판 › 3판 (2026-11-03 사용자 답 · 둘째)
+
+| 결정 | 2판 | 3판 | 까닭 |
+|---|---|---|---|
+| 이름 | 가칭 Deck–1 | `subordinate-1` (Subordinate–1) · 이 파일 이름도 옮김 | Q6 |
+| 설치 자리 | 미정 | `D:\OPENCODE\subordinate-1` · works `.gitignore` 한 줄 | Q7 |
+| Claude Code 실데이터 | 시작 때 등급 질문 (확인 장치) | 도구 설정 문턱으로 기본 거부 · 엔터프라이즈 뒤 M5 에서 연다 | Q8 — 지금은 회사가 막음 |
+| 저장소 | 공개 여부 미정 | 공개 · W-12 그대로 | Q9 |
+| 다음 판 | 3판 = M0 결과와 남은 답 | 4판 = M0 결과 (남은 질문 없음) | 위의 답 |
+| 작업표 | 노력도 합 110 | 노력도 합 111 (T6 에 설정 · 호스트 문턱을 더함) | Q8 |
