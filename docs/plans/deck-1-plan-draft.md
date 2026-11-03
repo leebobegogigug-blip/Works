@@ -1,19 +1,19 @@
 # Deck–1 기획서 (초안 1판 · 가칭)
 
-- 상태: 기획 초안 1판 · 2026-11-03 · 앱 코드 0줄. 이름 · 자리 (works 안이냐 별도 저장소냐) · 실행 호스트는 아직 정하지 않았다 — 10 › Q1–Q5 의 답을 받아 2판에서 정한다. 대장 ([REGISTRY.md](../REGISTRY.md)) 에는 올리지 않는다 (S-06 은 자리가 works 로 정해질 때만). 별도 저장소로 정해지면 이 파일은 그 저장소의 첫 커밋 `docs/PLAN.md` 로 옮긴다 ([Analysis–1 기획서](analysis-1-plan-draft.md) 와 같은 길).
+- 상태: 기획 초안 1판 · 2026-11-03 · 앱 코드 0줄. 같은 날 사용자 답 둘을 반영했다 — **호스트는 opencode** (Q2) · **사내 LLM 은 그림을 본다** (10 › 해결한 질문). 이름 · 자리 (works 안이냐 별도 저장소냐) 는 아직 정하지 않았다 — 남은 Q1 · Q3–Q5 의 답과 M0 결과로 2판에서 정한다. 대장 ([REGISTRY.md](../REGISTRY.md)) 에는 올리지 않는다 (S-06 은 자리가 works 로 정해질 때만). 별도 저장소로 정해지면 이 파일은 그 저장소의 첫 커밋 `docs/PLAN.md` 로 옮긴다 ([Analysis–1 기획서](analysis-1-plan-draft.md) 와 같은 길).
 - 무엇: 원자료 (CSV · XLSX) 와 차트 그림 (PNG — 분석 도구 캡처 등) 을 받아, 사용자 인터뷰로 **현상 › 분석 › 의견** 을 채우고, 회사 PPT 템플릿에 맞춘 편집 가능한 PPTX 초안을 만드는 에이전트 플러그인.
 - 표기: [실험] 이 세션에서 직접 잰 값 (GitHub 별 수 · 라이선스 · 최근 push 는 2026-11-03 GitHub 검색 API 조회) · [문헌] 저장소 문서 · README · 라이선스 파일 · 공개 문헌에서 읽은 것 · [추정] 계산하거나 늘린 값 · [미확인] 확인하지 못한 사실 · [제안] 근거 없이 정한 문턱 (M0 결과로 고친다).
-- 번호: 목표 G1–G6 · 보고 문법 P-01–P-08 · 인터뷰 규칙 I-01–I-10 · 검사 V-01–V-10 · 정찰 KIT-1–KIT-6 · 리스크 대장 1–18 · 질문 Q1–Q5 · 마일스톤 M0–M4 · 작업 T1–T15. [DEVELOP.md](../DEVELOP.md) 의 D-01–D-11 과 겹치지 않게 골랐다.
+- 번호: 목표 G1–G6 · 보고 문법 P-01–P-08 · 인터뷰 규칙 I-01–I-10 · 검사 V-01–V-10 · 정찰 KIT-1–KIT-6 · 리스크 대장 1–19 · 질문 Q1–Q5 · 마일스톤 M0–M4 · 작업 T1–T15. [DEVELOP.md](../DEVELOP.md) 의 D-01–D-11 과 겹치지 않게 골랐다.
 
 ## 00 한 장 요약
 
 - **누구**: 데이터와 그림은 이미 있는데, 그것을 상사 · 유관 부서가 납득하는 보고 장표로 옮기는 데 시간이 드는 공정 · 설비 · 연구 엔지니어. Analysis–1 과 같은 사람이다.
 - **핵심 결정 (제안) 셋**
-  1. **모양은 에이전트 플러그인.** `SKILL.md` 한 벌을 Claude Code 플러그인과 opencode 스킬로 같이 쓴다 — opencode 는 `.claude/skills/` · `.agents/skills/` 의 `SKILL.md` 를 읽고, 질문 도구 (`question`) 의 모양이 Claude Code 의 질문 도구와 같다 [문헌: opencode docs › skills · tools]. LLM 은 인터뷰와 글, 결정적 파이썬 도구는 데이터 사실 · 그림 보관 · 조립 · 검사를 맡는다. LLM 은 좌표를 쓰지 않는다.
+  1. **모양은 opencode 묶음 + 파이썬 도구.** opencode 의 세 부품 — 전용 에이전트 (`agents/deck-1.md` · 인터뷰 지침과 권한) · 명령 (`commands/deck.md` · `/deck` 으로 시작) · 스킬 (`skills/deck-1/SKILL.md` · 보고 문법과 질문 은행) — 으로 붙고, 질문은 opencode 의 `question` 도구로 한다 [문헌: opencode docs › agents · commands · skills · tools]. 그림을 보는 사내 LLM (2026-11-03 사용자 답) 이 인터뷰와 글을 맡고, 결정적 파이썬 도구는 데이터 사실 · 그림 보관 · 조립 · 검사를 맡는다. LLM 은 좌표를 쓰지 않는다. opencode 의 '플러그인' (JS/TS 이벤트 훅) 은 v1 에 쓰지 않는다 — 필요한 것이 없고, npm 경로가 사내 PC 위험을 늘린다.
   2. **자리는 works 밖 별도 저장소 (Analysis–1 선례).** 별 많은 도구 (python-pptx · matplotlib …) 를 실행에 쓰면 W-02 와 부딪힌다 (02). works 안으로 가면 표준 라이브러리로 OOXML 을 직접 쓰고 별 많은 도구는 설계만 빌린다 — 가능하다는 근거는 Analysis–1 의 PPTX 프로토타입 약 120줄 [문헌: Analysis–1 기획서 08].
   3. **보고 문법이 제품이다.** 장마다 제목 = 한 문장 주장, 몸통 = 증거 하나. 문장마다 종류 (사실 · 해석 · 의견 · 미확인) 와 근거 id 가 붙는다. 의견은 사용자 입에서만 나온다. 근거에 묶이지 않은 숫자는 장표에 들어가지 못한다 (Report–1 의 근거 칩 개념 — 코드 공유 아님).
 - **가져다 쓰는 것** (03 판정): 실행 = python-pptx · (선택) matplotlib + SciencePlots · pandas · scipy. 설계 차용 = ppt-master (닫힌 중간 언어 + 검사 게이트) · superpowers brainstorming (보기 전에 묻지 않기 · 한 번에 한 질문) · academic-pptx-skill (행동 제목 · ghost deck test) · CyberPPT (증거표 먼저 · 게이트 실패 시 납품 금지) · K-Dense scientific-slides (그림 원본 보존) · PPTAgent (참고 장표 분석 · 평가 축). **쓰지 않음** = Anthropic pptx 스킬 (2차 저작 · 재배포 금지 라이선스 [문헌]) · AGPL 묶음 (PPTist · WebPlotDigitizer · banana-slides …).
-- **가장 큰 위험 셋**: ① 사내 PC 에 python-pptx (lxml) · matplotlib 휠이 깔리는가 ② 사내 LLM 이 그림을 보는가 · 도구 호출 · 질문 도구를 쓰는가 ③ 엔지니어링 보고의 지어낸 원인 · 숫자 — 한 번 나오면 도구는 끝난다. 그래서 **M0 정찰 (앱 코드 0줄 · 2주 [추정])** 을 먼저 하고, 기성품 Presenton (사내 LLM 연결 가능 [문헌]) 을 같은 자료로 돌려 **만들지 않을 기준** (08) 부터 판정한다.
+- **가장 큰 위험 셋**: ① 사내 PC 에 python-pptx (lxml) · matplotlib 휠이 깔리는가 ② opencode 가 사내 모델에 그림을 실제로 넘기는가 (사용자 정의 provider 의 `modalities` 설정 [문헌: opencode 소스] · 그림 자동 축소) 와 판독이 얼마나 맞는가 · 도구 호출 · 질문 도구를 쓰는가 ③ 엔지니어링 보고의 지어낸 원인 · 숫자 — 한 번 나오면 도구는 끝난다. 그래서 **M0 정찰 (앱 코드 0줄 · 2주 [추정])** 을 먼저 하고, 기성품 Presenton (사내 LLM 연결 가능 [문헌]) 을 같은 자료로 돌려 **만들지 않을 기준** (08) 부터 판정한다.
 
 ## 01 문제 · 목표 · 비목표
 
@@ -45,9 +45,9 @@
 | 조항 | 무엇이 부딪히나 | 그대로 하면 | 갈 수 있는 길 (추천 먼저) |
 |---|---|---|---|
 | W-02 | python-pptx (lxml C 확장) · matplotlib · pandas · scipy 는 표준 라이브러리 밖이다 | works 안이면 `works_check.py --strict` 의 W-02 import 검사에 걸려 CI 가 실패한다 | ① 별도 저장소 — works 규칙을 스스로 채택하고 W-02 만 바꾼다 (Analysis–1 의 AN 표 방식) ② works 안 + 표준 라이브러리 OOXML 직접 작성 — 별 많은 도구는 설계 · 프롬프트만 빌린다 ③ RULES.md W-02 를 고치는 PR — 비추천 (한 앱 때문에 헌법을 바꾸지 않는다 · RULES.md › 규칙 바꾸기) |
-| W-01 | 플러그인 모양 (`SKILL.md` · `scripts/` · `plugin.json`) 은 앱 필수 구성과 다르다 | — | 별도 저장소면 해당 없음. works 안이면 필수 파일을 다 갖추고 스킬 파일을 앱 폴더 안에 둔다 |
-| W-03 | 호스트가 Claude Code 면 인터뷰 · 데이터가 회사 밖 LLM 으로 간다 | 사내 데이터 반출 | 실제 데이터는 opencode + 사내 LLM 만 [제안 기본]. Claude Code 는 개발 · 합성 데이터용. 도구는 호스트를 알 수 없으므로 문서 · `SKILL.md` 의 규칙으로 막는다 (리스크 8) |
-| W-05 | 인터뷰 답 원문 | 호스트 (opencode 세션 기록) 가 디스크에 남길 수 있다 | 도구 쪽은 확정한 `deck.json` 만 저장. 호스트 저장은 알려진 한계로 적는다 (리스크 9) |
+| W-01 | opencode 묶음 (`agents` · `commands` · `skills`) + 파이썬 도구 모양은 앱 필수 구성과 다르다 | — | 별도 저장소면 해당 없음. works 안이면 필수 파일을 다 갖추고 opencode 묶음을 앱 폴더 안에 둔다 |
+| W-03 | 실행 호스트는 opencode + 사내 LLM 이다 (2026-11-03 사용자 답) — 부딪힘 없음. 남는 것은 개발 중의 실수 | 개발자가 회사 밖 LLM (개발용 Claude Code 등) 에 실데이터를 넣음 | 실데이터는 opencode + 사내 LLM 만. 개발 · 테스트는 합성 데이터만 (리스크 8) |
+| W-05 | 인터뷰 답 원문 · 그림 | opencode 는 세션 · 메시지를 `%USERPROFILE%\.local\share\opencode\opencode.db` 에 저장한다 [문헌: opencode docs › troubleshooting] — 도구가 막을 수 없다 | 도구 쪽은 확정한 `deck.json` 만 저장. opencode 저장은 알려진 한계로 적고 지우는 법 (세션 삭제) 을 MANUAL 에 둔다 (리스크 9) |
 | W-10 | 산출 PPTX 는 회사 템플릿 색을 쓴다 (빨강이 있을 수 있다) | 해석 문제 — W-10 은 "화면과 문서 이미지" | 산출물 = 사용자 템플릿, 도구의 화면 · 문서 = DESIGN.md. Analysis–1 은 AN-09 로 데이터 표지 팔레트를 따로 두었다 [문헌]. 해석은 사용자가 정한다 (Q1 과 함께) |
 | W-12 | 회사 템플릿 · 로고 · 실데이터 · 실제 장표 | 공개 저장소에 들어가면 되돌릴 수 없다 | 템플릿 · 매핑은 데이터 폴더에만. 저장소의 예시 · 테스트는 합성 템플릿 · 합성 데이터만 |
 
@@ -94,7 +94,7 @@
 | `microsoft/data-formulator` · `microsoft/lida` | 17,652 · 3,288 | MIT | **차용** — LIDA 의 "데이터 요약 › 목표 후보" 를 현상 후보 질문 생성에 쓴다. LIDA 는 2024-08 이후 push 없음 [실험] |
 | `automeris-io/WebPlotDigitizer` | 3,181 | AGPL-3.0 | **금지** (묶지 않음). 사용자가 따로 쓰는 것은 자유 |
 | 그림 판독 모델 (DePlot 류) | — | — | 쓰지 않음 — torch 무게. 그림의 뜻은 비전 LLM 또는 사용자 답에서 받는다 |
-| 이 저장소의 Ascii–1 (선 차트 · 웨이퍼 맵 PNG → 글자) | — | works | 텍스트 전용 사내 LLM 이 그림의 모양을 읽게 하는 다리 후보 [미확인 — KIT-3]. 코드는 복사하지 않고 명령으로만 부른다 (W-01 의 정신) |
+| 이 저장소의 Ascii–1 (선 차트 · 웨이퍼 맵 PNG → 글자) | — | works | 사내 LLM 이 그림을 보므로 (사용자 답) 다리로는 필요 없다. 웨이퍼 맵의 작은 점 개수처럼 비전 판독이 약할 수 있는 곳의 보조로만 KIT-3 에서 비교한다. 코드는 복사하지 않고 명령으로만 부른다 (W-01 의 정신) |
 
 ### D. 인터뷰 · 작업 흐름
 
@@ -102,7 +102,7 @@
 |---|---:|---|---|
 | `obra/superpowers` › brainstorming | 311,233 | MIT | **차용** — 보기 전에 묻지 않는다 · 한 번에 한 질문 · 첫 질문은 답이 결과를 가장 크게 바꾸는 것 (I-01 · I-02) |
 | `github/spec-kit` | 145,504 | MIT | **차용** — 빈칸을 명시하고 그 목록을 질문으로 바꾸는 clarify 단계 (I-08) |
-| `anomalyco/opencode` | 224,109 | MIT | **호스트** — `question` 도구 (머리 · 질문 · 선택지 · 직접 입력) · `SKILL.md` 탐색 경로 [문헌] |
+| `anomalyco/opencode` | 224,109 | MIT | **호스트** (사용자 답) — 에이전트 (`agents/` · 파일 이름 = 에이전트 이름 · 권한) · 명령 (`commands/` · `$ARGUMENTS`) · 스킬 (`skills/`) · `question` 도구 (머리 · 질문 · 선택지 · 직접 입력) · 그림 첨부 자동 축소 (기본 2000×2000 · base64 5,242,880 바이트 · `attachment.image`) [문헌: docs › agents · commands · skills · tools · config] |
 
 ### 조사에서 얻은 결론
 
@@ -152,9 +152,10 @@
 
 ```text
 0 자료 받기    파일 · 그림 목록 (사용자)
-1 미리 보기    profile → facts.json (f001…) · images → images.json (img1… · 크기 · sha256 · 판독 메모는 비전일 때만 [추정] 표시)
+1 미리 보기    profile → facts.json (f001…) · images → images.json (img1… · 크기 · sha256)
+               사내 LLM 이 그림마다 판독 메모 (축 · 계열 · 추세 · 이상점 — 숫자는 [추정])
 2 틀 잡기      보고 유형 · 독자 · 결론 한 줄 (모르면 '아직')               질문 3개 이하
-3 현상         데이터가 말하는 후보를 보이고 고르게 한다                    질문 3개 이하
+3 현상         데이터 · 그림 판독이 말하는 후보를 보이고 고르게 한다        질문 3개 이하
                "3/12 부터 평균이 +0.6σ — 이것이 보고할 현상이 맞습니까?"
 4 분석         가설 받기 › 가설마다 증거 그림 짝짓기 › 판정                 질문 4개 이하
 5 의견         결론 · 확신 · 조치 · 요청을 사용자 말로 받고 다듬기만 제안    질문 2개 이하
@@ -163,11 +164,11 @@
 ```
 
 - **I-01** 보기 전에 묻지 않는다. 데이터 · 그림 · 앞의 답이 답하는 것은 묻지 않고 "이렇게 봤습니다 — 맞습니까" 로 확인만 한다.
-- **I-02** 한 번에 한 질문. 선택지 2–4개 + 직접 입력, 추천을 맨 앞에. 질문 도구가 없는 호스트에서는 번호 목록으로 묻고 번호로 받는다.
+- **I-02** 한 번에 한 질문. 선택지 2–4개 + 직접 입력, 추천을 맨 앞에. opencode 의 `question` 도구를 쓰고, 사내 모델이 도구 호출을 못 하면 번호 목록으로 묻고 번호로 받는다 (KIT-2).
 - **I-03** 질문 예산: 틀 3 · 현상 3 · 분석 4 · 의견 2 = 12 [제안 — G6].
 - **I-04** '모름 · 나중에' 는 언제나 고를 수 있다. 그 칸은 `[미확인]` 으로 장표에 남는다. 지어서 채우지 않는다.
 - **I-05** 원인은 열린 질문이 먼저다 ("무엇 때문이라고 보십니까?"). LLM 의 가설 후보는 그 다음에 `제안` 표시로만 낸다 — 사용자가 고르면 그때 사용자 가설이 된다. 유도 질문 · 맞장구를 줄이려는 규칙이다 (Analysis–1 의 아첨 방지 개념 차용).
-- **I-06** 그림에서 읽은 숫자는 늘 확인 질문으로 바꾼다: "약 3.2 로 읽힙니다 — 정확한 값이 있습니까?" 판독 숫자는 장표에 `[추정]` 없이 들어가지 못한다.
+- **I-06** 그림에서 읽은 숫자는 늘 확인 질문으로 바꾼다: "약 3.2 로 읽힙니다 — 정확한 값이 있습니까?" 판독 숫자는 장표에 `[추정]` 없이 들어가지 못한다. 판독 메모와 원자료가 어긋나면 원자료가 이기고, 어긋남을 사용자에게 보인다 — 그림이 다른 필터 · 기간으로 그려졌을 수 있다 (리스크 19).
 - **I-07** 답 원문은 메모리에만 (W-05 채택). 저장은 사용자가 확정한 `deck.json` 과 답 요약 (사용자가 본 것) 뿐이다.
 - **I-08** 이어 할 수 있다. `deck.json` 의 `open_items` 가 곧 남은 질문 목록이다.
 - **I-09** 독자에 따라 무게를 바꾼다. 경영진 = 요약 · 의견 · 요청, 팀 = 분석 · 근거.
@@ -179,9 +180,10 @@
 
 ```text
 deck-1/                               가칭
-├─ .claude-plugin/plugin.json         Claude Code 플러그인
-├─ skills/deck-1/SKILL.md             인터뷰 · 줄거리 · 규칙 (opencode 는 INSTALL 이 `~/.config/opencode/skills/` 에 복사)
-├─ skills/deck-1/references/          보고 문법 (04) · 질문 은행 · 장표 유형 · 합성 예시
+├─ opencode/agents/deck-1.md          전용 에이전트 — 인터뷰 지침 · 권한 (bash 는 `deck-1` 명령만 · 편집은 작업 폴더만)
+├─ opencode/commands/deck.md          `/deck <자료 폴더>` — 에이전트를 골라 시작
+├─ opencode/skills/deck-1/SKILL.md    보고 문법 (04) · 줄거리 규칙
+├─ opencode/skills/deck-1/references/ 질문 은행 · 장표 유형 · 합성 예시
 ├─ deck1/                             결정적 도구 — 명령 하나 `deck-1`
 │   profile · images · template · build · validate · render · check · version
 ├─ tests/                             unittest · 합성 데이터 · 합성 템플릿 · 골든 구조
@@ -189,14 +191,15 @@ deck-1/                               가칭
 └─ docs/MANUAL.md · docs/PLAN.md
 ```
 
-- opencode 가 Claude Code 플러그인 폴더 안의 스킬을 직접 찾는지는 [미확인]. 그래서 INSTALL 이 스킬 폴더를 opencode 경로로 복사한다 (제거 절에서 지운다).
+- INSTALL 이 `opencode/` 아래 세 폴더를 opencode 설정 폴더 (`%USERPROFILE%\.config\opencode\`) 의 `agents` · `commands` · `skills` 로 복사하고, 제거 절에서 그 파일만 지운다 (W-08 채택 · 같은 이름이 있으면 덮어쓰지 않고 묻는다). 프로젝트 범위 (`D:\OPENCODE\.opencode\`) 로 둘지는 2판에서 정한다 [제안: 전역].
+- Claude Code 플러그인 매니페스트는 만들지 않는다 (호스트가 opencode 로 정해짐).
 
 ### 누가 무엇을 만드나
 
 | 일 | LLM (호스트) | 도구 (파이썬 · 결정적) | 사용자 |
 |---|---|---|---|
 | 데이터 사실 | — | `profile` → `facts.json` (통계 · 추세 · 변화점 · 이상점 · id) | 확인 |
-| 그림 | 판독 메모 (비전일 때 · `[추정]`) | 원본 보관 · sha256 · 크기 · (선택) 다시 그리기 | 고르기 · 순서 |
+| 그림 | 판독 메모 (사내 LLM 비전 · 숫자는 `[추정]`) | 원본 보관 · sha256 · 크기 · (선택) 다시 그리기 | 고르기 · 순서 |
 | 질문 | 은행에서 고르고 채움 | 빈칸 목록 | 답 |
 | 글 | 제목 · 문장 초안 (근거 id 를 달아야만) | 검사 | 고치기 · 확정 |
 | 배치 | — | 템플릿 매핑 → `build` | 매핑 1회 확인 |
@@ -228,16 +231,20 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 ### 렌더 · 검사
 
 - 구조 검사는 늘 한다 (python-pptx 로 다시 열기 · 빈 자리표시자 · 글자 예산).
-- 그림 검사 (선택): Windows + PowerPoint 가 있으면 COM 으로 장마다 PNG (`pywin32` 선택 기능 — works W-02 의 Outlook 예와 같은 방식), 없으면 LibreOffice, 둘 다 없으면 건너뛰고 사용자 눈에 맡긴다. 렌더 PNG 는 비전 LLM 또는 사용자가 본다.
+- 그림 검사 (선택): Windows + PowerPoint 가 있으면 COM 으로 장마다 PNG (`pywin32` 선택 기능 — works W-02 의 Outlook 예와 같은 방식), 없으면 LibreOffice, 둘 다 없으면 건너뛰고 사용자 눈에 맡긴다.
+- 시각 검토: 렌더 PNG 를 사내 LLM 이 장마다 보고 넘침 · 겹침 · 잘림 · 읽기 어려운 글자를 알린다 (알림만 · 막지 않음 · 판정은 사용자). PPTAgent · K-Dense 의 시각 검토 고리와 같은 모양이다.
 
-### 호스트 둘
+### 호스트 — opencode + 사내 LLM (2026-11-03 사용자 답)
 
-| | Claude Code | opencode + 사내 LLM |
+| 항목 | 어떻게 | 확인 |
 |---|---|---|
-| 설치 | 플러그인 | 스킬 폴더 복사 (INSTALL) |
-| 질문 | 질문 도구 | `question` 도구 [문헌] |
-| 그림 보기 | 됨 | 모델이 비전일 때만 [미확인 — KIT-2] |
-| 실제 회사 데이터 | 넣지 않는다 (W-03 · 02) | 기본 |
+| 설치 | `agents` · `commands` · `skills` 를 opencode 설정 폴더로 복사 (INSTALL) | KIT-1 |
+| 시작 | `/deck <자료 폴더>` 또는 Tab 으로 `deck-1` 에이전트 | — |
+| 질문 | `question` 도구 · 도구 호출이 안 되면 번호 목록 | KIT-2 |
+| 그림 보기 | 사내 LLM 비전 (사용자 답). opencode 가 사용자 정의 provider 모델에 그림을 넘기려면 모델 설정의 `modalities.input` 에 `image` 가 있어야 할 수 있다 [문헌: opencode 소스 `provider.ts` 의 `modalities` · 사용자 문서에는 없음 · 없을 때의 동작은 미확인] | KIT-2 |
+| 그림 크기 | 2000×2000 · base64 5,242,880 바이트를 넘으면 opencode 가 줄여서 보낸다 [문헌] — 웨이퍼 맵의 작은 점 · 작은 축 글자가 줄이기에서 사라질 수 있다. 판독용 그림은 도구가 잘라서 (축 · 범례 · 본문) 따로 보이는 것을 KIT-3 에서 비교한다 | KIT-3 |
+| 대화 저장 | opencode 의 `opencode.db` (W-05 밖 · 리스크 9) | — |
+| Claude Code | 개발 · 합성 데이터용으로만. 실데이터는 넣지 않는다 (W-03) | — |
 
 ## 07 검사 V-01–V-10
 
@@ -265,8 +272,8 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | # | 무엇 | 초록 | 빨강이면 |
 |---|---|---|---|
 | KIT-1 | 사내 PC 설치: python-pptx · matplotlib · pandas · scipy (온라인 또는 오프라인 휠) · import · 백신 · AppLocker | python-pptx 가 돈다 | works 안 표준 라이브러리 OOXML 가지 (02 의 ②) |
-| KIT-2 | 사내 LLM: 비전 · 도구 호출 · `question` 도구 · 맥락 길이 · 한국어 문장 · `deck.json` 스키마 통과율 | 스키마 통과 80% 이상 [제안] | 장 단위로 쓰기 · 질문 은행 비중을 올림 · 고치기 루프 |
-| KIT-3 | 그림 판독: 사용자 그림 10장 (선 · 웨이퍼 맵 · 박스 · 산점) × (비전 LLM / Ascii–1 글자 + 텍스트 LLM / 사용자 답) | 모양 서술 맞음 80% 이상 [제안] | 그림의 뜻은 인터뷰로만 받는다 (I-06) |
+| KIT-2 | 사내 LLM × opencode: 그림이 모델에 실제로 닿는가 (`modalities` 있음 · 없음 두 번) · 도구 호출 · `question` 도구 · 맥락 길이 (그림 5장 + facts) · 한국어 문장 · `deck.json` 스키마 통과율 | 그림이 닿고 스키마 통과 80% 이상 [제안] | 설정 보강 · 장 단위로 쓰기 · 질문 은행 비중을 올림 · 고치기 루프 |
+| KIT-3 | 그림 판독 정확도: 사용자 그림 10장 (선 · 웨이퍼 맵 · 박스 · 산점) 을 사내 LLM 이 읽은 것 vs 원자료 · 사용자 답 — 모양 서술 · 숫자 오차 · 작은 점 (웨이퍼 맵은 Ascii–1 개수 추정과도 비교) · opencode 축소 전후 · 잘라 보이기 전후 | 모양 서술 맞음 80% 이상 [제안] | 판독은 '후보 제시' 로만 쓰고 그림의 뜻은 인터뷰로 받는다 (I-06) |
 | KIT-4 | 회사 템플릿 하나를 python-pptx 로 열어 레이아웃 · 자리표시자 목록이 나오는가 | 목록이 나오고 매핑 가능 | 빈 레이아웃 + 도형 배치 |
 | KIT-5 | Office: python-pptx 판 · 표준 라이브러리 OOXML 판 PPTX 를 사내 PowerPoint 가 복구 없이 여는가 · 한글 글자 넘침 | 둘 다 열림 | 실패한 쪽을 버림 |
 | KIT-6 | 기준선: 같은 자료로 ① 손 작업 시간 ② Presenton + 사내 LLM ③ (되면) pandoc `reference-doc` | — | — |
@@ -278,8 +285,8 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | 단계 | 범위 | 합격 |
 |---|---|---|
 | M1 뼈대 | `profile` · `images` · `template` · `build` · `validate` (V-01 · V-05 · V-06 · V-08 · V-10) · 합성 데이터 테스트. LLM 없이 손으로 쓴 `deck.json` 으로도 PPTX 가 나온다 | 합성 보고 3종이 열린다 (G5) |
-| M2 인터뷰 | `SKILL.md` · 질문 은행 · 호스트 둘 · V-02 · V-03 · V-04 · ghost deck 확인 | 실제 보고 3건 — G1 · G2 · G4 · G6 |
-| M3 그림 · 렌더 | 다시 그리기 · 근거 줄 · 렌더 검사 · V-07 · V-09 | G3 |
+| M2 인터뷰 | opencode 에이전트 · 명령 · 스킬 · 질문 은행 · 그림 판독 메모 · V-02 · V-03 · V-04 · ghost deck 확인 | 실제 보고 3건 — G1 · G2 · G4 · G6 |
+| M3 그림 · 렌더 | 다시 그리기 · 근거 줄 · 렌더 검사 · 사내 LLM 시각 검토 · V-07 · V-09 | G3 |
 | M4 다듬기 | 보고 유형 셋 · 독자 노브 · 지난 보고서 학습 (markitdown) · 네이티브 차트 · Analysis–1 의 `deck.json` 받기 | — |
 
 ## 09 리스크 대장
@@ -287,14 +294,14 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | # | 위험 | 가능성 | 영향 | 조기 신호 | 대응 |
 |---|---|---|---|---|---|
 | 1 | 사내 PC 에 휠 설치가 막힘 (lxml · numpy C 확장) | 중 | 최상 | KIT-1 | works 안 표준 라이브러리 OOXML 가지 · 무거운 것은 선택 기능 |
-| 2 | 사내 LLM 이 그림을 못 봄 | 중 [미확인] | 상 | KIT-2 | 그림의 뜻은 인터뷰로 (I-06) · Ascii–1 다리 (KIT-3) |
+| 2 | 사내 LLM 은 그림을 보지만 (사용자 답) opencode 가 그림을 못 넘기거나 (`modalities`) 줄이면서 작은 점 · 글자가 사라지거나, 그림 여러 장이 맥락을 채움 | 중 | 상 | KIT-2 · KIT-3 | provider 설정 보강 · 그림은 한 장씩 보이고 판독 메모만 남긴다 · 잘라 보이기 · 판독은 후보로만 (I-06) |
 | 3 | 사내 LLM 이 약해 `deck.json` 을 자주 깨뜨림 | 중 | 상 | KIT-2 통과율 | 스키마 검사 › 고치기 루프 2회 · 질문 은행 · 장 단위로 쓰기 |
 | 4 | 지어낸 원인 · 숫자 | 중 | 최상 (신뢰 붕괴) | V-02 · V-03 걸림 수 | 문장 종류 · 근거 id · 의견은 사용자만 · `[미확인]` 남기기 · T14 적대 검증 |
 | 5 | 그림 판독 숫자 오독 | 상 | 상 | KIT-3 오차 | 판독 숫자는 늘 `[추정]` · 장표 숫자는 facts 또는 사용자 답에서만 |
 | 6 | 라이선스 오염 (Anthropic 스킬 · AGPL 복사) | 낮음 | 상 (공개 저장소) | 리뷰 | 허용 목록 · 고지 파일 · CI 의존 라이선스 검사 |
 | 7 | 회사 템플릿 · 실데이터 커밋 (W-12) | 중 | 최상 | — | 템플릿은 데이터 폴더 · `.gitignore` · 합성 예시 · 사설 주소 검사 |
-| 8 | 회사 데이터가 회사 밖 LLM 으로 | 중 | 최상 | — | 문서 · `SKILL.md` 첫 줄의 규칙 · 도구는 호스트를 모름 (한계로 적음) |
-| 9 | 호스트가 대화 원문을 디스크에 남김 (W-05 밖) | 상 | 중 | — | 알려진 한계 · 도구 쪽 저장은 확정본만 |
+| 8 | 개발 중에 실데이터가 회사 밖 LLM (개발용 Claude Code 등) 으로 | 낮음 | 최상 | — | 실행 호스트는 opencode + 사내 LLM (사용자 답) · 개발 · 테스트는 합성 데이터만 · 저장소에 실데이터 금지 (리스크 7) |
+| 9 | opencode 가 대화 원문 · 그림을 `opencode.db` 에 남김 (W-05 밖) [문헌] | 확실 | 중 | — | 알려진 한계로 적고 지우는 법을 MANUAL 에 · 도구 쪽 저장은 확정본만 · 쓰는 opencode 판에 세션을 밖으로 공유하는 기능이 있으면 끈다 [미확인 — 지금 문서에서 찾지 못함] |
 | 10 | 템플릿이 제각각 (자리표시자 이름 · 깨진 마스터) | 상 | 중 | KIT-4 | 매핑 1회 확인 · 실패 시 빈 레이아웃 + 도형 |
 | 11 | 한글 글자 넘침 | 상 | 중 | KIT-5 | 글자 예산 · 렌더 검사 · 자동 맞춤은 PowerPoint 가 열 때만 계산된다 [미확인] |
 | 12 | python-pptx 유지 정체 (2024-08 이후 push 없음 [실험]) | 중 | 중 | 새 Office 와 어긋남 | 버전 고정 · 어댑터 한 겹 · OOXML 비상구 |
@@ -303,14 +310,21 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 | 15 | 확증 편향 — LLM 이 사용자 가설에 맞장구 | 중 | 상 | — | I-05 · 분석 절의 '배제한 가설' 칸 필수 · 판정은 증거 기준 |
 | 16 | 만들 필요가 없음 (기성품으로 충분) | 낮음–중 | 중 | KIT-6 | 만들지 않을 기준 |
 | 17 | 렌더 검사 도구가 없음 (COM · LibreOffice 둘 다) | 중 | 낮음 | KIT-5 | 구조 검사만 · 사용자 눈 |
-| 18 | 1인 유지 부담 | 상 | 중 | — | 범위 상한 · 실행 의존 최소 · 두 호스트를 `SKILL.md` 한 벌로 |
+| 18 | 1인 유지 부담 | 상 | 중 | — | 범위 상한 · 실행 의존 최소 · 호스트를 opencode 하나로 |
+| 19 | 그림 판독과 원자료가 어긋남 (그림이 다른 필터 · 기간 · 집계로 그려짐) | 중 | 상 | 판독 메모 ↔ facts 차이 | 원자료가 이긴다 · 어긋남을 보이고 사용자 확인 (I-06) · 근거 줄에 그림의 출처를 따로 적음 |
 
 ## 10 사용자에게 물을 것
 
+### 해결한 질문 (2026-11-03 사용자 답)
+
+- **Q2 실행 호스트 → opencode** (+ 사내 LLM). 02 › W-03 의 부딪힘이 풀렸다. Claude Code 플러그인 매니페스트는 만들지 않고, 부품은 opencode 의 에이전트 · 명령 · 스킬이다 (06).
+- **(질문 밖) 사내 LLM 은 그림을 본다.** 그림 판독 메모가 인터뷰 1단계의 기본이 되고 (05), 렌더 PNG 시각 검토를 넣고 (06), Ascii–1 다리는 보조로 내렸다 (03). 남은 물음은 '보는가' 가 아니라 'opencode 가 넘기는가 · 얼마나 맞게 읽는가' 다 (KIT-2 · KIT-3 · 리스크 2 · 19).
+
+### 남은 질문
+
 | # | 질문 | 선택지 (추천 먼저) | 고르면 |
 |---|---|---|---|
-| Q1 | 모양 · 자리 (02 가 갈린다) | ① 에이전트 플러그인 + 별도 저장소 ② works 안 웹형 앱 (Report–1 처럼 · 표준 라이브러리만) ③ PowerPoint 추가 기능 (작업창) | ① python-pptx 등 채택 · AN 표 ② OOXML 직접 · 별 많은 도구는 설계만 · 대장 등록부터 ③ Office 추가 기능 배포 정책 · HTTPS 호스팅 · 사내 LLM CORS 를 먼저 정찰 |
-| Q2 | 실제 데이터로 돌릴 호스트 | ① opencode + 사내 LLM ② Claude Code (회사 밖 전송 — 회사 규정 확인 필요) ③ 둘 다 | ① KIT-2 가 관건 ② W-03 과 부딪힘 ③ 데이터 등급별 규칙이 필요 |
+| Q1 | 모양 · 자리 (02 가 갈린다) | ① opencode 묶음 + 파이썬 도구 · 별도 저장소 ② works 안 앱 (표준 라이브러리만 · opencode 묶음은 앱 폴더 안에) ③ PowerPoint 추가 기능 (작업창) | ① python-pptx 등 채택 · AN 표 ② OOXML 직접 · 별 많은 도구는 설계만 · 대장 등록부터 ③ Office 추가 기능 배포 정책 · HTTPS 호스팅 · 사내 LLM CORS 를 먼저 정찰하고, opencode 를 쓰지 않는 길이 된다 |
 | Q3 | 회사 PPT 템플릿 | ① 있음 (`.pptx` · `.potx`) ② 없음 | ① KIT-4 · 매핑부터 ② 기본 템플릿 색을 정해야 함 (W-10 해석) |
 | Q4 | Analysis–1 과의 관계 | ① 별개 도구 · `deck.json` 을 공용 계약으로 ② Analysis–1 08 로 합침 ③ 나중에 | ① PPTX 코드는 여기 하나 ② 이 기획은 Analysis–1 2판의 08 절이 됨 |
 | Q5 | 사내 PC 에서 pip 설치가 되는지 | ① 모름 — KIT-1 로 잰다 ② 된다 ③ 안 된다 | Analysis–1 의 DuckDB 실행 허가 (2026-10-03) 는 받았지만 pip 경로는 별개일 수 있다 [미확인] |
@@ -362,16 +376,16 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
 
 ### C 작업표 (하위 에이전트용)
 
-이 세션의 사용자 설정 (4단 모델 배정) 에 따른 작업표다. T4 는 사용자의 Q1–Q5 답이 있어야 시작한다. 같은 내용을 이 기획을 낸 세션의 보고에도 실었다.
+이 세션의 사용자 설정 (4단 모델 배정) 에 따른 작업표다. T4 는 남은 질문 (Q1 · Q3–Q5) 의 답이 있어야 시작한다. 같은 내용을 이 기획을 낸 세션의 보고에도 실었다.
 
 ```json
 {
   "project_title": "Deck–1 (가칭) — 원자료 · 차트 그림 + 인터뷰 → 현상 › 분석 › 의견 엔지니어링 보고 PPTX 플러그인",
-  "executive_summary": "SKILL.md 한 벌로 Claude Code 와 opencode 에서 도는 인터뷰형 플러그인을 만들고, 숫자 · 그림 · 배치 · 검사는 결정적 파이썬 도구 (python-pptx 중심) 가 맡는다. 문장마다 종류 (사실 · 해석 · 의견) 와 근거 id 를 달아 지어낸 원인 · 숫자가 빌드를 통과하지 못하게 한다. 사내 PC 설치 · 사내 LLM 능력 · 기성품 대비 가치를 M0 정찰로 먼저 재고, 결과와 사용자 답으로 가지를 정한다.",
+  "executive_summary": "opencode 의 에이전트 · 명령 · 스킬로 붙는 인터뷰형 도구를 만들어 그림을 보는 사내 LLM 이 인터뷰 · 글을 맡고, 숫자 · 그림 보관 · 배치 · 검사는 결정적 파이썬 도구 (python-pptx 중심) 가 맡는다. 문장마다 종류 (사실 · 해석 · 의견) 와 근거 id 를 달아 지어낸 원인 · 숫자가 빌드를 통과하지 못하게 한다. 사내 PC 설치 · 사내 LLM 능력 · 기성품 대비 가치를 M0 정찰로 먼저 재고, 결과와 사용자 답으로 가지를 정한다.",
   "total_estimated_effort": 112,
   "tasks": [
     {"task_id": "T1", "task_name": "M0 환경 정찰 키트", "description": "KIT-1 · KIT-4 · KIT-5 를 사내 Windows PC 에서 사용자가 그대로 돌릴 수 있는 버리는 스크립트와 점검표로 만든다. python-pptx · matplotlib · pandas · scipy 의 온라인 · 오프라인 휠 설치와 import, 회사 템플릿의 레이아웃 · 자리표시자 목록 뽑기, python-pptx 판과 표준 라이브러리 OOXML 판 PPTX 를 만들어 PowerPoint 가 복구 없이 여는지 확인하는 절차를 담는다. 판정 문턱은 결과를 보기 전에 문서 첫머리에 적고, 출력에는 회사 이름 · 경로 · 키가 찍히지 않게 한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Environment_Probe_Engineer", "expected_output": "kit/ 폴더 (PowerShell 5.1 호환 진입 · Python 3.8+ 스크립트) · 점검표 마크다운 · 결과를 붙여 넣을 표 양식", "dependencies": []},
-    {"task_id": "T2", "task_name": "M0 사내 LLM · 그림 판독 시험지", "description": "KIT-2 (비전 · 도구 호출 · question 도구 · 맥락 길이 · 한국어 문장 · deck.json 스키마 통과율) 와 KIT-3 (그림 10장 × 비전 LLM / Ascii–1 글자 + 텍스트 LLM / 사용자 답) 의 시험지 · 채점 기준 · 문턱을 설계한다. 합성 그림 · 합성 데이터만 쓰고, 점이 아니라 구간으로 판정하는 채점표를 만든다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 6, "assigned_model": "claude-opus-5.5", "agent_role": "Evaluation_Designer", "expected_output": "시험지 마크다운 · 합성 입력 묶음 · 채점 스크립트 · 사전 등록한 문턱 표", "dependencies": []},
+    {"task_id": "T2", "task_name": "M0 사내 LLM · 그림 판독 시험지", "description": "KIT-2 (opencode 가 사내 모델에 그림을 실제로 넘기는지 — provider 모델 설정의 modalities 있음 · 없음 두 번 · 도구 호출 · question 도구 · 그림 5장 + facts 의 맥락 길이 · 한국어 문장 · deck.json 스키마 통과율) 와 KIT-3 (그림 10장의 사내 LLM 판독 vs 원자료 · 사용자 답 — 모양 서술 · 숫자 오차 · 웨이퍼 맵 작은 점 · opencode 자동 축소 전후 · 잘라 보이기 전후) 의 시험지 · 채점 기준 · 문턱을 설계한다. 합성 그림 · 합성 데이터만 쓰고, 점이 아니라 구간으로 판정하는 채점표를 만든다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 6, "assigned_model": "claude-opus-5.5", "agent_role": "Evaluation_Designer", "expected_output": "시험지 마크다운 · 합성 입력 묶음 · 채점 스크립트 · 사전 등록한 문턱 표", "dependencies": []},
     {"task_id": "T3", "task_name": "M0 기준선 비교 절차", "description": "KIT-6 — 같은 합성 자료로 손 작업 · Presenton + 사내 LLM · pandoc reference-doc 를 돌리는 절차와 G1–G6 채점표를 만든다. '만들지 않을 기준' (기성품이 G2 · G3 를 80% 채우면 중단) 의 판정 방법을 적는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Benchmark_Analyst", "expected_output": "기준선 절차서 · 채점표 양식", "dependencies": ["T2"]},
     {"task_id": "T4", "task_name": "2판 가지 결정", "description": "정찰 결과 (T1–T3) 와 사용자 답 (Q1–Q5) 으로 자리 (별도 저장소 / works 안) · 실행 의존 목록 · 호스트 · W-10 해석 · Analysis–1 과의 경계를 정하고 기획서 2판을 쓴다. 바뀐 결정과 까닭을 갈린 결정 표로 남기고, 만들지 않을 기준에 걸리면 중단안을 낸다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 9, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "docs/plans/deck-1-plan-draft.md 2판 (또는 새 저장소 docs/PLAN.md)", "dependencies": ["T1", "T2", "T3"]},
     {"task_id": "T5", "task_name": "deck.json · 보고 문법 · 검사 명세", "description": "부록 A 를 JSON Schema 로 확정하고, P-01–P-08 과 V-01–V-10 을 기계가 판정할 수 있는 규칙으로 쓴다. 특히 V-03 숫자 대조의 규칙 (단위 · 유효숫자 · 반올림 · % · σ · 범위 표기) 과 kind 별 refs 요구, 장표 유형 목록, format 올리는 규칙을 정한다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "schema/deck.schema.json · docs/SPEC-deck.md (규칙 · 예시 · 반례)", "dependencies": ["T4"]},
@@ -380,11 +394,11 @@ ppt-master 의 "닫힌 중간 언어 + 검사 게이트" 를 빌리되 기하가
     {"task_id": "T8", "task_name": "images · template 프로파일러", "description": "그림 원본 보관 (sha256 · 픽셀 크기 · 형식) 과 images.json, 회사 템플릿의 레이아웃 · 자리표시자 목록과 mapping.json 초안을 만든다. 템플릿 · 매핑은 데이터 폴더에만 저장하고, 테스트는 합성 템플릿으로 한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Template_Engineer", "expected_output": "deck1/images.py · deck1/template.py · 합성 템플릿 · 테스트", "dependencies": ["T5", "T6"]},
     {"task_id": "T9", "task_name": "build — deck.json → PPTX", "description": "python-pptx 로 deck.json · mapping.json · 그림을 회사 템플릿에 조립한다. 그림은 비율을 지켜 자리표시자 안에 맞추고, 그림 장표마다 근거 줄을, 노트에 근거 id 와 추론을 넣는다. python-pptx 는 어댑터 한 겹 뒤에 두어 표준 라이브러리 OOXML 비상구로 바꿀 수 있게 한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 9, "assigned_model": "claude-sonnet", "agent_role": "Renderer_Engineer", "expected_output": "deck1/build.py · 어댑터 · 합성 보고 3종 PPTX 생성 테스트", "dependencies": ["T5", "T8"]},
     {"task_id": "T10", "task_name": "validate — V-01–V-10", "description": "T5 명세대로 검사기를 만든다. 막는 검사와 알리는 검사를 나누고, ERR · 숫자? · 직접 표시를 다룬다. 숫자 대조는 반례 묶음 (반올림 · 단위 환산 · 퍼센트 포인트 · σ) 으로 시험한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Verification_Developer", "expected_output": "deck1/validate.py · 반례 묶음 테스트", "dependencies": ["T5", "T7"]},
-    {"task_id": "T11", "task_name": "인터뷰 스킬", "description": "SKILL.md 와 references (보고 문법 · 질문 은행 · 장표 유형 · 합성 예시) 를 쓴다. I-01–I-10 을 지키고, 질문 도구가 없는 호스트에서 번호 목록으로 낮추는 규칙, 사내 데이터는 사내 LLM 호스트에서만 다룬다는 첫 줄 규칙을 넣는다. Claude Code 와 opencode 에서 같은 합성 시나리오를 돌려 질문 수 · 빈칸 처리를 확인한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Interview_Designer", "expected_output": "skills/deck-1/SKILL.md · references/ · 두 호스트 시나리오 기록 (합성)", "dependencies": ["T5"]},
-    {"task_id": "T12", "task_name": "다시 그리기 · 렌더 검사", "description": "facts 계열로 matplotlib + SciencePlots 그림을 결정적으로 그리고 (라이트 · 2× · 회사 팔레트 설정), PowerPoint COM 또는 LibreOffice 로 장마다 PNG 를 뽑는 render 명령을 만든다. 둘 다 없으면 건너뛰고 그 사실을 출력한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Visualization_Engineer", "expected_output": "deck1/redraw.py · deck1/render.py · 테스트 (COM 은 Windows CI 에서 있을 때만)", "dependencies": ["T7", "T9"]},
+    {"task_id": "T11", "task_name": "opencode 에이전트 · 명령 · 스킬 (인터뷰)", "description": "opencode/agents/deck-1.md (인터뷰 지침 · 권한 — bash 는 deck-1 명령만 허용 · 편집은 작업 폴더만), opencode/commands/deck.md (/deck <자료 폴더>), opencode/skills/deck-1/SKILL.md 와 references (보고 문법 · 질문 은행 · 장표 유형 · 합성 예시) 를 쓴다. I-01–I-10 을 지키고, question 도구가 안 되면 번호 목록으로 낮춘다. 그림마다 판독 메모 (숫자는 [추정]) 를 먼저 쓰고 사용자 확인을 받으며, 판독과 facts 가 어긋나면 원자료를 앞세운다. opencode + 사내 LLM 에서 합성 시나리오를 돌려 질문 수 · 빈칸 처리 · 그림 판독 흐름을 확인한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Interview_Designer", "expected_output": "opencode/agents/deck-1.md · opencode/commands/deck.md · opencode/skills/deck-1/ · 합성 시나리오 기록", "dependencies": ["T5"]},
+    {"task_id": "T12", "task_name": "다시 그리기 · 렌더 검사", "description": "facts 계열로 matplotlib + SciencePlots 그림을 결정적으로 그리고 (라이트 · 2× · 회사 팔레트 설정), PowerPoint COM 또는 LibreOffice 로 장마다 PNG 를 뽑는 render 명령을 만든다. 둘 다 없으면 건너뛰고 그 사실을 출력한다. 렌더 PNG 를 사내 LLM 이 장마다 보고 넘침 · 겹침 · 잘림을 알리는 시각 검토 단계를 스킬에 붙인다 (알림만).", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Visualization_Engineer", "expected_output": "deck1/redraw.py · deck1/render.py · 테스트 (COM 은 Windows CI 에서 있을 때만)", "dependencies": ["T7", "T9"]},
     {"task_id": "T13", "task_name": "테스트 · 합성 데이터 · CI", "description": "unittest 로 합성 데이터 · 합성 템플릿 · 골든 구조 (장 수 · 자리표시자 · 근거 줄 · 노트) 테스트를 묶고, 사내 LLM 이 필요한 부분은 가짜 서버나 기록된 응답으로 흉내 낸다. README 의 테스트 수는 CI 가 확인하는 값만 적는다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Test_Engineer", "expected_output": "tests/ · 합성 자료 · CI 통과 기록", "dependencies": ["T7", "T8", "T9", "T10"]},
-    {"task_id": "T14", "task_name": "통합 적대 검증", "description": "지어낸 숫자 · 근거 없는 원인 · LLM 의견을 deck.json 에 심어 V-02 · V-03 이 모두 막는지, 그림이 바뀌면 V-06 이 막는지 본다. 의존 라이선스 감사 (Anthropic 스킬 · AGPL 흔적 없음), 저장소의 회사 정보 · 사설 주소 · 키 흔적 검사, 사내 PowerPoint 실제 열기를 한다. 결함은 재현 테스트와 함께 보고한다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Integrity_Auditor", "expected_output": "검증 보고서 · 결함마다 실패하는 테스트", "dependencies": ["T9", "T10", "T11", "T12", "T13"]},
-    {"task_id": "T15", "task_name": "문서 · 설치 · 플러그인 매니페스트", "description": "README · docs/MANUAL.md · INSTALL.md (opencode 가 따라 하는 절차 · 규칙 절 · 단계마다 확인과 실패 시 할 일 · [질문] · 업데이트 · 제거) · .claude-plugin/plugin.json 을 쓴다. 숫자는 돌려서 얻은 값만 적는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Documentation_Specialist", "expected_output": "문서 넷 · 매니페스트 · 깨진 링크 없음", "dependencies": ["T11", "T13"]}
+    {"task_id": "T14", "task_name": "통합 적대 검증", "description": "지어낸 숫자 · 근거 없는 원인 · LLM 의견을 deck.json 에 심어 V-02 · V-03 이 모두 막는지, 그림이 바뀌면 V-06 이 막는지 본다. 의존 라이선스 감사 (Anthropic 스킬 · AGPL 흔적 없음), 저장소의 회사 정보 · 사설 주소 · 키 흔적 검사, opencode.db 에 무엇이 남는지와 MANUAL 의 지우는 법 확인, 사내 PowerPoint 실제 열기를 한다. 결함은 재현 테스트와 함께 보고한다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Integrity_Auditor", "expected_output": "검증 보고서 · 결함마다 실패하는 테스트", "dependencies": ["T9", "T10", "T11", "T12", "T13"]},
+    {"task_id": "T15", "task_name": "문서 · opencode 설치 절차", "description": "README · docs/MANUAL.md · INSTALL.md (opencode 가 따라 하는 절차 · 규칙 절 · 단계마다 확인과 실패 시 할 일 · [질문] · 업데이트 · 제거) 를 쓴다. INSTALL 은 opencode 설정 폴더로 agents · commands · skills 를 복사하고 (같은 이름이 있으면 덮어쓰지 않고 묻기) 제거 절에서 그 파일만 지우며, 사내 provider 모델 설정에 그림 입력 (modalities) 이 있는지 확인하는 단계를 둔다. MANUAL 에는 opencode.db 에 대화가 남는다는 한계와 지우는 법을 적는다. 숫자는 돌려서 얻은 값만 적는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Documentation_Specialist", "expected_output": "문서 셋 · 깨진 링크 없음", "dependencies": ["T11", "T13"]}
   ]
 }
 ```
