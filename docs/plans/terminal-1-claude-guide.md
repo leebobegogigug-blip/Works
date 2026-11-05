@@ -1,8 +1,8 @@
 # Terminal–1 Claude 채널 — 사내 작업 지침
 
 - **누가 읽나**: 사내 PC 에서 Terminal–1 을 고치는 에이전트 (opencode 의 사내 LLM 또는 사내 Claude Code) 와 그 사람. 이 문서 하나로 시작해서 끝낼 수 있게 썼다.
-- **선택이다**: Diode 는 Claude CLI 에 설치하는 플러그인이라 Terminal–1 없이 Claude CLI 만으로 돈다 ([Diode 기획서](diode-plan-draft.md) 7판). 이 지침은 사내에서 Terminal–1 안에 Claude CLI 를 열어 쓰고 싶을 때의 튜닝이다 — 하지 않아도 Diode 의 기능은 그대로다.
-- **무엇**: Terminal–1 에 **Claude 채널** 을 더한다. 사람은 이 탭에서 사내 Claude Code 와 일하고, Claude 는 Diode 를 거쳐 짝지은 opencode 채널 (일꾼 · 원자료가 있는 프로젝트) 에 일을 넘긴다. Diode 의 설계는 [Diode 기획서](diode-plan-draft.md) 6판 › 07 › Claude 가 앞에서.
+- **선택이다**: Diode 는 Claude CLI 에 설치하는 플러그인이라 Terminal–1 없이 Claude CLI 만으로 돈다 ([Diode 기획서](https://github.com/leebobegogigug-blip/Diode/blob/main/docs/PLAN.md) 7판). 이 지침은 사내에서 Terminal–1 안에 Claude CLI 를 열어 쓰고 싶을 때의 튜닝이다 — 하지 않아도 Diode 의 기능은 그대로다.
+- **무엇**: Terminal–1 에 **Claude 채널** 을 더한다. 사람은 이 탭에서 사내 Claude Code 와 일하고, Claude 는 Diode 를 거쳐 짝지은 opencode 채널 (일꾼 · 원자료가 있는 프로젝트) 에 일을 넘긴다. Diode 의 설계는 [Diode 기획서](https://github.com/leebobegogigug-blip/Diode/blob/main/docs/PLAN.md) 6판 › 07 › Claude 가 앞에서.
 - **자리**: 구현은 사내에서 한다 (사용자 결정 · 2026-11-05). 이 지침은 공개 저장소에 있고, 사내 PC 는 works 저장소를 받아 이 파일을 읽는다.
 - **정본 관계**: 규칙의 정본은 [RULES.md](../../RULES.md) · [DEVELOP.md](../DEVELOP.md) 다. 이 지침은 그 위에 **이 변경에만 있는 금지 · 같이 바꿀 곳 · 합격 기준** 을 더한다 (앱 `AGENTS.md` 와 같은 역할). 부딪히면 RULES.md 가 이긴다.
 - **내력**: 기획 1–3판 (옛 이름 `terminal-1-claude-plan-draft.md`) 은 git 기록에 있다. 이 판에서 기획을 사내 작업 지침으로 바꿨고, 03 의 사실은 2026-11-05 의 이 저장소 코드에서 읽었다. 사내 PC 의 판이 다르면 C1 에서 먼저 맞춘다.
@@ -100,7 +100,7 @@ docs/plans/terminal-1-claude-guide.md (이 지침) 를 끝까지 읽어. 지침 
 ### 04-5 Diode 상태 명령 — 계약 (format 1)
 
 - **부르기**: `<Python> "D:\claude\diode\diode.py" --status --json --room "<방>"`. `<Python>` 은 칸을 띄울 때 쓰는 그 값 (`$Python` — `py -3` 또는 `python`).
-- **Diode 자리는 고정한다**: `D:\claude\diode\diode.py` (사용자 결정 · Diode 의 설치 폴더 `D:\claude` — [Diode 기획서](diode-plan-draft.md) › 07 › 자리). `terminal-1.ps1` 위쪽의 상수 하나 (예: `$DiodePy`) 로만 두고, 설정 · 환경 변수 · 명령 인자로 바꾸지 않는다 — 가짜 Diode 가 늘 '방' 이라고 답하게 만드는 손잡이를 없앤다 (TR10). 테스트는 문턱 함수 (`Test-ClaudeGate`) 를 직접 부르며 가짜 Diode 경로를 **함수 인자** 로 넘긴다. `add` · `focus` 는 언제나 상수를 넘긴다 — 그 인자는 명령줄에 드러나지 않는다.
+- **Diode 자리는 고정한다**: `D:\claude\diode\diode.py` (사용자 결정 · Diode 의 설치 폴더 `D:\claude` — [Diode 기획서](https://github.com/leebobegogigug-blip/Diode/blob/main/docs/PLAN.md) › 07 › 자리). `terminal-1.ps1` 위쪽의 상수 하나 (예: `$DiodePy`) 로만 두고, 설정 · 환경 변수 · 명령 인자로 바꾸지 않는다 — 가짜 Diode 가 늘 '방' 이라고 답하게 만드는 손잡이를 없앤다 (TR10). 테스트는 문턱 함수 (`Test-ClaudeGate`) 를 직접 부르며 가짜 Diode 경로를 **함수 인자** 로 넘긴다. `add` · `focus` 는 언제나 상수를 넘긴다 — 그 인자는 명령줄에 드러나지 않는다.
 - **출력**: 표준 출력에 UTF-8 JSON 하나.
 
 ```json
