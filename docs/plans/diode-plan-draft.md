@@ -1,12 +1,13 @@
-# Diode–1 기획서 (초안 4판)
+# Diode 기획서 (초안 5판)
 
-- 상태: 기획 초안 4판 · 2026-11-05 · 앱 코드 0줄. 4판은 남은 질문 둘에 답을 받았다 — **Q9 방 세션의 웹 검색은 쓴다 · Q10 사내 Claude Code 를 Terminal–1 에서 쓰면서 이 도구를 같이 쓴다** (07 › Terminal–1 에서 같이 쓰기). Terminal–1 쪽 변경은 그 앱의 따로 된 기획 [terminal-1-claude-plan-draft.md](terminal-1-claude-plan-draft.md) 에 있다 (W-01 · S-08). 3판 › 4판의 갈린 결정은 부록 G. 남은 질문은 없고, 다음 판 (5판) 은 M0 결과를 기다린다.
+- 상태: 기획 초안 5판 · 2026-11-05 · 앱 코드 0줄. 5판은 사용자 결정 하나를 반영했다 — **이름은 번호 없이 `diode`** 이고, 그러면 works 헌법 W-01 (`<name>-<n>/`) 과 부딪혀 works 검사기가 그 폴더를 앱으로 세지 않으므로 **works 밖 별도 저장소 `diode`** 로 간다 (Q2 를 뒤집음 · 09). 새 저장소가 생기면 이 파일은 그 저장소의 첫 커밋 `docs/PLAN.md` 로 옮기고, works 문서로 가는 상대 링크는 옮긴 커밋의 SHA 로 고정한 GitHub 주소로 바꾸며, works 에는 옮긴 곳 안내만 남긴다 (Subordinate–1 과 같은 길). 그때까지 이 파일은 works 작업 가지에만 있고 works 에 머지하지 않는다. 4판 › 5판의 갈린 결정은 부록 H. 남은 질문은 Q11 (공개 여부) 하나이고, 다음 판 (6판) 은 M0 결과를 기다린다.
+- 4판: 남은 질문 둘에 답을 받았다 — **Q9 방 세션의 웹 검색은 쓴다 · Q10 사내 Claude Code 를 Terminal–1 에서 쓰면서 이 도구를 같이 쓴다** (07 › Terminal–1 에서 같이 쓰기). Terminal–1 쪽 변경은 그 앱의 따로 된 기획 [terminal-1-claude-plan-draft.md](terminal-1-claude-plan-draft.md) 에 있다 (W-01 · S-08). 3판 › 4판의 갈린 결정은 부록 G. 
 - 3판: 사용자 요구 하나를 더했다 — **Claude 쪽은 모델과 effort 를 자문마다 자유롭게 바꾸고, opencode 쪽은 effort 가 없어 모델만 바꾼다** (07 › 모델 · effort 고르기). 이름은 2판의 `airlock-1` 에서 사용자 제안으로 `diode-1` (Diode–1) 로 바꿨다 — 머지 전이고 설치 · 데이터가 없어 옮길 것이 없다 (W-09 해당 없음). 정체 (프로그램 + 스킬 + 플러그인) 는 00 › 이름과 정체. 2판 › 3판의 갈린 결정은 부록 F.
 - 2판: 사용자 답 (Q1–Q8) 을 반영했다 — **모양 B (opencode 지휘 · Claude 는 자문) · works 안 명령형 앱 · 이름 `diode-1` · 보안 부서 답 전 실데이터 0 · Claude 에 닿는 길은 사내 TUI 그대로 · 사내 마무리는 사내 Claude 가 최종 검토 · 가명 표는 메모리만 · 공개 라이브러리 질문 포함 · 안전벨트는 M1**. 대장 ([REGISTRY.md](../REGISTRY.md)) 에 `예정` 으로 올렸다 (S-06 · 2판과 같은 가지의 따로 된 커밋). 1판 › 2판의 갈린 결정은 부록 D.
 - 무엇: 사내 LLM (opencode) 과 회사 밖 모델 (Claude) 을 같이 쓰되, **원자료가 Claude 쪽으로 한 글자도 가지 않게** 둘 사이에 한쪽으로만 흐르는 소자 하나를 두는 도구. Claude 는 기획 · UI/UX 초안 · 공개 라이브러리 질문만 맡고, 원자료를 만지는 일은 전부 사내 LLM 이 한다.
 - 전제: 이 도구를 쓰는 곳은 "원자료가 회사 밖 모델에 가면 법적 책임이 생기는 자료" 를 다룬다. 실수 한 번이 사고다. 그래서 이 기획서는 편의보다 **새지 않음** 을 앞에 둔다.
 - 표기: [문헌] 공개 문서에서 읽은 것 (Claude Code 문서는 2026-11-05 에 읽음) · [미확인] 확인하지 못한 사실 — M0 에서 잰다 · [추정] 계산하거나 늘린 값 · [제안] 근거 없이 정한 문턱 (M0 결과로 고친다).
-- 번호: 새는 길 L-01–L-23 · 불변식 AL-01–AL-13 · 나가는 검사 D1–D8 · 들어오는 검사 U1–U5 · 목표 G1–G6 · 정찰 KIT-1–KIT-6 · 리스크 R1–R18 · 질문 Q1–Q10 · 마일스톤 M0–M5 · 작업 T1–T16. [DEVELOP.md](../DEVELOP.md) 의 D-01–D-11 과 헷갈리지 않게 나가는 검사는 하이픈 없이 `D1` 로 쓴다.
+- 번호: 새는 길 L-01–L-23 · 불변식 AL-01–AL-13 · 나가는 검사 D1–D8 · 들어오는 검사 U1–U5 · 목표 G1–G6 · 정찰 KIT-1–KIT-6 · 리스크 R1–R18 · 질문 Q1–Q11 · 마일스톤 M0–M5 · 작업 T1–T16. [DEVELOP.md](../DEVELOP.md) 의 D-01–D-11 과 헷갈리지 않게 나가는 검사는 하이픈 없이 `D1` 로 쓴다.
 - 공개 저장소다 (W-12). 사내 모델 이름 · 사내 주소 · 예산 액수 · 회사가 어떤 법의 적용을 받는지는 이 문서에 적지 않는다. 사용자 설정에만 둔다.
 
 ## 00 한 장 요약
@@ -14,7 +15,7 @@
 - **답부터**: 된다. 다만 "가렸다가 보내고, 돌아오면 되돌린다" 그대로는 안 된다. 이름 · 식별자는 가려지지만, 지켜야 할 기술의 본체 (공정 조건 · 수치 · 구조 · 순서) 는 가려도 **뜻이 남는다**. 그래서 원칙을 바꾼다 — **가린 원자료를 보내는 게 아니라, 원자료가 필요 없는 일만 Claude 에게 준다.** Claude 가 받는 것은 사내 단어 · 숫자 · 파일 · 그림 · 코드 원문이 없는 **일의 모양** (brief) 이다.
 - **모양 (05 · Q1 확정)**: opencode + 사내 LLM 이 지휘하고 원자료를 쥔다 (안쪽). Claude 는 자문역이다 (바깥). 둘 사이에 한쪽으로만 흐르는 소자 **다이오드** 하나만 둔다. 바깥으로 가는 길은 다이오드의 **건네기** 하나뿐이고, 사람이 창에서 보낼 바이트를 그대로 보고 눌러야 나간다.
 - **Claude 에 닿는 길은 사내 TUI 그대로 (07 · Q5)**: 사용자가 이미 쓰는 사내 TUI 를 바꾸지 않는다. 건네기는 셋 — `clipboard` (M1 · 사람이 붙여 넣기) · `room` (M2 · Claude 세션을 **깨끗한 방** 폴더에서 열고 봉인 파일을 주고받기) · `adapter` (사내 TUI 에 맞춘 얇은 어댑터 — 계약만 여기서, 구현은 사내에서). TUI 쪽 Claude 에게는 도구가 있으므로, 방 안에는 봉인된 것만 두고 방 프로필이 방 밖 읽기 · Bash · MCP · 웹을 막는다 (AL-06 · AL-13).
-- **Terminal–1 에서 같이 쓰기 (07 · Q10)**: 그 사내 TUI 는 Terminal–1 이다. Terminal–1 창 하나에 opencode 채널 (사내 LLM · 원자료가 있는 프로젝트) 과 새 **Claude 채널** (사내 Claude Code · 다이오드 방) 을 나란히 연다. Terminal–1 은 다이오드의 공개 명령으로 그 폴더가 방인지 확인한 뒤에만 Claude 채널을 열고, 다이오드가 없으면 Claude 채널 기능을 끈다 (막는 쪽 실패). 방의 statusLine 이 실제 사용량 · effort 를 다이오드에 넘긴다.
+- **Terminal–1 에서 같이 쓰기 (07 · Q10)**: 그 사내 TUI 는 Terminal–1 이다. Terminal–1 창 하나에 opencode 채널 (사내 LLM · 원자료가 있는 프로젝트) 과 새 **Claude 채널** (사내 Claude Code · 다이오드 방) 을 나란히 연다. Terminal–1 은 다이오드의 상태 명령으로 그 폴더가 방인지 확인한 뒤에만 Claude 채널을 열고, 다이오드가 없으면 Claude 채널 기능을 끈다 (막는 쪽 실패). 방의 statusLine 이 실제 사용량 · effort 를 다이오드에 넘긴다.
 - **사내 마무리 (07 · Q5)**: 이 저장소는 사내 TUI 를 볼 수 없다. 일반 부분은 여기서 합성 자료로 만들고, 사내 TUI 어댑터 · 사내 PC 정찰 · 코드 최종 검토는 사내 Claude 가 한다. 경계는 앱 문서 `docs/INHOUSE.md` 로 고정하고, 사내 이름은 공개 저장소로 되돌아오지 않게 막는다 (W-12).
 - **공개 라이브러리 질문 (06 · Q7)**: 된다. 다만 원문 코드 · 원문 오류 글이 아니라 사내 LLM 이 일반 이름으로 다시 쓴 **합성 재현 코드** 로만, 허용 목록에 있는 라이브러리만.
 - **모델 · effort (07 · 3판)**: Claude 쪽은 손잡이가 둘 — 모델 (Opus 급 · Sonnet 급) × effort (`low` – `max`). 사내 LLM 이 어려움을 제안하고, 다이오드가 기본값을 고르고, 사람이 확정 창에서 아무 조합으로나 바꾼다. opencode 쪽은 손잡이가 하나 — 모델 (글 · 그림) 뿐이고, 어려운 일은 effort 대신 일을 더 잘게 나눠 다룬다. effort 는 나가는 바이트를 바꾸지 않으므로 보안 손잡이가 아니라 비용 · 품질 손잡이다.
@@ -27,7 +28,7 @@
 
 ### 이름과 정체
 
-**이름 — Diode–1 (`diode-1`).** 다이오드는 전류를 한쪽으로만 흘리는 소자다. 이 도구에서 순방향은 밖 › 안 (Claude 의 답이 들어온다), 역방향은 안 › 밖 (원자료 — 막힌다) 이다. 역방향 누설 전류에 해당하는 것은 사람이 확정한 봉인 글 (brief) 뿐이다.
+**이름 — Diode (`diode`).** 다이오드는 전류를 한쪽으로만 흘리는 소자다. 이 도구에서 순방향은 밖 › 안 (Claude 의 답이 들어온다), 역방향은 안 › 밖 (원자료 — 막힌다) 이다. 역방향 누설 전류에 해당하는 것은 사람이 확정한 봉인 글 (brief) 뿐이다.
 
 - **이름의 함정 (R18)**: 보안 쪽에서 "데이터 다이오드" 는 물리적으로 한 방향 통신만 되는 망연계 장비를 뜻한다. 이 도구는 그것이 아니다 — 소프트웨어이고, 봉인 글은 나가고 답은 들어오며, 같은 PC 안에 단단한 벽이 없다 (02). 보안 부서 설명 한 장 (T4) · README · MANUAL 첫머리에 "이름은 비유다. 하드웨어 데이터 다이오드와 같은 보증을 주지 않는다." 를 적는다.
 
@@ -35,13 +36,13 @@
 
 | 겹 | 무엇 | 막는 힘 |
 |---|---|---|
-| 본체 — 프로그램 (`diode-1.py` · works 명령형 앱) | 검사기 D1–D8 · 확정 창 · seal · unseal · 건네기 · 감사 기록 | 있다 — 결정적 코드 |
-| opencode 스킬 + 에이전트 (`skills/diode-1/SKILL.md` · `diode` · `diode-vision` · `/consult`) | 사내 LLM 이 읽는 일의 순서 · 셸 · 편집 권한 | 스킬 문장은 없다 (AL-09) · 권한 설정은 있다 |
+| 본체 — 프로그램 (`diode.py` · 별도 저장소 `diode` 의 명령형 도구) | 검사기 D1–D8 · 확정 창 · seal · unseal · 건네기 · 감사 기록 | 있다 — 결정적 코드 |
+| opencode 스킬 + 에이전트 (`skills/diode/SKILL.md` · `diode` · `diode-vision` · `/consult`) | 사내 LLM 이 읽는 일의 순서 · 셸 · 편집 권한 | 스킬 문장은 없다 (AL-09) · 권한 설정은 있다 |
 | Claude Code 플러그인 (안전벨트 훅 · 방 프로필 틀) | 사람이 붙여 넣는 원문 · 방 밖 읽기를 막는 훅 | 있다 — Claude Code 안에서만 |
 
 - 스킬만으로는 안 된다. 스킬은 LLM 에게 주는 글이라 LLM 이 지키지 않으면 끝이다.
 - 플러그인만으로도 안 된다. Claude Code 플러그인은 Claude 쪽에 붙어서, 원자료가 생기는 안쪽 (opencode) 을 보지 못한다.
-- 그래서 막는 일은 둘의 바깥, 결정적 코드인 본체가 한다. works 에서는 폴더 하나 = 앱 = 명령 (W-01) 이라 대장에는 앱으로 올라간다. 스킬과 플러그인은 그 앱 폴더 안에 같이 들어 있고, 설치 때 각 호스트의 자리로 복사된다 (W-08).
+- 그래서 막는 일은 둘의 바깥, 결정적 코드인 본체가 한다. 저장소 하나 = 도구 하나다 (works W-01 의 뜻을 이름만 바꿔 따른다 — 09). 스킬과 플러그인은 그 저장소 안에 같이 들어 있고, 설치 때 각 호스트의 자리로 복사된다 (W-08).
 
 다이오드도 역전압을 너무 걸면 항복한다. 그래서 확정 창이 있다.
 
@@ -106,7 +107,7 @@
 | L-20 | 사내 마무리 세션 (사내 Claude 의 코드 검토) 이 저장소 루트의 다른 앱 데이터를 읽는다 | 검토 세션은 앱 폴더에서만 · 안전벨트 (07) |
 | L-21 | 사내 LLM 이 확정을 거치지 않은 파일을 방 `outbox` 에 직접 쓴다 | AL-13 (확정 해시 확인) · opencode 편집 권한에서 방 deny |
 | L-22 | 웹 검색 결과에 섞인 지시문 · 틀린 정보가 Claude 의 답으로 들어온다 (Q9 로 웹 검색을 켰다) | U3 · U5 (안쪽 테스트가 벽) · 사내 LLM 은 답을 자료로 읽고 지시로 따르지 않는다 (SKILL.md — 안내일 뿐 · AL-09) |
-| L-23 | Terminal–1 의 Claude 채널을 원자료 프로젝트 폴더에서 연다 | Terminal–1 의 여는 문턱 (07 · 다이오드 공개 명령) · 그 밖에서 연 `claude` 는 안전벨트 |
+| L-23 | Terminal–1 의 Claude 채널을 원자료 프로젝트 폴더에서 연다 | Terminal–1 의 여는 문턱 (07 · 다이오드 상태 명령) · 그 밖에서 연 `claude` 는 안전벨트 |
 
 ## 04 불변식
 
@@ -213,7 +214,7 @@
 
 ### 감사 기록
 
-- `%LOCALAPPDATA%\diode-1\audit\` 에 자문마다 한 파일: 보낸 바이트 · sha256 · 시각 · 모델 · 토큰 수 · 결과 (보냄 · 버림 · 막힘과 검사 번호). 가명 표 · 원문은 없다.
+- `%LOCALAPPDATA%\diode\audit\` 에 자문마다 한 파일: 보낸 바이트 · sha256 · 시각 · 모델 · 토큰 수 · 결과 (보냄 · 버림 · 막힘과 검사 번호). 가명 표 · 원문은 없다.
 - "무엇을 보냈나" 를 나중에 증명할 수 있어야 한다. 보안 부서가 요구하는 보존 기간 · 형식은 Q4 에서 받는다.
 
 ## 07 호스트 — opencode 지휘 · Claude 자문 · Claude Code 안전벨트
@@ -260,7 +261,7 @@
 
 ### opencode 쪽 (지휘)
 
-- 에이전트 `diode` (사내 글 모델) · 하위 에이전트 `diode-vision` (사내 그림 모델) · 명령 `/consult` · 스킬 `skills/diode-1/SKILL.md` 한 벌. 스킬이 일의 순서를 안내한다: 일 나누기 (바깥이 필요한 것 = 기획 · UI 초안 · 공개 라이브러리 질문 / 나머지 = 안쪽) → brief.json 쓰기 → `diode-1 seal` → (사람이 창에서 확정) → 건네기 (`clipboard` · `room`) → `unseal` → 안쪽 구현 · 묶기 · 그림 모델 검토.
+- 에이전트 `diode` (사내 글 모델) · 하위 에이전트 `diode-vision` (사내 그림 모델) · 명령 `/consult` · 스킬 `skills/diode/SKILL.md` 한 벌. 스킬이 일의 순서를 안내한다: 일 나누기 (바깥이 필요한 것 = 기획 · UI 초안 · 공개 라이브러리 질문 / 나머지 = 안쪽) → brief.json 쓰기 → `diode seal` → (사람이 창에서 확정) → 건네기 (`clipboard` · `room`) → `unseal` → 안쪽 구현 · 묶기 · 그림 모델 검토.
 - 권한 [문헌: opencode 문서 › agents · permissions — M0 에서 판 확인]: 셸 기본 `ask` · 허용은 다이오드 명령과 프로젝트 테스트 명령만 · `claude*` · `curl*` · `Invoke-WebRequest*` · `powershell*` · 웹 가져오기는 deny. 편집은 작업 폴더만 — 깨끗한 방 · 다이오드 데이터 폴더는 deny (L-21).
 - opencode 의 JS 플러그인 (`tool.execute.before` 훅) 은 셸 명령을 더 단단히 거를 수 있지만 npm 경로가 생긴다. M0 에서 권한만으로 부족하면 그때 다시 본다.
 
@@ -298,21 +299,21 @@
 Terminal–1 창
 ├─ 00 overview      두 채널을 한눈에
 ├─ 01 project       opencode 채널 (지금 그대로) · 사내 글 모델 · 원자료가 있는 프로젝트 폴더
-│                   brief.json ──> diode-1 seal ──> 확정 창 (데스크톱 창 · 사람)
+│                   brief.json ──> diode seal ──> 확정 창 (데스크톱 창 · 사람)
 └─ 02 diode         Claude 채널 (새) · 사내 Claude Code · 다이오드 방 폴더
                     outbox 를 읽고 inbox 에 답 ──> 확정 창이 unseal ──> 01 에서 이어서
 ```
 
-- **공개 명령 (W-01)**: 다이오드가 읽기 전용 명령 하나를 낸다 — `diode-1.py --status --json [--room "<폴더>"]`, 표준 출력에 UTF-8 JSON, `format` 1. 대장 › 공개 명령 · MANUAL 에 올린다 (T11). 쓰는 앱은 `terminal-1`.
+- **상태 명령 (바깥 인터페이스)**: 다이오드가 읽기 전용 명령 하나를 낸다 — `diode.py --status --json [--room "<폴더>"]`, 표준 출력에 UTF-8 JSON, `format` 1. Diode 는 works 밖이라 works 대장의 상태 명령 표에는 오르지 않는다. 대신 MANUAL › 바깥 인터페이스에 적고, `format` 을 올리는 규칙은 works W-01 과 같게 지킨다 (T11). 부르는 쪽은 Terminal–1 이다.
   - 내주는 것: 그 폴더가 방인지 · 방 프로필 상태 (`ok` · `missing` · `changed`) · 안전벨트 켜짐 여부 · outbox · inbox 대기 수 · 이번 달 사용 (statusLine 으로 받은 실제 값 · 없으면 어림이라는 표시) · 마지막으로 걸린 모델 · effort.
   - 내주지 않는 것: 사전 단어 · 봉인 글 · 답 · 가명 표 · 감사 기록 내용 · 정규식. Terminal–1 칸은 화면 공유 · 스크린샷에 찍힐 수 있다.
 - **Terminal–1 이 Claude 채널을 여는 문턱** (Terminal–1 기획 › 02 의 요약): 방이면 연다 · 방이 아니면 안전벨트가 켜졌을 때만 경고와 `[질문]` 뒤에 · 다이오드 명령이 없거나 실패하거나 모르는 `format` 이면 Claude 채널을 열지 않는다. W-01 의 "그 기능만 끄고 계속 돈다" 가 여기서는 곧 막는 쪽 실패다.
-- **statusLine — 실제 사용량과 effort 확인**: 방 프로필에 `statusLine` 으로 `diode-1.py --statusline` 을 건다 [문헌: statusline 문서 2026-11-05 — 프로젝트 설정에 둘 수 있고, 표준 입력 JSON 에 `cost.total_cost_usd` · `context_window.total_input_tokens` · `context_window.total_output_tokens` · `model` · `effort.level` · `session_id` 가 온다 · 300ms 로 묶어 돈다]. 다이오드는 이 중 비용 · 토큰 · 모델 · effort 만 감사 기록에 더하고, 같이 오는 `transcript_path` 는 열지 않는다. 한 줄 출력 예: `DIODE  room ok  effort high  month 12%`. 사내 판에서 칸 이름이 다르면 사내 마무리에서 맞춘다 (T16).
-- 사내 마무리의 검토 세션 (`D:\OPENCODE\diode-1`) 도 Terminal–1 Claude 채널로 연다. 방이 아니므로 안전벨트 + `[질문]` 길이다.
+- **statusLine — 실제 사용량과 effort 확인**: 방 프로필에 `statusLine` 으로 `diode.py --statusline` 을 건다 [문헌: statusline 문서 2026-11-05 — 프로젝트 설정에 둘 수 있고, 표준 입력 JSON 에 `cost.total_cost_usd` · `context_window.total_input_tokens` · `context_window.total_output_tokens` · `model` · `effort.level` · `session_id` 가 온다 · 300ms 로 묶어 돈다]. 다이오드는 이 중 비용 · 토큰 · 모델 · effort 만 감사 기록에 더하고, 같이 오는 `transcript_path` 는 열지 않는다. 한 줄 출력 예: `DIODE  room ok  effort high  month 12%`. 사내 판에서 칸 이름이 다르면 사내 마무리에서 맞춘다 (T16).
+- 사내 마무리의 검토 세션 (`D:\OPENCODE\diode`) 도 Terminal–1 Claude 채널로 연다. 방이 아니므로 안전벨트 + `[질문]` 길이다.
 
 ### 사내 마무리 — 사내 Claude 가 최종 검토 (Q5)
 
-이 저장소에서는 사내 TUI 를 볼 수 없다 (W-12). 그래서 일반 부분은 여기서 합성 자료로 만들고, 사내에서만 할 수 있는 부분은 사내 Claude 가 마무리한다. 그 경계를 앱 문서 `diode-1/docs/INHOUSE.md` 로 고정한다 (T15).
+이 저장소에서는 사내 TUI 를 볼 수 없다 (W-12). 그래서 일반 부분은 여기서 합성 자료로 만들고, 사내에서만 할 수 있는 부분은 사내 Claude 가 마무리한다. 그 경계를 앱 문서 `diode/docs/INHOUSE.md` 로 고정한다 (T15).
 
 | 여기서 (공개 저장소 · 합성 자료) | 사내에서 (사내 Claude · 사내 PC) |
 |---|---|
@@ -320,14 +321,14 @@ Terminal–1 창
 
 - 어댑터 계약 [제안 — T6]: `name` · `check() → 결과 (effort 를 받는지 포함)` · `put(id, sealed_text, route)` · `get(id) → 답 또는 없음`. `route` 는 모델 · effort 두 값뿐이다. 어댑터는 봉인된 글만 받는다 — 원문 · 가명 표에 닿는 인자가 없다. 계약 테스트를 통과해야 설정에서 고를 수 있다.
 - 사내 이름이 들어간 것 (어댑터 설정 · TUI 이름 · 모델 이름) 은 `.gitignore` 로 막힌 `adapters.local\` 또는 데이터 폴더에만 둔다. 공개 저장소로 되돌아오는 것은 사내 이름이 없는 일반 코드뿐이다 (W-12 · R17).
-- **검토 세션의 자리**: 사내 Claude 로 다이오드 코드를 검토할 때는 `D:\OPENCODE\diode-1` 에서 연다. 저장소 루트 (`D:\OPENCODE`) 에서 열지 않는다 — 루트 아래에는 데이터를 프로그램 폴더에 두는 앱이 있다 (Secretary–1 · 예외 대장 W-06 · 일정과 설정). 검토 세션에도 안전벨트를 켠다 (L-20).
+- **검토 세션의 자리**: 사내 Claude 로 다이오드 코드를 검토할 때는 `D:\OPENCODE\diode` 에서 연다. 저장소 루트 (`D:\OPENCODE`) 에서 열지 않는다 — 루트 아래에는 데이터를 프로그램 폴더에 두는 앱이 있다 (Secretary–1 · 예외 대장 W-06 · 일정과 설정). 검토 세션에도 안전벨트를 켠다 (L-20).
 - 검토 대상은 공개 코드뿐이고 사내 월 한도 안에서 한다. 사내에서 고친 일반 코드를 공개 저장소로 되가져올 때는 diff 를 사람이 한 줄씩 본다.
 
 ### Claude Code 안전벨트 (사람이 방 밖에서 대화형으로 쓸 때 · M1 — Q8)
 
 [문헌: Claude Code hooks 문서 2026-11-05] 방 프로필이 방 안의 벽이라면, 안전벨트는 사용자가 방 밖에서 연 모든 세션에 거는 사용자 설정이다. 사내 TUI 가 Claude Code 일 때만 걸 수 있다.
 
-- `UserPromptSubmit` 훅 → `diode-1 scan` (D2 · D3 · D5). 걸리면 종료 코드 2 로 막는다 — 문서는 "프롬프트가 Claude 에 닿지 않는다" 고 적는다.
+- `UserPromptSubmit` 훅 → `diode scan` (D2 · D3 · D5). 걸리면 종료 코드 2 로 막는다 — 문서는 "프롬프트가 Claude 에 닿지 않는다" 고 적는다.
 - `PreToolUse` 훅 (Read · Grep · Glob · Bash · Edit · Write · WebFetch) → 깨끗한 작업 폴더 밖을 건드리면 deny. 훅은 보조이고 "단단한 허용 · 거부는 권한 체계로" 라는 문서 권고대로 권한 deny 규칙을 같이 둔다.
 - 훅 실패를 막는 쪽으로: `onFailure: "block"` (v2.1.295 이상) — 없으면 시간 초과한 훅이 도구 호출을 통과시킨다 [문헌]. 사내 PC 의 Claude Code 판을 KIT-2 에서 확인한다.
 - 사용자가 훅을 끄지 못하게 하려면 관리형 설정 (`allowManagedHooksOnly`) 이 필요한데 관리자 권한이 든다 — W-08 이 금지하므로 이 도구는 하지 않고, 회사 IT 에 줄 설정 안내만 MANUAL 에 둔다.
@@ -342,25 +343,31 @@ Terminal–1 창
 - 방 세션은 자문마다 새로 연다 (07). 한 세션에서 자문을 이어 가면 앞 대화가 매번 다시 실려 비용이 늘고 모자이크 위험도 커진다.
 - effort 가 비용의 두 번째 손잡이다 (07). effort 가 높을수록 생각 · 출력 토큰이 늘어난다. 얼마나 느는지는 사내 모델 · 사내 단가로 KIT-6 에서 effort 별로 잰다 — 그 전의 창 어림값은 [추정] 표시를 단다.
 
-## 09 works 규칙과의 관계
+## 09 규칙 — 새 저장소 `diode` 의 RULES.md 원고
 
-자리는 works 안 새 앱이다 (Q2 확정 · 대장에 `예정` 으로 등록). 앱 유형은 *명령형* (S-04) — 서버가 없어 사내 LLM 이 127.0.0.1 주소로 확정을 흉내 낼 길이 없다.
+자리는 works 밖 별도 저장소 `diode` 다 (5판 · 사용자 결정 — 이름에서 번호를 빼면 works 헌법 W-01 의 `<name>-<n>/` 와 부딪히고, works 검사기가 그 폴더를 앱으로 세지 않아 모든 검사가 조용히 빠지기 때문). works 헌법이 이 도구를 직접 묶지는 않고, 새 저장소가 아래 표대로 스스로 따른다 (Subordinate–1 · Analysis–1 과 같은 길). 도구 유형은 works 의 *명령형* (S-04) 을 따른다 — 서버가 없어 사내 LLM 이 127.0.0.1 주소로 확정을 흉내 낼 길이 없다.
 
-| 조항 | 이 도구에서 | 맞음 |
+| 조항 | 이 도구에서 | 채택 |
 |---|---|---|
-| W-01 | `diode-1/` 한 폴더 · 다른 앱과 주고받을 것 없음 | 맞음 |
-| W-02 | 표준 라이브러리만 — `re` · `json` · `secrets` · `hashlib` · `subprocess` · `tkinter` · `ctypes` (DPAPI) · `urllib`. 보안 도구라 의존 0 이 오히려 장점이다 (공급망 공격 면이 없다). 한국어 이름 탐지 같은 ML 모델은 넣지 않고 D7 (사내 LLM) 로 대신한다 | 맞음 |
-| W-03 | 바깥 통신은 사용자가 설정한 사내 LLM · Claude 길뿐 · 돌아온 UI 의 외부 주소는 U3 | 맞음 |
-| W-04 | 키는 다루지 않는다 (Claude Code · 사내 LLM 설정이 쥔다). 사내 단어 사전도 비밀처럼 다룬다 (AL-11) | 맞음 |
-| W-05 | 원문 · 가명 표는 메모리만 (Q6). 감사 기록은 사람이 확정한 바깥 바이트라 저장 대상이고, 창이 먼저 알린다 | 맞음 — Q6 에서 DPAPI 파일을 고르면 MANUAL 알려진 한계에 적는다 |
-| W-06 | `%LOCALAPPDATA%\diode-1\` — 설정 · 사전 · 감사 기록 · 형식 버전 · 원자적 쓰기 | 맞음 |
-| W-07 | 보내기는 되돌릴 수 없으므로 확정 창이 전부다 · 사전 등록도 제안 → 확정 | 맞음 |
-| W-08 | opencode 설정 폴더에 에이전트 · 스킬 복사 · Claude Code 사용자 설정에 안전벨트 훅 추가 = 사용자 범위 변경 → `[질문]` · 백업 · 제거 절. 방 프로필은 방 폴더 안의 설정이라 사용자 설정을 건드리지 않는다 | 맞음 |
-| W-10 | 확정 창은 DESIGN.md 를 따른다 · 걸린 곳 강조는 빨강 없이 (라임 · 네이비 · 굵기) | 맞음 |
-| W-11 | 가짜 Claude 서버 · 가짜 사내 LLM 서버 · 카나리아 테스트 (G1) 를 CI 에 | 맞음 |
-| W-12 | 사내 단어 · 정규식 · 모델 이름은 사용자 설정에만 · 테스트 자료는 지어낸 회사 · 공정 | 맞음 |
-| S-09 | D7 은 SPEC-llm 의 `llm` 키를 따른다. 다만 SPEC-llm › 02 의 환경 변수 덮어쓰기 (`<접두어>_BASE_URL` 등) 는 AL-12 와 부딪힌다 — 사내 LLM 이 환경 변수로 판정 모델을 바꿔 D7 을 무력화할 수 있다 | **따르지 않음** (규약 S) — 까닭을 MANUAL › 알려진 한계에 적는다 |
+| W-01 | 저장소 하나 = 도구 하나 · 이름은 번호 없이 `diode` (화면 Diode) · 필수 구성 (README · INSTALL · docs/MANUAL.md · tests/ · .gitignore · .gitattributes · 워크플로) 은 그대로. 다른 도구와는 바깥 인터페이스 (상태 명령) 로만 | **바꿈** — 이름 규칙만 |
+| W-02 | 표준 라이브러리만 — `re` · `json` · `secrets` · `hashlib` · `subprocess` · `tkinter` · `ctypes` (DPAPI) · `urllib`. 보안 도구라 의존 0 이 오히려 장점이다 (공급망 공격 면이 없다). 한국어 이름 탐지 같은 ML 모델은 넣지 않고 D7 (사내 LLM) 로 대신한다 | 채택 |
+| W-03 | 바깥 통신은 사용자가 설정한 사내 LLM · Claude 길뿐 · 돌아온 UI 의 외부 주소는 U3 | 채택 |
+| W-04 | 키는 다루지 않는다 (Claude Code · 사내 LLM 설정이 쥔다). 사내 단어 사전도 비밀처럼 다룬다 (AL-11) | 채택 |
+| W-05 | 원문 · 가명 표는 메모리만 (Q6). 감사 기록은 사람이 확정한 바깥 바이트라 저장 대상이고, 창이 먼저 알린다 | 채택 |
+| W-06 | `%LOCALAPPDATA%\diode\` — 설정 · 사전 · 감사 기록 · 형식 버전 · 원자적 쓰기 · 테스트는 `DIODE_HOME` | 채택 |
+| W-07 | 보내기는 되돌릴 수 없으므로 확정 창이 전부다 · 사전 등록도 제안 → 확정 | 채택 |
+| W-08 | INSTALL 은 opencode 가 따라 하는 절차 · opencode 설정 폴더에 에이전트 · 스킬 복사 · Claude Code 사용자 설정에 안전벨트 훅 = 사용자 범위 변경 → `[질문]` · 백업 · 제거 절 · 관리자 권한 금지. 방 프로필은 방 폴더 안의 설정이라 사용자 설정을 건드리지 않는다. 설치 자리 `D:\OPENCODE\diode` (works `.gitignore` 한 줄 · Subordinate–1 선례) | 채택 |
+| W-09 | 이름을 바꾸면 데려간다 | 채택 — 공개한 뒤에는 `diode` 를 바꾸지 않는다 |
+| W-10 | 확정 창은 works DESIGN.md 를 따른다 · 걸린 곳 강조는 빨강 없이 (라임 · 네이비 · 굵기) | 채택 — DESIGN.md 는 링크만 (옮긴 커밋 SHA 로 고정) |
+| W-11 | CI (Windows + Ubuntu × 최소 · 최신 Python) · unittest · 가짜 Claude 서버 · 가짜 사내 LLM 서버 · 카나리아 테스트 (G1). works 검사기는 이 저장소를 보지 않으므로 **자기 검사기** 를 둔다 — 의존 0 · `0.0.0.0` 바인딩 · 비밀 흔적 · 필수 파일 · README 테스트 수 · 사설 주소 · 외부 CDN (T7) | 채택 + 자기 검사기 |
+| W-12 | 사내 단어 · 정규식 · 모델 이름 · 사내 TUI 이름은 사용자 설정에만 · 테스트 자료는 지어낸 회사 · 공정 · 영감 고지문 · 라이선스 | 채택 (Q11) |
+| S-01 | 화면 `Diode` · 폴더 · 명령 · 데이터 폴더 `diode` · 부품은 `XX–N` 그대로 | **바꿈** — 번호 없음 |
+| S-03 · S-04 · S-05 | 명령 이름과 종료 코드 · 명령형 · Windows 무대 | 채택 |
+| S-06 | works 대장 | 해당 없음 (works 밖) |
+| S-08 | 커밋 `diode: 무엇 · 무엇` · 한국어 | 채택 |
+| S-09 | D7 은 works SPEC-llm 의 `llm` 키를 따른다. 다만 SPEC-llm › 02 의 환경 변수 덮어쓰기 (`<접두어>_BASE_URL` 등) 는 AL-12 와 부딪힌다 — 사내 LLM 이 환경 변수로 판정 모델을 바꿔 D7 을 무력화할 수 있다 | **따르지 않음** — 까닭을 MANUAL › 알려진 한계에 |
 
+- works 쪽에 바꾼 것: works 대장에서 `diode` 예정 줄을 뺐고 (머지 전 · 설치 · 데이터 없음), works `.gitignore` 에 `/diode/` 한 줄을 넣었다. 그 밖에는 없다. Terminal–1 은 works 앱이라 Claude 채널 변경은 works 안에서 한다 (Terminal–1 기획).
 - 사내 마무리 (07) 에서 만드는 사내 어댑터 · 설정은 공개 저장소에 들어오지 않는다. 일반 코드만 되가져오고, 그때도 W-12 를 사람이 diff 로 본다.
 
 ## 10 로드맵
@@ -424,11 +431,16 @@ Terminal–1 창
 | Q8 | 안전벨트 시기 | M1 에 같이 | 10 |
 | Q9 | 방 세션의 웹 검색 | 쓴다 | 07 › 깨끗한 방 · L-22 |
 | Q10 | "terminal-1 같은 TUI" | 사내 Claude Code 를 Terminal–1 에서 쓰면서 이 도구를 쓰고 싶다 | 07 › Terminal–1 에서 같이 쓰기 · 공개 명령 · statusLine · L-23 · Terminal–1 기획 따로 |
+| 이름 (5판) | 이름에서 번호를 뺀다 | `diode` · works W-01 과 부딪혀 **works 밖 별도 저장소 `diode`** (Q2 를 뒤집음) | 00 › 이름과 정체 · 09 · 작업표 T7 · Terminal–1 기획 2판 |
 | 요구 (3판) | 모델 · effort | Claude 쪽 effort 는 필요에 따라 자유롭게 바꾼다 · opencode 는 effort 가 없고 모델만 바꾼다 | 07 › 모델 · effort 고르기 · 06 `route` · 08 · KIT-1 · KIT-2 · KIT-6 |
 
 ### 남은 질문
 
-없음. Terminal–1 쪽 질문은 그 기획 › 05 에 있다.
+| # | 질문 | 선택지 (추천이 앞) |
+|---|---|---|
+| Q11 | 새 저장소 `diode` 공개 여부 | **공개 — 회사 PC 가 로그인 없이 받는다 (works 와 같은 설치 흐름). 공개든 비공개든 사내 정보는 넣지 않는다 — 비공개 GitHub 도 회사 밖이다** · 비공개 |
+
+Terminal–1 쪽 질문은 그 기획 › 05 에 있다.
 
 ## 부록
 
@@ -482,30 +494,30 @@ Terminal–1 창
 
 ### B 작업표 (하위 에이전트용)
 
-이 세션의 사용자 설정 (4단 모델 배정) 에 따른 작업표다. Terminal–1 쪽 작업은 그 기획 › 06 에 따로 있다 (C1–C6). T1–T15 는 공개 저장소에서 합성 자료로만 한다. T1–T4 는 M0 이고 앱 코드가 아니다 (키트는 이 가지의 `docs/plans/diode-1-kit/` 에 두고 M0 가 끝나면 지운다 [제안] — 앱 폴더를 먼저 만들면 대장의 `예정` 상태 검사에 걸린다). T5 는 M0 결과와 Q9 · Q10 답이 있어야 시작한다. T16 은 사내 PC 에서 사내 Claude 가 한다 (Q5). 같은 내용을 이 판을 낸 세션의 보고에도 알렸다.
+이 세션의 사용자 설정 (4단 모델 배정) 에 따른 작업표다. Terminal–1 쪽 작업은 그 기획 › 06 에 따로 있다 (C1–C6). T1–T15 는 공개 저장소에서 합성 자료로만 한다. T1–T4 는 M0 이고 앱 코드가 아니다 (키트는 새 저장소 `diode` 의 `kit/` 에 두고 M0 가 끝나면 지운다 [제안]). T5 는 M0 결과와 Q9 · Q10 답이 있어야 시작한다. T16 은 사내 PC 에서 사내 Claude 가 한다 (Q5). 같은 내용을 이 판을 낸 세션의 보고에도 알렸다.
 
 ```json
 {
-  "project_title": "Diode–1 — 사내 LLM 지휘 · 사내 TUI 의 Claude 는 깨끗한 방의 자문역 · 원자료가 바깥으로 가지 않는 문",
-  "executive_summary": "opencode + 사내 LLM 이 원자료와 지휘를 쥐고, Claude 는 사용자가 쓰는 사내 TUI 를 바꾸지 않은 채 깨끗한 방에서 기획 · UI 초안 · 공개 라이브러리 질문만 받는 자문역으로 두며, 둘 사이에 결정적 검사기 · 사람 확정 창 · 가명 되돌리기 · 건네기 (clipboard · room · adapter) · 자문마다 바꾸는 모델 × effort (opencode 쪽은 모델만) 를 가진 표준 라이브러리 명령형 앱 하나를 works 안에 만든다. 가린 원자료가 아니라 닫힌 형식의 '일의 모양' (brief.json) 만 내보내고 모든 장치는 막는 쪽으로 실패하며, 실데이터는 보안 부서 답 전까지 막는다. 일반 부분은 공개 저장소에서 합성 자료로 만들고, 사내 TUI 어댑터 · 사내 PC 정찰 · 최종 검토는 사내 Claude 가 INHOUSE.md 의 경계 안에서 마무리한다. 사내 Claude Code 는 Terminal–1 의 새 Claude 채널에서 쓰고 (Terminal–1 기획 따로), 다이오드는 공개 명령 하나와 방 statusLine 으로 그 채널에 상태 · 실제 사용량을 내준다.",
-  "total_estimated_effort": 119,
+  "project_title": "Diode — 사내 LLM 지휘 · 사내 TUI 의 Claude 는 깨끗한 방의 자문역 · 원자료가 바깥으로 가지 않는 문",
+  "executive_summary": "opencode + 사내 LLM 이 원자료와 지휘를 쥐고, Claude 는 사용자가 쓰는 사내 TUI 를 바꾸지 않은 채 깨끗한 방에서 기획 · UI 초안 · 공개 라이브러리 질문만 받는 자문역으로 두며, 둘 사이에 결정적 검사기 · 사람 확정 창 · 가명 되돌리기 · 건네기 (clipboard · room · adapter) · 자문마다 바꾸는 모델 × effort (opencode 쪽은 모델만) 를 가진 표준 라이브러리 명령형 도구 하나를 works 밖 별도 공개 저장소 diode 에 만든다. 가린 원자료가 아니라 닫힌 형식의 '일의 모양' (brief.json) 만 내보내고 모든 장치는 막는 쪽으로 실패하며, 실데이터는 보안 부서 답 전까지 막는다. 일반 부분은 공개 저장소에서 합성 자료로 만들고, 사내 TUI 어댑터 · 사내 PC 정찰 · 최종 검토는 사내 Claude 가 INHOUSE.md 의 경계 안에서 마무리한다. 사내 Claude Code 는 Terminal–1 의 새 Claude 채널에서 쓰고 (Terminal–1 기획 따로), 다이오드는 상태 명령 하나와 방 statusLine 으로 그 채널에 상태 · 실제 사용량을 내준다.",
+  "total_estimated_effort": 122,
   "tasks": [
     {"task_id": "T1", "task_name": "M0 보내는 바이트 보기 키트 (KIT-1)", "description": "127.0.0.1 에 Anthropic Messages API 를 흉내 내는 가짜 서버 (표준 라이브러리 http.server) 를 만들어 받은 요청의 본문 · 헤더 전체를 파일로 덤프한다. Claude Code 를 ANTHROPIC_BASE_URL 로 그쪽에 향하게 하고, 깨끗한 방 폴더 (outbox · inbox · 방 안내 글 · 방 프로필 .claude/settings.json) 에서 연 대화형 세션으로 room 자문 한 번과 clipboard 자문 한 번을 하고, 비교용으로 방 밖 폴더에서 연 세션도 한 번 한다. 덤프에서 작업 폴더 경로 · 사용자 이름 · 방 밖 파일 목록 · git 정보 · 도구 정의 · 메타데이터를 찾는 검사 스크립트와, 부가 통신을 보는 로컬 프록시 기록 절차를 만든다. 사내 TUI 판으로 다시 하는 절차는 T16 이 쓰도록 남긴다. 판정 문턱은 결과 보기 전에 적는다. 합성 자료만 쓰고 출력에 키를 찍지 않는다. 방 설정 · /effort · --effort 로 고른 모델 · effort 가 요청에 그대로 실리는지도 덤프에서 확인한다. 방 statusLine 이 받는 표준 입력 JSON 칸 (cost.total_cost_usd · context_window.total_input_tokens · total_output_tokens · model · effort.level) 이 문서와 같은지 덤프로 확인한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Probe_Engineer", "expected_output": "kit/capture_server.py · kit/inspect_dump.py · kit/room/ 본보기 · 점검표 · 결과 표 양식", "dependencies": []},
     {"task_id": "T2", "task_name": "M0 방 프로필 · 안전벨트 · 우회 레드팀 시험지 (KIT-2 · KIT-4)", "description": "Claude Code 에서 방 프로필 (방 밖 Read · Glob · Grep · Write 와 Bash · WebFetch · mcp__* deny · outbox 파일의 확정 해시 확인) 과 안전벨트 (UserPromptSubmit 이 사전 단어 · 경로 꼴 붙여 넣기 · @파일 언급 · 그림 붙여 넣기를 막는지 · PreToolUse deny) 를 확인하고, onFailure block 과 판 요구 (v2.1.295 이상) 를 보는 시험지를 쓴다. opencode 쪽은 셸 기본 ask · deny 목록 · 방 편집 deny 설정에서 사내 LLM 에게 Claude 에게 물어보라고 시킨 뒤 claude 직접 호출 · curl · Invoke-WebRequest · python -c · 방 outbox 에 파일 직접 쓰기 · 스크립트 파일 쓰기 후 실행으로 비켜 가는 시나리오 20개를 만들고, 사람 확인 없이 바깥으로 간 길을 기록하는 채점표를 만든다. effort 우선순위 (방 설정 effortLevel · 사용자 설정의 모델별 저장값 · CLAUDE_CODE_EFFORT_LEVEL · /effort · --effort) 가 겹칠 때 무엇이 이기는지 보는 시나리오를 더한다. 방 프로필에서 WebSearch 는 허용 · WebFetch 는 deny 가 실제로 그렇게 되는지, WebFetch 요청이 이 PC 에서 나가는지 확인한다. 웹 검색 결과에 지시문을 심은 합성 페이지 시나리오 (L-22) 를 더한다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Red_Team_Designer", "expected_output": "시험지 마크다운 · 시나리오 목록 · 채점표 · 필요한 합성 파일", "dependencies": []},
     {"task_id": "T3", "task_name": "M0 합성 민감 말뭉치 · 카나리아 · 추상화 시험 (KIT-3)", "description": "지어낸 회사 · 제품 · 공정 · 고객 · 사람 · 수치로 합성 과제 40개 (기획 15 · UI 15 · 공개 라이브러리 질문 10 — 합성 원문 코드와 원문 오류 글 포함) 를 만들고, 각 과제에 카나리아 문자열과 그 변형 (대소문자 · 띄어쓰기 · 한영 표기 · 약어 · 숫자 단위 바꿈 · 코드 식별자 · 주석 · 문자열 값) 을 묻는다. 사내 LLM 에게 brief.json 을 쓰게 하는 지시문 (lib 는 합성 재현 코드로 다시 쓰기) · 검사기 전후 새는 비율 계산 스크립트 · brief 쓸모 (G3) 사람 채점표를 만든다. 실재하는 회사 · 제품 이름을 쓰지 않는다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Data_Specialist", "expected_output": "kit/corpus/ (합성 과제 40 · 카나리아 목록) · kit/leak_rate.py · 채점표", "dependencies": []},
     {"task_id": "T4", "task_name": "M0 보안 부서 설명 한 장 (KIT-5)", "description": "기획서 02 · 04 · 05 · 06 · 07 · 11 을 보안 부서가 10분 안에 판단할 수 있는 한 장으로 줄인다: 무엇이 나가고 무엇이 안 나가는지 · 건네기 셋과 깨끗한 방 · 막는 장치와 그 한계 · 남는 위험 · 물어볼 것 (허용 범위 · Claude 행 망 DLP · 감사 기록 보존 · 엔터프라이즈 보존 설정 · 공개 라이브러리 허용 목록 · 방 세션 웹 검색). 회사 이름 · 사내 시스템 이름은 쓰지 않는다 (사용자가 사내에서 채운다). 첫 줄에 '이름은 비유다 — 하드웨어 데이터 다이오드 (일방향 망연계 장비) 가 아니며 같은 보증을 주지 않는다' 를 적는다 (R18). 사용자가 방 세션의 웹 검색을 허락했다는 것과 그 까닭 (검색어는 봉인 글에서만 나온다) 을 적고 보안 부서의 확인을 묻는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Documentation_Specialist", "expected_output": "kit/security-brief.md (한 장) · 질문 목록", "dependencies": []},
-    {"task_id": "T5", "task_name": "4판 확정 — M0 결과 · 남은 답", "description": "KIT-1–KIT-6 결과와 Q9 · Q10 답으로 방 위치 · 방 프로필 · 안전벨트 구성 · opencode 권한 · brief 칸 (plan · ui · lib) · 검사 문턱 · 합성 재현 코드 규칙의 문턱을 확정한다. 못 막는 길은 '못 막음' 으로 적고 리스크 대장을 고친다. 갈린 결정 표를 남긴다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 9, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "기획서 4판 · 갈린 결정 표", "dependencies": ["T1", "T2", "T3", "T4"]},
-    {"task_id": "T6", "task_name": "brief · 토큰 · 검사 · 건네기 계약 명세", "description": "부록 A 를 JSON Schema 로 확정하고 (kind plan · ui · lib · 닫힌 키 · 칸별 길이 · 전체 크기 · 닫힌 종류 목록), 가명 토큰 꼴과 생성 규칙 (secrets · 충돌 · 자문마다 새로 · 메모리만), D1–D8 과 U1–U5 를 기계가 판정할 수 있는 규칙으로 쓴다. lib 의 합성 재현 코드 규칙 (식별자 허용 목록 · 공개 이름 목록을 설치된 판에서 뽑는 법 · 자리 글 · 주석 금지 · 숫자 · 줄 상한) · 사전 변형 규칙 · 막은 까닭 출력 형식 (AL-11) · 묶기 파일 형식 · 깨끗한 방의 폴더 구조와 방 안내 글 · 건네기 계약 (name · check · put · get, 봉인 글만 받음) 과 계약 테스트 · format 올리는 규칙 · 각 규칙의 반례를 포함한다. 안쪽 전용 route 칸 (difficulty simple · normal · hard · critical · effort auto · low – max · 펼친 글에 넣지 않음) 과 kind × difficulty → 모델 · effort 기본표, 건네기 계약의 route 인자를 명세에 넣는다. 공개 명령 --status --json 의 출력 스키마 (format 1 · 내주는 칸과 내주지 않는 칸) 와 statusline 기록 형식, seal 이 펼치는 글의 ASCII 문장 부호 규칙 (Windows Terminal 붙여넣기에서 빠지는 글자를 쓰지 않음) 을 명세에 넣는다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "schema/brief.schema.json · docs/SPEC-diode.md (규칙 · 예시 · 반례) · 건네기 계약 문서", "dependencies": ["T5"]},
-    {"task_id": "T7", "task_name": "앱 뼈대", "description": "대장에는 2판에서 예정으로 올렸다. docs/templates/ 를 복사해 diode-1/ 뼈대 (README 영감 고지문 · INSTALL · docs/MANUAL.md · docs/INHOUSE.md 빈 틀 · tests/ · .gitignore (사전 · 감사 기록 · 묶기 파일 · config.json · adapters.local/ 막기) · .gitattributes · 워크플로) 를 만들고 대장 상태를 운영으로 바꾼다. diode-1.py 진입에 VERSION · version · help · check 와 설정 (llm 은 SPEC-llm · claude 칸 · transport 칸은 앱 자유 · policy.real_data 기본 false · policy.lib_allow 빈 목록) 을 둔다. 테스트용 DIODE_HOME 만 받는다 (AL-12). python tools/works_check.py 새 경고 0.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Repo_Scaffolder", "expected_output": "뼈대 커밋 · 통과하는 빈 CI", "dependencies": ["T5"]},
+    {"task_id": "T5", "task_name": "6판 확정 — M0 결과 · Q11", "description": "KIT-1–KIT-6 결과와 Q11 답으로 방 위치 · 방 프로필 · 안전벨트 구성 · opencode 권한 · brief 칸 (plan · ui · lib) · 검사 문턱 · 합성 재현 코드 규칙의 문턱을 확정한다. 못 막는 길은 '못 막음' 으로 적고 리스크 대장을 고친다. 갈린 결정 표를 남긴다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 9, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "기획서 6판 (새 저장소 docs/PLAN.md) · 갈린 결정 표", "dependencies": ["T1", "T2", "T3", "T4"]},
+    {"task_id": "T6", "task_name": "brief · 토큰 · 검사 · 건네기 계약 명세", "description": "부록 A 를 JSON Schema 로 확정하고 (kind plan · ui · lib · 닫힌 키 · 칸별 길이 · 전체 크기 · 닫힌 종류 목록), 가명 토큰 꼴과 생성 규칙 (secrets · 충돌 · 자문마다 새로 · 메모리만), D1–D8 과 U1–U5 를 기계가 판정할 수 있는 규칙으로 쓴다. lib 의 합성 재현 코드 규칙 (식별자 허용 목록 · 공개 이름 목록을 설치된 판에서 뽑는 법 · 자리 글 · 주석 금지 · 숫자 · 줄 상한) · 사전 변형 규칙 · 막은 까닭 출력 형식 (AL-11) · 묶기 파일 형식 · 깨끗한 방의 폴더 구조와 방 안내 글 · 건네기 계약 (name · check · put · get, 봉인 글만 받음) 과 계약 테스트 · format 올리는 규칙 · 각 규칙의 반례를 포함한다. 안쪽 전용 route 칸 (difficulty simple · normal · hard · critical · effort auto · low – max · 펼친 글에 넣지 않음) 과 kind × difficulty → 모델 · effort 기본표, 건네기 계약의 route 인자를 명세에 넣는다. 상태 명령 --status --json 의 출력 스키마 (format 1 · 내주는 칸과 내주지 않는 칸) 와 statusline 기록 형식, seal 이 펼치는 글의 ASCII 문장 부호 규칙 (Windows Terminal 붙여넣기에서 빠지는 글자를 쓰지 않음) 을 명세에 넣는다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Core_Architect", "expected_output": "schema/brief.schema.json · docs/SPEC-diode.md (규칙 · 예시 · 반례) · 건네기 계약 문서", "dependencies": ["T5"]},
+    {"task_id": "T7", "task_name": "새 저장소 뼈대 · RULES.md · 자기 검사기 · CI", "description": "사용자가 GitHub 에 만든 별도 저장소 diode 에 뼈대를 만든다: README (영감 고지문 · 이름은 비유라는 고지) · INSTALL · docs/MANUAL.md · docs/INHOUSE.md 빈 틀 · RULES.md (기획서 09 의 채택표) · AGENTS.md · CLAUDE.md (@AGENTS.md 한 줄) · LICENSE · tests/ · .gitignore (사전 · 감사 기록 · 묶기 파일 · config.json · adapters.local/ 막기) · .gitattributes · .github/workflows/diode.yml (Windows + Ubuntu × 최소 · 최신 Python). 진입 diode.py 에 VERSION · version · help · check 와 설정 (llm 은 works SPEC-llm · claude 칸 · transport 칸 · policy.real_data 기본 false · policy.lib_allow 빈 목록) 을 둔다. 테스트용 DIODE_HOME 만 받는다 (AL-12). works 검사기가 이 저장소를 보지 않으므로 tools/diode_check.py (표준 라이브러리) 로 의존 0 · 0.0.0.0 바인딩 · 비밀 흔적 · 필수 파일 · README 테스트 수 · 사설 주소 · 외부 CDN 을 검사하고 CI 에서 --strict 로 돌린다. works 코드는 import 하지 않는다 — 필요한 검사는 옮겨 다듬고 출처를 적는다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "Repo_Scaffolder", "expected_output": "뼈대 커밋 · tools/diode_check.py · 통과하는 빈 CI", "dependencies": ["T5"]},
     {"task_id": "T8", "task_name": "검사기 D1–D6 · lib 코드 검사 · scan", "description": "T6 명세대로 결정적 검사기를 표준 라이브러리로 만든다: 스키마 · 크기 (D1) · 사전과 변형 (D2) · 꼴 정규식 (D3 · 사용자 정규식 추가) · 숫자 (D4) · 덩어리와 엔트로피 (D5) · 토큰 (D6), 그리고 lib 의 합성 재현 코드 검사 (tokenize · ast 로 식별자 · 문자열 · 주석 · 숫자 · 줄 수). 모든 예외 · 시간 초과는 막음으로 끝난다. 출력에는 단어를 찍지 않고 개수 · 검사 번호 · 줄만 (AL-11). scan 명령 (표준 입력 → 종료 코드 0 통과 · 2 막음) 은 방 프로필 · 안전벨트 훅과 같은 함수를 쓴다. T3 카나리아 변형 전부를 잡는 테스트 · 반례 묶음 · 사전이 비면 막는 테스트를 넣는다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 9, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Logic_Developer", "expected_output": "검사기 모듈 · scan 명령 · 카나리아 · 반례 테스트", "dependencies": ["T6", "T7"]},
     {"task_id": "T9", "task_name": "seal · unseal · 묶기", "description": "brief.json 을 정해진 틀로 펼쳐 보낼 글을 만들고 (seal), 가명 표를 창이 열린 동안 메모리에만 둔다. unseal 은 U1 (토큰) · U2 (역유입 — 사전 단어가 답에 있으면 그 주제 정지) · U3 (외부 주소) · U4 (꼴) 를 거쳐, 기획 글과 라이브러리 답은 치환하고 UI 코드는 바꾸지 않은 채 묶기 파일 binding.local.js 를 만든다. 결과 파일은 덮어쓰지 않는다. 깨진 토큰 · 모르는 토큰 · CDN 이 든 HTML · 사전 단어가 되돌아온 답의 테스트를 넣는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Logic_Developer", "expected_output": "seal · unseal 모듈 · 묶기 파일 형식 · 테스트", "dependencies": ["T6", "T7"]},
     {"task_id": "T10", "task_name": "확정 창 (tkinter)", "description": "DESIGN.md 를 따르는 tkinter 창: 보낼 바이트 그대로 · 토큰 강조 · 검사 결과 (개수 · 번호) · 건네기 고르기 · 모델 · 어림 비용 (추정 표시) · 이번 달 누계와 한도 % · '보내면 되돌릴 수 없습니다' · '이 내용이 감사 기록에 남습니다' · 보내기 · 고치기 · 버리기 · clipboard 의 복사 단추와 답 붙여 넣기 칸 · room 의 답 기다리기 표시 · policy.real_data 와 lib 허용 목록을 사람이 여는 곳. 창이 열린 동안만 가명 표가 산다는 것을 보인다. 확정을 건너뛰는 옵션 · 환경 변수를 만들지 않고 (AL-02), 창을 못 띄우는 환경이면 보내지 않는다. 빨강 없이 걸린 곳을 보인다. 모델 · effort 두 칸 (사내 LLM 제안 → 기본표 → 사람이 아무 조합으로나 바꿈 · 막지 않음) 과 조합별 어림 비용 [추정] · 이번 달 누계, clipboard 용 세션 준비 줄 (/model · /effort) 과 max 일 때 실행 줄 복사 단추, CLAUDE_CODE_EFFORT_LEVEL 이 덮어쓸 때의 알림을 넣는다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 9, "assigned_model": "claude-sonnet", "agent_role": "UI_Engineer", "expected_output": "창 모듈 · 창 없는 환경 테스트 · 함수 바꿔 끼우기 테스트", "dependencies": ["T8", "T9"]},
-    {"task_id": "T11", "task_name": "건네기 clipboard · room · 어댑터 계약 · 감사 기록 · D7", "description": "건네기 계약 (name · check · put · get) 과 clipboard · room 두 구현을 만든다. room 은 확정한 봉인 글만 outbox 에 원자적으로 쓰고 inbox 의 답을 기다려 unseal 에 넘긴다. 확정한 바이트 · sha256 · 시각 · 건네기 · 결과를 감사 기록에 남기고, 그 해시 목록을 방 프로필이 읽을 수 있게 한다 (AL-13). D7 은 SPEC-llm 의 llm 설정으로 사내 LLM 에 묻되 환경 변수 덮어쓰기를 받지 않는다 (AL-12 · MANUAL 알려진 한계). 가짜 TUI (inbox 에 답을 쓰는 테스트용 프로세스) 와 가짜 사내 LLM 서버로 계약 테스트를 하고, D7 응답 없음 · 시간 초과 · 확정 안 된 outbox 파일이 모두 막음인지 본다. 헤드리스 길은 만들지 않는다 (부록 E · 사내에서 adapter 로). room 은 자문마다 방 설정에 model · effortLevel 을 쓰고 (max 는 설정이 받지 않으므로 실행 줄로), clipboard 는 세션 준비 줄을 만들며, 계약의 put 은 route (모델 · effort) 를 받는다. route 가 봉인 글에 섞이지 않는 테스트를 넣는다. 공개 명령 diode-1.py --status --json [--room 폴더] (읽기 전용 · format 1 · 방 여부 · 방 프로필 ok · missing · changed · 안전벨트 · 대기 수 · 이번 달 사용 · 마지막 모델 · effort) 를 만들고 대장 › 공개 명령 (쓰는 앱 terminal-1) 과 MANUAL 에 올린다. 출력에 사전 단어 · 봉인 글 · 답 · 가명 표가 없는 테스트를 넣는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Integration_Developer", "expected_output": "건네기 모듈 · 감사 기록 형식 · 계약 테스트 · 가짜 TUI · 가짜 서버 테스트", "dependencies": ["T9", "T10"]},
-    {"task_id": "T12", "task_name": "방 프로필 · Claude Code 안전벨트", "description": "깨끗한 방 폴더에 쓰는 방 프로필 (.claude/settings.json — PreToolUse 로 방 밖 파일 도구 · Bash · WebFetch · mcp__* · 웹 검색 deny, outbox Read 는 감사 기록의 확정 해시 확인, UserPromptSubmit scan, 모든 훅 onFailure block) 과, 사용자 설정에 거는 안전벨트 (UserPromptSubmit scan · 원자료 폴더 PreToolUse deny · 권한 deny 규칙 예시) 를 만든다. 훅의 까닭 글에 단어를 쓰지 않는다 (AL-11). 사내 TUI 에 훅이 없으면 room 을 끄는 check 를 둔다. 안전벨트 설치 · 제거는 사용자 설정 변경이므로 [질문] · 백업 · 되돌리기를 INSTALL 에 넣고, 회사 IT 용 관리형 설정 (allowManagedHooksOnly) 안내는 MANUAL 에만 둔다 (관리자 권한 금지 W-08). 방 설정 파일에 훅과 함께 그 자문의 model · effortLevel 을 쓰는 틀을 만든다. 방 프로필에 statusLine (diode-1.py --statusline) 을 걸어, 표준 입력 JSON 에서 비용 · 토큰 · 모델 · effort 만 감사 기록에 더하고 transcript_path 는 열지 않으며 한 줄 상태를 찍는다. WebSearch 는 허용하고 WebFetch 는 deny 로 둔다 (Q9).", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Integration_Developer", "expected_output": "방 프로필 본보기 · 안전벨트 플러그인 · 훅 단위 테스트 · KIT-2 재시험 기록", "dependencies": ["T8", "T11"]},
-    {"task_id": "T13", "task_name": "opencode 지휘 스킬 · 에이전트 · 권한", "description": "skills/diode-1/SKILL.md (일 나누기 · plan · ui · lib brief 쓰기 지침과 예시 · lib 는 합성 재현 코드로 다시 쓰기 · seal → 확정 → 건네기 → unseal → 안쪽 구현 순서 · 라이브러리 답은 안쪽에서 돌려 확인 · UI 초안 묶기 · 그림 모델로 렌더 검토) 와 opencode 에이전트 (셸 기본 ask · 다이오드와 테스트 명령만 allow · claude · curl · PowerShell · 웹 가져오기 deny · 편집은 작업 폴더만 · 방과 데이터 폴더 deny) · /consult 명령을 만든다. 스킬에는 Claude 에 닿는 다른 길을 적지 않는다 (AL-01 · AL-09). T2 의 우회 시나리오를 다시 돌려 기록한다. opencode 는 effort 가 없으므로 모델만 다룬다: 주 에이전트 diode (사내 글 모델) 과 하위 에이전트 diode-vision (사내 그림 모델) 을 두고, 모델 이름은 설치 때 [질문] 으로 고르며 에이전트 파일에는 적지 않는다. 사내 LLM 이 brief 의 route 에 어려움 · effort 제안을 닫힌 값으로 적게 하고, 안쪽의 어려운 일은 일을 잘게 나누고 테스트로 되돌려 고치는 횟수로 다루라고 SKILL.md 에 적는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Orchestration_Designer", "expected_output": "skills/ · opencode 에이전트 · 명령 · 우회 재시험 기록", "dependencies": ["T11"]},
-    {"task_id": "T14", "task_name": "통합 적대 검증", "description": "가짜 Claude 서버와 가짜 TUI 로 clipboard · room 전 경로를 돌려 카나리아 1,000 시나리오에서 바깥 바이트의 카나리아 0 (G1) 을 확인하고, 막는 쪽 실패 (G2) 의 모든 경우를 일으키고, 확정 건너뛰기 · 설정 덮어쓰기 · 사전 바꿔치기 · 환경 변수 · 다른 데이터 폴더 · 확정 안 된 outbox 파일 · 방 밖 읽기 · lib 재현 코드에 숨긴 식별자와 주석으로 비켜 가기를 시도한다. 저장소에 사내 정보 · 키 흔적이 없는지, 감사 기록에 가명 표 · 원문이 없는지, 돌아온 HTML 의 외부 주소가 빠지는지 본다. 결함마다 실패하는 테스트를 붙여 보고한다. 공개 명령 출력 · statusline 기록에 민감한 것이 없는지, 웹 검색 결과에 심은 지시문이 U3 · U5 를 지나 안쪽 코드로 들어가지 않는지 본다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Integrity_Auditor", "expected_output": "검증 보고서 · 결함마다 실패하는 테스트", "dependencies": ["T10", "T11", "T12", "T13"]},
-    {"task_id": "T15", "task_name": "문서 · 설치 절차 · 사내 마무리 안내", "description": "README · docs/MANUAL.md (첫머리에 이 도구가 못 하는 것 · 남는 위험 · 설정 · 사전 · lib 허용 목록 등록 · 감사 기록 · 알려진 한계 S-09) · INSTALL.md (opencode 가 따라 하는 절차 · 규칙 절 · 단계마다 확인 · [질문] · opencode 설정 폴더에 스킬 · 에이전트 복사 · 방 만들기 · 안전벨트 훅 · 업데이트 · 제거) 를 쓴다. docs/INHOUSE.md 에는 사내 Claude 가 할 일과 경계를 적는다: 검토 세션은 D:\\OPENCODE\\diode-1 에서만 · 안전벨트를 켠 채 · 원자료 폴더 · 저장소 루트에서 열지 않음 · 어댑터 계약과 계약 테스트 · 사내 이름은 adapters.local/ 과 데이터 폴더에만 · 사내 KIT-1 · KIT-2 절차 · 공개 저장소로 되가져올 때 diff 확인. 숫자는 돌려서 얻은 값만 적는다. MANUAL 에 모델 · effort 고르기 (기본표 · 창에서 바꾸기 · 우선순위 주의 · max 는 실행 줄) 와 opencode 는 모델만 바꾼다는 것을 적는다. README · MANUAL 첫머리에 이름이 비유일 뿐 하드웨어 데이터 다이오드가 아니라는 것과, 정체가 프로그램 + opencode 스킬 + Claude Code 플러그인이라는 것을 적는다 (R18). MANUAL 에 Terminal–1 과 같이 쓰는 법 (opencode 채널 · Claude 채널 · 흐름 · 공개 명령) 을 적는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Documentation_Specialist", "expected_output": "문서 넷 · 깨진 링크 없음", "dependencies": ["T12", "T13"]},
-    {"task_id": "T16", "task_name": "사내 마무리 — 사내 TUI 어댑터 · 사내 정찰 · 최종 검토 (사내에서)", "description": "사내 PC 에서 사내 Claude 가 한다 (모델은 사내가 정한 Opus 급 · 사내 월 한도 안). INHOUSE.md 의 경계를 지킨다: D:\\OPENCODE\\diode-1 에서만 세션을 열고 안전벨트를 켠다 · 원자료를 열지 않는다. 사내 TUI 에 맞춘 adapter 를 계약대로 만들고 계약 테스트를 통과시키며, 사내 이름 · 설정은 adapters.local/ 과 데이터 폴더에만 둔다. KIT-1 · KIT-2 를 사내 TUI 판으로 다시 하고, 훅이 없으면 room 을 끈다. 코드 전체를 최종 검토하고, 공개 저장소로 되가져올 일반 코드는 사람이 diff 로 W-12 를 확인한 뒤에만 올린다. 사내 TUI 가 모델 · effort 를 어떻게 받는지 확인해 어댑터 check() 에 반영하고 (받지 못하면 effort 칸을 TUI 기본으로 잠금), 사내 모델 이름으로 KIT-6 의 effort 별 비용을 잰다. 사내 검토 세션은 Terminal–1 Claude 채널로 연다 (방이 아니므로 안전벨트 + [질문] 길). 사내 Claude Code 판의 statusLine 입력 칸이 문서와 다르면 --statusline 을 맞춘다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Inhouse_Integration_Reviewer", "expected_output": "사내 어댑터 (사내에만) · 사내 KIT-1 · KIT-2 결과 · 최종 검토 기록 · (있으면) 사내 이름 없는 일반 수정 diff", "dependencies": ["T14", "T15"]}
+    {"task_id": "T11", "task_name": "건네기 clipboard · room · 어댑터 계약 · 감사 기록 · D7", "description": "건네기 계약 (name · check · put · get) 과 clipboard · room 두 구현을 만든다. room 은 확정한 봉인 글만 outbox 에 원자적으로 쓰고 inbox 의 답을 기다려 unseal 에 넘긴다. 확정한 바이트 · sha256 · 시각 · 건네기 · 결과를 감사 기록에 남기고, 그 해시 목록을 방 프로필이 읽을 수 있게 한다 (AL-13). D7 은 SPEC-llm 의 llm 설정으로 사내 LLM 에 묻되 환경 변수 덮어쓰기를 받지 않는다 (AL-12 · MANUAL 알려진 한계). 가짜 TUI (inbox 에 답을 쓰는 테스트용 프로세스) 와 가짜 사내 LLM 서버로 계약 테스트를 하고, D7 응답 없음 · 시간 초과 · 확정 안 된 outbox 파일이 모두 막음인지 본다. 헤드리스 길은 만들지 않는다 (부록 E · 사내에서 adapter 로). room 은 자문마다 방 설정에 model · effortLevel 을 쓰고 (max 는 설정이 받지 않으므로 실행 줄로), clipboard 는 세션 준비 줄을 만들며, 계약의 put 은 route (모델 · effort) 를 받는다. route 가 봉인 글에 섞이지 않는 테스트를 넣는다. 상태 명령 diode.py --status --json [--room 폴더] (읽기 전용 · format 1 · 방 여부 · 방 프로필 ok · missing · changed · 안전벨트 · 대기 수 · 이번 달 사용 · 마지막 모델 · effort) 를 만들고 MANUAL › 바깥 인터페이스에 적는다 (works 대장의 상태 명령 표 대상이 아니다 · format 규칙은 works W-01 과 같게). 출력에 사전 단어 · 봉인 글 · 답 · 가명 표가 없는 테스트를 넣는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Integration_Developer", "expected_output": "건네기 모듈 · 감사 기록 형식 · 계약 테스트 · 가짜 TUI · 가짜 서버 테스트", "dependencies": ["T9", "T10"]},
+    {"task_id": "T12", "task_name": "방 프로필 · Claude Code 안전벨트", "description": "깨끗한 방 폴더에 쓰는 방 프로필 (.claude/settings.json — PreToolUse 로 방 밖 파일 도구 · Bash · WebFetch · mcp__* · 웹 검색 deny, outbox Read 는 감사 기록의 확정 해시 확인, UserPromptSubmit scan, 모든 훅 onFailure block) 과, 사용자 설정에 거는 안전벨트 (UserPromptSubmit scan · 원자료 폴더 PreToolUse deny · 권한 deny 규칙 예시) 를 만든다. 훅의 까닭 글에 단어를 쓰지 않는다 (AL-11). 사내 TUI 에 훅이 없으면 room 을 끄는 check 를 둔다. 안전벨트 설치 · 제거는 사용자 설정 변경이므로 [질문] · 백업 · 되돌리기를 INSTALL 에 넣고, 회사 IT 용 관리형 설정 (allowManagedHooksOnly) 안내는 MANUAL 에만 둔다 (관리자 권한 금지 W-08). 방 설정 파일에 훅과 함께 그 자문의 model · effortLevel 을 쓰는 틀을 만든다. 방 프로필에 statusLine (diode.py --statusline) 을 걸어, 표준 입력 JSON 에서 비용 · 토큰 · 모델 · effort 만 감사 기록에 더하고 transcript_path 는 열지 않으며 한 줄 상태를 찍는다. WebSearch 는 허용하고 WebFetch 는 deny 로 둔다 (Q9).", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Integration_Developer", "expected_output": "방 프로필 본보기 · 안전벨트 플러그인 · 훅 단위 테스트 · KIT-2 재시험 기록", "dependencies": ["T8", "T11"]},
+    {"task_id": "T13", "task_name": "opencode 지휘 스킬 · 에이전트 · 권한", "description": "skills/diode/SKILL.md (일 나누기 · plan · ui · lib brief 쓰기 지침과 예시 · lib 는 합성 재현 코드로 다시 쓰기 · seal → 확정 → 건네기 → unseal → 안쪽 구현 순서 · 라이브러리 답은 안쪽에서 돌려 확인 · UI 초안 묶기 · 그림 모델로 렌더 검토) 와 opencode 에이전트 (셸 기본 ask · 다이오드와 테스트 명령만 allow · claude · curl · PowerShell · 웹 가져오기 deny · 편집은 작업 폴더만 · 방과 데이터 폴더 deny) · /consult 명령을 만든다. 스킬에는 Claude 에 닿는 다른 길을 적지 않는다 (AL-01 · AL-09). T2 의 우회 시나리오를 다시 돌려 기록한다. opencode 는 effort 가 없으므로 모델만 다룬다: 주 에이전트 diode (사내 글 모델) 과 하위 에이전트 diode-vision (사내 그림 모델) 을 두고, 모델 이름은 설치 때 [질문] 으로 고르며 에이전트 파일에는 적지 않는다. 사내 LLM 이 brief 의 route 에 어려움 · effort 제안을 닫힌 값으로 적게 하고, 안쪽의 어려운 일은 일을 잘게 나누고 테스트로 되돌려 고치는 횟수로 다루라고 SKILL.md 에 적는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Orchestration_Designer", "expected_output": "skills/ · opencode 에이전트 · 명령 · 우회 재시험 기록", "dependencies": ["T11"]},
+    {"task_id": "T14", "task_name": "통합 적대 검증", "description": "가짜 Claude 서버와 가짜 TUI 로 clipboard · room 전 경로를 돌려 카나리아 1,000 시나리오에서 바깥 바이트의 카나리아 0 (G1) 을 확인하고, 막는 쪽 실패 (G2) 의 모든 경우를 일으키고, 확정 건너뛰기 · 설정 덮어쓰기 · 사전 바꿔치기 · 환경 변수 · 다른 데이터 폴더 · 확정 안 된 outbox 파일 · 방 밖 읽기 · lib 재현 코드에 숨긴 식별자와 주석으로 비켜 가기를 시도한다. 저장소에 사내 정보 · 키 흔적이 없는지, 감사 기록에 가명 표 · 원문이 없는지, 돌아온 HTML 의 외부 주소가 빠지는지 본다. 결함마다 실패하는 테스트를 붙여 보고한다. 상태 명령 출력 · statusline 기록에 민감한 것이 없는지, 웹 검색 결과에 심은 지시문이 U3 · U5 를 지나 안쪽 코드로 들어가지 않는지 본다.", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 10, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Integrity_Auditor", "expected_output": "검증 보고서 · 결함마다 실패하는 테스트", "dependencies": ["T10", "T11", "T12", "T13"]},
+    {"task_id": "T15", "task_name": "문서 · 설치 절차 · 사내 마무리 안내", "description": "README · docs/MANUAL.md (첫머리에 이 도구가 못 하는 것 · 남는 위험 · 설정 · 사전 · lib 허용 목록 등록 · 감사 기록 · 알려진 한계 S-09) · INSTALL.md (opencode 가 따라 하는 절차 · 규칙 절 · 단계마다 확인 · [질문] · opencode 설정 폴더에 스킬 · 에이전트 복사 · 방 만들기 · 안전벨트 훅 · 업데이트 · 제거) 를 쓴다. docs/INHOUSE.md 에는 사내 Claude 가 할 일과 경계를 적는다: 검토 세션은 D:\\OPENCODE\\diode 에서만 · 안전벨트를 켠 채 · 원자료 폴더 · 저장소 루트에서 열지 않음 · 어댑터 계약과 계약 테스트 · 사내 이름은 adapters.local/ 과 데이터 폴더에만 · 사내 KIT-1 · KIT-2 절차 · 공개 저장소로 되가져올 때 diff 확인. 숫자는 돌려서 얻은 값만 적는다. MANUAL 에 모델 · effort 고르기 (기본표 · 창에서 바꾸기 · 우선순위 주의 · max 는 실행 줄) 와 opencode 는 모델만 바꾼다는 것을 적는다. README · MANUAL 첫머리에 이름이 비유일 뿐 하드웨어 데이터 다이오드가 아니라는 것과, 정체가 프로그램 + opencode 스킬 + Claude Code 플러그인이라는 것을 적는다 (R18). MANUAL 에 Terminal–1 과 같이 쓰는 법 (opencode 채널 · Claude 채널 · 흐름 · 상태 명령) 을 적는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Documentation_Specialist", "expected_output": "문서 넷 · 깨진 링크 없음", "dependencies": ["T12", "T13"]},
+    {"task_id": "T16", "task_name": "사내 마무리 — 사내 TUI 어댑터 · 사내 정찰 · 최종 검토 (사내에서)", "description": "사내 PC 에서 사내 Claude 가 한다 (모델은 사내가 정한 Opus 급 · 사내 월 한도 안). INHOUSE.md 의 경계를 지킨다: D:\\OPENCODE\\diode 에서만 세션을 열고 안전벨트를 켠다 · 원자료를 열지 않는다. 사내 TUI 에 맞춘 adapter 를 계약대로 만들고 계약 테스트를 통과시키며, 사내 이름 · 설정은 adapters.local/ 과 데이터 폴더에만 둔다. KIT-1 · KIT-2 를 사내 TUI 판으로 다시 하고, 훅이 없으면 room 을 끈다. 코드 전체를 최종 검토하고, 공개 저장소로 되가져올 일반 코드는 사람이 diff 로 W-12 를 확인한 뒤에만 올린다. 사내 TUI 가 모델 · effort 를 어떻게 받는지 확인해 어댑터 check() 에 반영하고 (받지 못하면 effort 칸을 TUI 기본으로 잠금), 사내 모델 이름으로 KIT-6 의 effort 별 비용을 잰다. 사내 검토 세션은 Terminal–1 Claude 채널로 연다 (방이 아니므로 안전벨트 + [질문] 길). 사내 Claude Code 판의 statusLine 입력 칸이 문서와 다르면 --statusline 을 맞춘다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Inhouse_Integration_Reviewer", "expected_output": "사내 어댑터 (사내에만) · 사내 KIT-1 · KIT-2 결과 · 최종 검토 기록 · (있으면) 사내 이름 없는 일반 수정 diff", "dependencies": ["T14", "T15"]}
   ]
 }
 ```
@@ -572,3 +584,15 @@ claude -p --restricted --tools "" --disallowedTools "*" --strict-mcp-config --mc
 | 붙여넣기 | Terminal–1 COMPOSE 참고 | seal 은 ASCII 문장 부호만 (Windows Terminal 이 빠뜨리는 글자 피함) | Terminal–1 알려진 한계 |
 | 질문 | Q9 · Q10 남음 | 남은 질문 없음 | 위 |
 | 작업표 | 16 작업 · 119 | 16 작업 · 119 (T1 · T2 · T4 · T6 · T11 · T12 · T14 · T15 · T16 내용만 늘림) | 위 |
+
+### H 갈린 결정 — 4판 › 5판 (2026-11-05 사용자 결정)
+
+| 결정 | 4판 | 5판 | 까닭 |
+|---|---|---|---|
+| 이름 | `diode-1` (Diode–1) | `diode` (Diode) · 번호 없음 | 사용자 결정 |
+| 자리 | works 안 명령형 앱 (Q2) | works 밖 별도 저장소 `diode` · 설치 자리 `D:\OPENCODE\diode` · works `.gitignore` 한 줄 · works 대장에서 예정 줄 뺌 | 번호 없는 이름은 works W-01 과 부딪히고 works 검사기가 그 폴더를 앱으로 세지 않는다 → 사용자가 별도 저장소를 골랐다 |
+| 규칙 | works 헌법 · 대장 | 새 저장소 RULES.md 채택표 (09) — W-01 · S-01 은 이름만 바꿈 · S-06 해당 없음 · S-09 따르지 않음 · 자기 검사기 | 위 |
+| Terminal–1 과 잇는 길 | works 대장의 공개 명령 | Diode 의 상태 명령 (바깥 인터페이스) — Terminal–1 은 opencode 처럼 바깥 프로그램으로 부르고 경로를 고정 | 위 |
+| 이 파일 | works `docs/plans/` | works 작업 가지에만 · 새 저장소가 생기면 `docs/PLAN.md` 로 옮김 · works 에는 머지하지 않음 | Subordinate–1 선례 |
+| 질문 | 남은 질문 없음 | Q11 (새 저장소 공개 여부) | 위 |
+| 작업표 | 16 작업 · 119 | 16 작업 · 122 (T7 이 새 저장소 뼈대 · 자기 검사기로 커져 Tier 2) | 위 |
