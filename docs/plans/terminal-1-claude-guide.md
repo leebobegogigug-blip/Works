@@ -99,8 +99,8 @@ docs/plans/terminal-1-claude-guide.md (이 지침) 를 끝까지 읽어. 지침 
 
 ### 04-5 Diode 상태 명령 — 계약 (format 1)
 
-- **부르기**: `<Python> "<Diode 자리>\diode.py" --status --json --room "<방>"`. `<Python>` 은 칸을 띄울 때 쓰는 그 값 (`$Python` — `py -3` 또는 `python`).
-- **Diode 자리는 고정한다**: Terminal–1 폴더의 형제 폴더 `diode` — `Join-Path (Split-Path $Here -Parent) 'diode'` (설치하면 `D:\OPENCODE\diode`). 설정 · 환경 변수 · 인자로 바꾸지 않는다 — 가짜 Diode 가 늘 '방' 이라고 답하게 만드는 손잡이를 없앤다 (TR10). 테스트는 임시 폴더에 `terminal-1/` 과 가짜 `diode/diode.py` 를 나란히 두어 같은 규칙으로 가짜를 부른다.
+- **부르기**: `<Python> "D:\claude\diode\diode.py" --status --json --room "<방>"`. `<Python>` 은 칸을 띄울 때 쓰는 그 값 (`$Python` — `py -3` 또는 `python`).
+- **Diode 자리는 고정한다**: `D:\claude\diode\diode.py` (사용자 결정 · Diode 의 설치 폴더 `D:\claude` — [Diode 기획서](diode-plan-draft.md) › 07 › 자리). `terminal-1.ps1` 위쪽의 상수 하나 (예: `$DiodePy`) 로만 두고, 설정 · 환경 변수 · 명령 인자로 바꾸지 않는다 — 가짜 Diode 가 늘 '방' 이라고 답하게 만드는 손잡이를 없앤다 (TR10). 테스트는 문턱 함수 (`Test-ClaudeGate`) 를 직접 부르며 가짜 Diode 경로를 **함수 인자** 로 넘긴다. `add` · `focus` 는 언제나 상수를 넘긴다 — 그 인자는 명령줄에 드러나지 않는다.
 - **출력**: 표준 출력에 UTF-8 JSON 하나.
 
 ```json
@@ -206,7 +206,7 @@ docs/plans/terminal-1-claude-guide.md (이 지침) 를 끝까지 읽어. 지침 
 | AC-08 | 모르는 format · 깨진 JSON · 필수 칸 없음 · 5초 넘김 · profile `missing` · `changed` → 열지 않음 · 종료 코드 1 | 가짜 Diode 여섯 가지 |
 | AC-09 | 방이 아니고 안전벨트가 켜짐 → 질문 · 아니오 (그리고 비대화) 면 열지 않고 종료 코드 3 | 테스트 |
 | AC-10 | Claude 채널 `focus` 는 문턱을 다시 지난다 — 그 사이 방 프로필이 바뀌면 열지 않는다 | 테스트 |
-| AC-11 | Diode 자리는 형제 폴더 `diode` 로만 정해진다 — 설정 · 환경 변수 · 인자로 바뀌지 않는다 | 코드 검토 · 테스트 |
+| AC-11 | Diode 자리는 상수 `D:\claude\diode\diode.py` 로만 정해진다 — 설정 · 환경 변수 · 명령 인자로 바뀌지 않고, 가짜 경로는 테스트가 문턱 함수에 직접 넘길 때만 쓰인다 | 코드 검토 · 테스트 |
 | AC-12 | 주 칸 명령줄에 비밀번호가 없다 (`OPENCODE_SERVER_PASSWORD` 를 설정한 상태에서도) | 가짜 wt 인자 검사 |
 | AC-13 | 일꾼 주소는 `http://127.0.0.1:<포트>` 꼴만 넘어간다 · 일꾼이 없으면 `set` 이 없다 | 가짜 wt 인자 검사 |
 | AC-14 | `-Claude` 와 `-Headless` · `-Port` 를 같이 주면 종료 코드 2 · 방 경로의 `%` 는 거부 | 테스트 |
@@ -217,8 +217,8 @@ docs/plans/terminal-1-claude-guide.md (이 지침) 를 끝까지 읽어. 지침 
 
 **손 점검표 (사내 Windows · test_ps1 대신)** — 지어낸 폴더 · 지어낸 명령으로 한다.
 
-1. Diode 를 두지 않은 채 `terminal-1 add "<지어낸 방>" -Claude` → 열리지 않고 까닭 한 줄 · 종료 코드 1.
-2. 가짜 Diode (방 ok) 를 형제 폴더에 두고 같은 명령 → Claude 탭 · 오른쪽 DIODE 칸 · compose · 펫 없음.
+1. Diode 를 설치하기 전에 `terminal-1 add "<지어낸 방>" -Claude` → 열리지 않고 까닭 한 줄 · 종료 코드 1.
+2. Diode 를 설치하고 (`D:\claude\diode`) `/diode:room` 으로 방 (`D:\claude\room`) 을 만든 뒤 `terminal-1 add "D:\claude\room" -Claude` → Claude 탭 · 오른쪽 DIODE 칸 · compose · 펫 없음. (1 은 Diode 를 설치하기 전에 한다 — 진짜 Diode 자리에 가짜를 두지 않는다.)
 3. `-Worker <opencode 채널>` 로 다시 → 아래에 일꾼 status 칸 · Claude 칸에서 `echo %DIODE_WORKER_URL%` 가 `http://127.0.0.1:<포트>`.
 4. 작업 관리자 · `wmic process get commandline` 등으로 Claude 칸 명령줄을 보고 비밀번호가 없음을 확인 (값은 화면에 찍지 않는다 — 있으면 '있음' 만 적는다).
 5. 기존 opencode 채널 `add` · `ls` · `focus` · `rm` 을 한 번씩 → 예전과 같다.
@@ -258,7 +258,7 @@ docs/plans/terminal-1-claude-guide.md (이 지침) 를 끝까지 읽어. 지침 
 | TR7 | 사내 Claude Code 명령이 `claude` 가 아니다 | `claude-cmd` · `Get-Command` 경고 | — |
 | TR8 | Diode 가 아직 없을 때 Claude 채널을 못 쓴다 | 의도한 동작 (IH-6) · 안내 문구 | 불편 |
 | TR9 | 사내 Windows 에서 PS 동작 시험이 돌지 않는다 | 07 · 손 점검표 | CI 에 올리기 전까지 |
-| TR10 | 가짜 Diode 가 늘 '방 ok' 라고 답한다 (자리 바꿔치기) | 형제 폴더로 고정 · 손잡이 없음 (04-5) | 같은 계정이면 그 자리의 파일 자체를 바꿀 수 있다 — Diode 저장소의 `git status` 로 사람이 본다 |
+| TR10 | 가짜 Diode 가 늘 '방 ok' 라고 답한다 (자리 바꿔치기) | 상수 하나로 고정 · 설정 손잡이 없음 (04-5) | 같은 계정이면 `D:\claude\diode` 의 파일 자체를 바꿀 수 있다 — 그 저장소의 `git status` 로 사람이 본다 |
 | TR11 | 사람이 일꾼의 허락 요청을 습관처럼 허락한다 — 바깥 지시에서 온 일이다 | `DIODE J-…` 표시 (04-5) · Diode 의 넘기기 확정 | 사람 |
 | TR12 | 일꾼 주소 명령줄이 바꿔치기된다 | Diode 허브가 127.0.0.1 만 받는다 · 바뀌어도 안쪽의 다른 opencode 일 뿐 바깥으로 가지 않는다 | — |
 
@@ -269,12 +269,12 @@ docs/plans/terminal-1-claude-guide.md (이 지침) 를 끝까지 읽어. 지침 
 ```json
 {
   "project_title": "Terminal–1 Claude 채널 — 사내 작업 (Claude 가 일하는 자리 · opencode 는 짝지은 일꾼 · Diode 와 같이)",
-  "executive_summary": "사내 PC 에서 Terminal–1 에 Claude 채널을 더한다. 채널 목록은 따로 된 파일에 두어 opencode 채널과 instances.json 을 건드리지 않고, Claude 채널은 형제 폴더의 Diode 상태 명령 (format 1 계약) 이 방이라고 확인할 때만 열며 그 밖은 막는 쪽으로 실패한다. 사내 이름은 이 PC 설정에만 두고, 사내 Windows 에서 돌지 않는 PS 동작 시험은 손 점검표로 대신해 보고한다.",
+  "executive_summary": "사내 PC 에서 Terminal–1 에 Claude 채널을 더한다. 채널 목록은 따로 된 파일에 두어 opencode 채널과 instances.json 을 건드리지 않고, Claude 채널은 D:\\claude\\diode 에 설치된 Diode 의 상태 명령 (format 1 계약) 이 방이라고 확인할 때만 열며 그 밖은 막는 쪽으로 실패한다. 사내 이름은 이 PC 설정에만 두고, 사내 Windows 에서 돌지 않는 PS 동작 시험은 손 점검표로 대신해 보고한다.",
   "total_estimated_effort": 43,
   "tasks": [
     {"task_id": "C1", "task_name": "사내 판 확인", "description": "작업 세션을 D:\\OPENCODE\\terminal-1 에서 열고 (IH-1) AGENTS.md · RULES.md · DEVELOP.md · 이 지침을 끝까지 읽은 뒤, 지침 03 에 적힌 사실 (명령 목록 · Get-InstanceTabArgs 의 칸 · Q() · Sync-PwFile · company 블록이 settings.json 을 통째로 씀 · t1_monitor.py 의 모드 · instances.json 을 배열로 읽음 · VERSION · test_ps1 의 Windows 건너뜀) 이 사내 판과 같은지 하나씩 확인한다. 다르면 지침 03 · 04 에서 고칠 줄과 까닭을 적어 사람에게 보이고, 04 의 설계를 흔드는 차이면 멈추고 묻는다.", "tier": "Tier 1", "difficulty": "High", "effort_level": 5, "assigned_model": "claude-opus-5.5", "agent_role": "Codebase_Auditor", "expected_output": "사내 판과 지침의 차이 목록 (없으면 없음) · 고칠 줄 제안", "dependencies": []},
     {"task_id": "C2", "task_name": "terminal-1.ps1 — 채널 파일 · 명령 · 탭 배치", "description": "지침 04-1 대로 claude-channels.json (format 1 · 원자적 쓰기 · .broken · 더 새 format 은 읽기만) 을 읽고 쓰는 함수를 더하고, Get-FreeCh · 이름 검사가 두 파일을 합쳐 보게 한다. 04-3 대로 settings.json 쓰기를 '읽고 고칠 키만 바꾸고 나머지를 지켜 원자적으로' 로 고쳐 company 와 claude-cmd 가 서로 지우지 않게 하고, claude-cmd 명령 (검증 · Get-Command 경고) 을 더한다. 04-2 대로 add -Claude -Worker · ls · focus · rm · prune 을 Claude 채널에 맞게 하고 (-Headless · -Port 와 같이 쓰면 종료 코드 2 · 방 경로의 % 거부), 04-6 대로 주 칸 (DIODE_WORKER_URL 은 127.0.0.1 만 · 비밀번호 없음) · 오른쪽 diode 칸 · 아래 일꾼 status 칸을 만든다. instances.json 과 opencode 채널의 동작 · 출력은 바꾸지 않는다. PowerShell 5.1 · CRLF · UTF-8 BOM · 경로는 큰따옴표. 테스트 자료 · 명령 이름은 지어낸 것만 (IH-3 · IH-4).", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 9, "assigned_model": "claude-sonnet", "agent_role": "Shell_Integration_Engineer", "expected_output": "terminal-1.ps1 변경 · 테스트 (AC-02–AC-06 · AC-12–AC-15)", "dependencies": ["C1"]},
-    {"task_id": "C3", "task_name": "여는 문턱 · Diode 계약 읽기", "description": "지침 04-4 의 GT-1–GT-6 을 함수 하나 (Test-ClaudeGate · 결과 객체 open · reason · code) 로 만들고, 04-5 의 계약 (format 1 · 필수 칸 · 값 범위 · 모르는 키 무시 · 모르는 format 은 GT-5 · 제한 시간 5초 · 출력은 화면에만) 대로 Diode 상태 명령을 부르고 읽는다. Diode 자리는 Terminal–1 폴더의 형제 폴더 diode 로만 정하고 설정 · 환경 변수 · 인자로 받지 않는다 (AC-11). 임시 폴더에 terminal-1/ 과 가짜 diode/diode.py 를 나란히 두는 테스트로 정상 · 방 아님 · 안전벨트 꺼짐 · 모르는 format · 깨진 JSON · 느림 · 실패 · profile missing · changed · focus 재검사를 본다. 같은 판정 규칙을 Python 쪽 계약 읽기에도 두어 사내 Windows 에서도 unittest 로 돈다 (지침 07). 문턱을 푸는 옵션은 만들지 않는다 (IH-6).", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Logic_Developer", "expected_output": "문턱 함수 · 계약 읽기 · 가짜 Diode 테스트 (AC-07–AC-11)", "dependencies": ["C1"]},
+    {"task_id": "C3", "task_name": "여는 문턱 · Diode 계약 읽기", "description": "지침 04-4 의 GT-1–GT-6 을 함수 하나 (Test-ClaudeGate · 결과 객체 open · reason · code) 로 만들고, 04-5 의 계약 (format 1 · 필수 칸 · 값 범위 · 모르는 키 무시 · 모르는 format 은 GT-5 · 제한 시간 5초 · 출력은 화면에만) 대로 Diode 상태 명령을 부르고 읽는다. Diode 자리는 상수 D:\\claude\\diode\\diode.py 하나로 두고 설정 · 환경 변수 · 명령 인자로 받지 않는다 (AC-11). 문턱 함수에 가짜 Diode 경로를 함수 인자로 넘기는 테스트로 정상 · 방 아님 · 안전벨트 꺼짐 · 모르는 format · 깨진 JSON · 느림 · 실패 · profile missing · changed · focus 재검사를 본다. 같은 판정 규칙을 Python 쪽 계약 읽기에도 두어 사내 Windows 에서도 unittest 로 돈다 (지침 07). 문턱을 푸는 옵션은 만들지 않는다 (IH-6).", "tier": "Tier 1", "difficulty": "High", "effort_level": 7, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Logic_Developer", "expected_output": "문턱 함수 · 계약 읽기 · 가짜 Diode 테스트 (AC-07–AC-11)", "dependencies": ["C1"]},
     {"task_id": "C4", "task_name": "t1_monitor.py — DIODE 칸 · overview · job 표시", "description": "지침 04-7 대로 diode 모드를 더해 5초마다 (겹쳐 부르지 않게) Diode 상태 명령을 읽고 방 · 안전벨트 · 일꾼 · 대기 수 · 일 목록 · 이번 달 % · effort 를 Terminal–1 칸 문법 (세그먼트 숫자 · 폭 1칸 아이콘 · ? 가이드 · --once · 빨강 없음) 으로 보인다. Diode 실패 · 모르는 format 이면 DIODE — 와 까닭 번호만 보이고 칸이 멈추지 않게 한다. 04-8 대로 overview 의 인스턴스 표에 Claude 채널 줄을 더하되 펫 목장 · 레이드에는 넣지 않는다. 04-5 의 job 표시 약속대로 status 칸이 [diode J-0007] 로 시작하는 세션에 DIODE J-0007 표시를 단다. 모든 화면 스모크 테스트에 Claude 채널을 더한다.", "tier": "Tier 2", "difficulty": "Medium-High", "effort_level": 8, "assigned_model": "claude-sonnet", "agent_role": "UI_Engineer", "expected_output": "t1_monitor.py 변경 · --once 한 장 · 테스트 (AC-16 · AC-17)", "dependencies": ["C3"]},
     {"task_id": "C5", "task_name": "같이 바꿀 곳 · 문서", "description": "지침 06 의 표를 모두 한다: VERSION 1.2.0 · MANUAL (02 · 03 · 05 · 08 · 10 알려진 한계 둘) · GUIDE.md commands · layout · README 사양 줄과 테스트 수 (돌려서 얻은 값) · INSTALL 의 claude-cmd [질문] 단계와 제거 절 · REGISTRY › PC 에 남기는 것의 terminal-1 줄. 사내 이름 · 사내 화면 스크린샷을 넣지 않는다.", "tier": "Tier 3", "difficulty": "Medium", "effort_level": 5, "assigned_model": "claude-sonnet", "agent_role": "Documentation_Specialist", "expected_output": "문서 변경 · works_check 새 경고 0 (AC-18)", "dependencies": ["C2", "C4"]},
     {"task_id": "C6", "task_name": "통합 검증 · 보고", "description": "지침 09 의 AC-01–AC-18 을 모두 다시 돌리고, 사내 Windows 에서는 손 점검표 1–6 을 사람과 함께 한다. 원자료처럼 꾸민 지어낸 폴더에 Claude 채널 열기 · Diode 없음 · 모르는 format · 방 프로필 바뀜 · focus 재검사 · 비밀번호가 명령줄에 없는지 · 기존 opencode 채널이 예전 그대로인지 · DIODE 칸에 민감한 칸이 없는지를 본다. git diff 에서 IH-3 의 사내 이름을 찾아 개수만 적는다. 결함마다 실패하는 테스트를 붙이고, 지침 10 의 틀로 보고한다 (못 돌린 시험은 못 돌렸다고).", "tier": "Tier 0", "difficulty": "Extreme", "effort_level": 9, "assigned_model": "claude-opus-5.5", "agent_role": "Security_Integrity_Auditor", "expected_output": "지침 10 틀의 보고 · 결함마다 실패하는 테스트", "dependencies": ["C5"]}
