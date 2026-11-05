@@ -1,6 +1,7 @@
 # Terminal–1 Claude 채널 — 사내 작업 지침
 
 - **누가 읽나**: 사내 PC 에서 Terminal–1 을 고치는 에이전트 (opencode 의 사내 LLM 또는 사내 Claude Code) 와 그 사람. 이 문서 하나로 시작해서 끝낼 수 있게 썼다.
+- **선택이다**: Diode 는 Claude CLI 에 설치하는 플러그인이라 Terminal–1 없이 Claude CLI 만으로 돈다 ([Diode 기획서](diode-plan-draft.md) 7판). 이 지침은 사내에서 Terminal–1 안에 Claude CLI 를 열어 쓰고 싶을 때의 튜닝이다 — 하지 않아도 Diode 의 기능은 그대로다.
 - **무엇**: Terminal–1 에 **Claude 채널** 을 더한다. 사람은 이 탭에서 사내 Claude Code 와 일하고, Claude 는 Diode 를 거쳐 짝지은 opencode 채널 (일꾼 · 원자료가 있는 프로젝트) 에 일을 넘긴다. Diode 의 설계는 [Diode 기획서](diode-plan-draft.md) 6판 › 07 › Claude 가 앞에서.
 - **자리**: 구현은 사내에서 한다 (사용자 결정 · 2026-11-05). 이 지침은 공개 저장소에 있고, 사내 PC 는 works 저장소를 받아 이 파일을 읽는다.
 - **정본 관계**: 규칙의 정본은 [RULES.md](../../RULES.md) · [DEVELOP.md](../DEVELOP.md) 다. 이 지침은 그 위에 **이 변경에만 있는 금지 · 같이 바꿀 곳 · 합격 기준** 을 더한다 (앱 `AGENTS.md` 와 같은 역할). 부딪히면 RULES.md 가 이긴다.
@@ -131,6 +132,7 @@ docs/plans/terminal-1-claude-guide.md (이 지침) 를 끝까지 읽어. 지침 
 | 오른쪽 | `Py 'diode' "--room <방> --name <이름> --color <색>"` (새 모드 · 04-7) |
 | 아래 | 일꾼이 있으면 `Py 'status' "--url <일꾼 url> --name <일꾼 이름> --color <일꾼 색> --reg-dir --since <일꾼 created>"` — 지금의 status 모드를 일꾼 포트로 띄운다. 세션 트리 · 할 일 · 허락 대기 칩이 그대로 보인다 |
 
+- `DIODE_WORKER_URL` 은 Diode 플러그인 설정의 `worker_url` 보다 앞선다 — Terminal–1 이 짝지은 일꾼을 그 탭에서만 쓰게 한다. 넘기지 않으면 Diode 는 자기 설정의 주소를 쓴다.
 - 새 탭은 이 셸의 환경을 물려받지 않으므로 (`Sync-PwFile` 의 주석) 일꾼 주소는 명령줄로 넘긴다. 주소는 비밀이 아니다. `set "…"` 의 따옴표가 `Q()` · wt 를 지나 그대로 남는지는 C2 에서 가짜 wt 로 확인하고, Windows 에서는 손 점검표 (09) 로 본다 [제안].
 - **비밀번호는 넘기지 않는다** (IH-7). Diode 허브는 opencode 의 `OPENCODE_SERVER_PASSWORD` 를 자기 환경에서 읽거나 Diode 자기 설정의 참조로 받는다 — Terminal–1 의 `server-password` 파일을 Diode 가 읽지 않는다 (W-01 의 뜻).
 - compose 칸 · 펫 칸은 두지 않는다. 사용량 칸도 따로 두지 않는다 — 이번 달 사용은 DIODE 칸에 있다.
